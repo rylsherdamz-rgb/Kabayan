@@ -6,7 +6,8 @@ import {Pressable} from "react-native"
 
 export default function TabsLayout() {
     // add components here for the components to be reusable in here 
-    return <Tabs screenOptions={{headerTitle : "",
+    return <Tabs screenOptions={{
+        headerTitle : "",
         headerRight: () => null,
         headerLeft: () => null,
         headerStyle :  {
