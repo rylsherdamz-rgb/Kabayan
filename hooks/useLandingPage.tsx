@@ -5,7 +5,7 @@ export default function useLandingPage() {
 
     const getIsFirstOpened = () => {
     const hasOpened =  storage.getBoolean("isFirstOpened")
-    return hasOpened === undefined ? true : !hasOpened
+    return hasOpened  === undefined ? true : !hasOpened
     }  
    
     const setIsFirstOpened = () => {

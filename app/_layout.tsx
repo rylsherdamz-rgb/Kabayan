@@ -5,7 +5,6 @@ import Drawer from "expo-router/drawer"
 import {StatusBar} from "react-native"
 import "../global.css"
 import useLandingPage from "@/hooks/useLandingPage"
-import {storage} from "@/utils/MMKVConfig"
 
 
 
@@ -18,6 +17,25 @@ export default function RootLayout() {
     const LandingPageValue = hasOpened === undefined ? true : !hasOpened
     setFirstOpened(LandingPageValue)
    }, [])
+
+   // pass this funciton in the landingpage of the onboarding
+   const handleFinishOnBoarding = () => {
+    setIsFirstOpened()
+    setFirstOpened(false)
+   }
+
+   if (FirstOpened === null) {
+    // show the loading Page
+    return
+   }
+
+   if (FirstOpened) {
+    // show the onboardingPage
+    return
+   }
+
+   // show the tabs
+
   return <GestureHandlerRootView style={{flex:1}}>
     <SafeAreaProvider>
       <StatusBar />
