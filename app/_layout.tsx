@@ -1,5 +1,6 @@
 import {SafeAreaProvider} from "react-native-safe-area-context"
 import {GestureHandlerRootView} from "react-native-gesture-handler"
+import {Redirect} from "expo-router"
 import {useEffect, useState} from "react"
 import {useSafeAreaInsets} from "react-native-safe-area-context"
 import Drawer from "expo-router/drawer"
@@ -12,7 +13,7 @@ import Index from "./index"
 
 export default function RootLayout() {
   const {getIsFirstOpened, setIsFirstOpened} = useLandingPage()
-  const [FirstOpened, setFirstOpened] = useState<boolean |  null>(null)
+  const [FirstOpened, setFirstOpened] = useState<boolean |  null>(false)
   const inset =  useSafeAreaInsets()
 
    useEffect(() => {
@@ -32,20 +33,25 @@ export default function RootLayout() {
     return 
    }
 
-   if (FirstOpened) {
-    // show the onboardingPage
-    return <Index onBoardingFunction={handleFinishOnBoarding} />
-   }
+  //  if (FirstOpened) {
+  //   // show the onboardingPage
+  //   return <Index onBoardingFunction={handleFinishOnBoarding} />
+  //  }
 
 
   return <GestureHandlerRootView style={{flex:1}}>
-    <SafeAreaProvider  >
+    <SafeAreaProvider style={{flex : 1}}  >
       <StatusBar />
-      <Drawer screenOptions={{headerShown: false}}>
+      <Drawer screenOptions={{headerShown: false,
+      }}>
+        <Drawer.Screen name="/(tabs)/Home" options={{drawerLabel : "Home"}} />
         <Drawer.Screen name="index" options={{drawerItemStyle : { display: 'none'}}}/>
-        <Drawer.Screen name="(tabs)" options={{drawerLabel : "Home"}} />
         {/* <Drawer.Screen name="other-stacks" options={{drawerItemStyle : { display: 'none'}}}/> */}
       </Drawer>
-    </SafeAreaProvider>
+
+{FirstOpened === false && <Redirect href={"/(tabs)/Home"}  />}
+
+
+    </SafeAreaProvider>c
   </GestureHandlerRootView>
 }
