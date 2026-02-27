@@ -5,6 +5,7 @@ import Drawer from "expo-router/drawer"
 import {StatusBar} from "react-native"
 import "../global.css"
 import useLandingPage from "@/hooks/useLandingPage"
+import Index from "./index"
 
 
 
@@ -31,7 +32,7 @@ export default function RootLayout() {
 
    if (FirstOpened) {
     // show the onboardingPage
-    return
+    return <Index onBoardingFunction={handleFinishOnBoarding} />
    }
 
    // show the tabs
