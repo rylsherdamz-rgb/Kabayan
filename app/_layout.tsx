@@ -52,6 +52,6 @@ export default function RootLayout() {
 {FirstOpened === false && <Redirect href={"/(tabs)/Home"}  />}
 
 
-    </SafeAreaProvider>c
+    </SafeAreaProvider>
   </GestureHandlerRootView>
 }
