@@ -35,7 +35,6 @@ export default function RootLayout() {
     return <Index onBoardingFunction={handleFinishOnBoarding} />
    }
 
-   // show the tabs
 
   return <GestureHandlerRootView style={{flex:1}}>
     <SafeAreaProvider>
