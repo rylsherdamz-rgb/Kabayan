@@ -1,15 +1,8 @@
-import { Text, View } from "react-native";
+import {View, Pressable, Text} from "react-native"
 
-export default function Index() {
-  return (
-    <View
-      style={{
-        flex: 1,
-        justifyContent: "center",
-        alignItems: "center",
-      }}
-    >
-      <Text>Edit app/index.tsx to edit this screen.</Text>
-    </View>
-  );
+
+export default function LandingPage() {
+  return <View className="flex-1">
+    <Text> this is the loadingFirst for the moment</Text>
+  </View>
 }

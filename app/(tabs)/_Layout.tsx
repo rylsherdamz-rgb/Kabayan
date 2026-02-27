@@ -1,4 +1,6 @@
 import {Tabs} from "expo-router"
+import {Feather} from "@expo/vector-icons"
+import {Pressable} from "react-native"
 
 
 
@@ -13,8 +15,7 @@ export default function TabsLayout() {
         tabBarActiveTintColor: "#000", // change the color of this to math the color pallete of the logo
         tabBarInactiveTintColor : "#ff0"
      }}>
-        <Tabs.Screen options={{}}>
+        <Tabs.Screen name="Home" options={{}} />
 
-        </Tabs.Screen>
     </Tabs>
 }
