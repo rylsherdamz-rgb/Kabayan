@@ -1,6 +1,7 @@
 import {SafeAreaProvider} from "react-native-safe-area-context"
 import {GestureHandlerRootView} from "react-native-gesture-handler"
 import {useEffect, useState} from "react"
+import {useSafeAreaInsets} from "react-native-safe-area-context"
 import Drawer from "expo-router/drawer"
 import {StatusBar} from "react-native"
 import "../global.css"
@@ -12,6 +13,7 @@ import Index from "./index"
 export default function RootLayout() {
   const {getIsFirstOpened, setIsFirstOpened} = useLandingPage()
   const [FirstOpened, setFirstOpened] = useState<boolean |  null>(null)
+  const inset =  useSafeAreaInsets()
 
    useEffect(() => {
     const hasOpened = getIsFirstOpened() 
@@ -27,7 +29,7 @@ export default function RootLayout() {
 
    if (FirstOpened === null) {
     // show the loading Page
-    return
+    return 
    }
 
    if (FirstOpened) {
@@ -37,9 +39,9 @@ export default function RootLayout() {
 
 
   return <GestureHandlerRootView style={{flex:1}}>
-    <SafeAreaProvider>
+    <SafeAreaProvider  >
       <StatusBar />
-      <Drawer options={{headerShown: false}}>
+      <Drawer screenOptions={{headerShown: false}}>
         <Drawer.Screen name="index" options={{drawerItemStyle : { display: 'none'}}}/>
         <Drawer.Screen name="(tabs)" options={{drawerLabel : "Home"}} />
         {/* <Drawer.Screen name="other-stacks" options={{drawerItemStyle : { display: 'none'}}}/> */}
