@@ -39,7 +39,11 @@ export default function RootLayout() {
   return <GestureHandlerRootView style={{flex:1}}>
     <SafeAreaProvider>
       <StatusBar />
-      <Drawer options={{headerShown: false}} />
+      <Drawer options={{headerShown: false}}>
+        <Drawer.Screen name="index" options={{drawerItemStyle : { display: 'none'}}}/>
+        <Drawer.Screen name="(tabs)" options={{drawerLabel : "Home"}} />
+        {/* <Drawer.Screen name="other-stacks" options={{drawerItemStyle : { display: 'none'}}}/> */}
+      </Drawer>
     </SafeAreaProvider>
   </GestureHandlerRootView>
 }
