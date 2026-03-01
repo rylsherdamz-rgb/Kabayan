@@ -2,7 +2,9 @@ import BottomSheet, { BottomSheetBackdrop, BottomSheetView } from "@gorhom/botto
 import React, { useMemo, useCallback, useState, useEffect } from "react";
 import { View,  Text, Pressable  } from "react-native";
 
-export default function CustomBottomSheet({ bottomSheetRef, count, setCount, difficulty, setDifficulty }: any) {
+//create schema fo rthis to ensure good auth
+
+export default function CustomBottomSheet({ bottomSheetRef, gmail, password difficulty, setDifficulty }: any) {
   const snapPoints = useMemo(() => ["50%"], []);
   const [localDifficulty, setLocalDifficulty] = useState(difficulty);
 
