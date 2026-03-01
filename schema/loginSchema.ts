@@ -14,7 +14,9 @@ const passwordSchema = z
   .refine((val) => /[!@#$%^&*]/.test(val),{
     message: "Password must contain at least one special character"});
 
-export const LoginSchema = z.object({
+export const RegisterFormSchema = z.object({
   email: z.email(), 
   password: passwordSchema
 });
+
+export type RegisterFormType = z.infer<typeof RegisterFormSchema>
