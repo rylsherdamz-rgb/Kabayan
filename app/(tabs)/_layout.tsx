@@ -1,8 +1,13 @@
 import { Tabs } from "expo-router";
-import {StatusBar} from "react-native"
+import {StatusBar, Pressable,} from "react-native"
 import { Feather } from "@expo/vector-icons";
+import CustomBackButton from "@/components/CustomComponents/CustomBackButtonComponents"
+import {useNavigation} from "expo-router"
+import {DrawerActions} from"@react-navigation/native"
+
 
 export default function TabsLayout() {
+  const navigator = useNavigation()
 
   return (<>
     <StatusBar barStyle="light-content" />
@@ -13,7 +18,8 @@ export default function TabsLayout() {
         headerStyle: {
           backgroundColor: "#000",
           shadowOpacity: 0, 
-          height :80
+          height :80,
+
         },
         tabBarStyle: {
           backgroundColor: "#000",
@@ -23,6 +29,14 @@ export default function TabsLayout() {
         tabBarInactiveTintColor: "#888",
         tabBarLabelStyle: {
         },
+        headerLeft :  () => (<Pressable className="" onPress={() => navigator.dispatch(DrawerActions.toggleDrawer())}>
+          <Feather name="menu" color="#fff" size={24} />
+        </Pressable>),
+        headerRightContainerStyle: {
+      paddingRight: 5, // Adds padding inside the right container
+      },
+      headerLeftContainerStyle: {
+      paddingLeft: 5,     },
       }}
     >
     
