@@ -5,13 +5,13 @@ import Drawer from "expo-router/drawer";
 import { useEffect, useState } from "react";
 import { StatusBar, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
+import Index from "./index"
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import "../global.css";
 
 export default function RootLayout() {
   const { getIsFirstOpened, setIsFirstOpened } = useLandingPage();
   const [FirstOpened, setFirstOpened] = useState<boolean | null>(false);
-  const inset = useSafeAreaInsets();
 
   useEffect(() => {
     const hasOpened = getIsFirstOpened();
@@ -26,8 +26,6 @@ export default function RootLayout() {
   };
 
   if (FirstOpened === null) {
-    // show the loading Page
-
     return (
       <View className="flex flex-1">
         <CustomLoading />
@@ -35,15 +33,15 @@ export default function RootLayout() {
     );
   }
 
-  //  if (FirstOpened) {
-  //   // show the onboardingPage
-  //   return <Index onBoardingFunction={handleFinishOnBoarding} />
-  //  }
+   if (FirstOpened) {
+    // change this later to be the landing page
+    return <Index  />
+   }
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaProvider style={{ flex: 1 }}>
-        <StatusBar />
+      <SafeAreaProvider>
+        <StatusBar barStyle="dark-content" />
         <Drawer screenOptions={{ headerShown: false }}>
           <Drawer.Screen
             name="/(tabs)/Home"
@@ -53,9 +51,7 @@ export default function RootLayout() {
             name="index"
             options={{ drawerItemStyle: { display: "none" } }}
           />
-          {/* <Drawer.Screen name="other-stacks" options={{drawerItemStyle : { display: 'none'}}}/> */}
         </Drawer>
-        {FirstOpened === false && <Redirect href={"/(tabs)/Home"} />}
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
