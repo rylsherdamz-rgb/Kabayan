@@ -1,7 +1,7 @@
-import {View, Text, Pressable} from "react-native"
+import {ScrollView, Text, Pressable, View} from "react-native"
 
 export default function Jobs() {
-    return <View>
+    return <ScrollView className="flex flex-1">
 
-    </View>
+    </ScrollView>
 }

@@ -7,6 +7,7 @@ import { StatusBar, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import Index from "./index"
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import CustomDrawerContent from "@/components/CustomComponents/CustomDrawerContent" 
 import "../global.css";
 
 export default function RootLayout() {
@@ -42,7 +43,9 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <StatusBar barStyle="dark-content" />
-        <Drawer screenOptions={{ headerShown: false }}>
+        <Drawer
+        drawerContent={(props) => <CustomDrawerContent {...props} />}
+         screenOptions={{ headerShown: false }}>
           <Drawer.Screen
             name="/(tabs)/Home"
             options={{ drawerLabel: "Home" }}
