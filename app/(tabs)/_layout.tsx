@@ -1,13 +1,13 @@
 import { Tabs } from "expo-router";
 import {StatusBar, Pressable,} from "react-native"
-import { Feather } from "@expo/vector-icons";
+import { Feather, Entypo, Ionicons } from "@expo/vector-icons";
 import CustomBackButton from "@/components/CustomComponents/CustomBackButtonComponents"
 import {useNavigation} from "expo-router"
 import {DrawerActions} from"@react-navigation/native"
 
 
 export default function TabsLayout() {
-  const navigator = useNavigation()
+  // const navigator = useNavigation()
 
   return (<>
     <StatusBar barStyle="light-content" />
@@ -29,17 +29,19 @@ export default function TabsLayout() {
         tabBarInactiveTintColor: "#888",
         tabBarLabelStyle: {
         },
-        headerLeft :  () => (<Pressable className="" onPress={() => navigator.dispatch(DrawerActions.toggleDrawer())}>
-          <Feather name="menu" color="#fff" size={24} />
+        // headerLeft :  () => (<Pressable className="" onPress={() => navigator.dispatch(DrawerActions.toggleDrawer())}>
+        //   <Feather name="menu" color="#fff" size={24} />
+        // </Pressable>),
+        headerRight : () => (<Pressable>
+          <Ionicons name="notifications-outline" size={20} color="#fff" />
         </Pressable>),
         headerRightContainerStyle: {
-      paddingRight: 5, // Adds padding inside the right container
+      paddingRight: 10, // Adds padding inside the right container
       },
       headerLeftContainerStyle: {
-      paddingLeft: 5,     },
+      paddingLeft: 10,     },
       }}
     >
-    
       <Tabs.Screen
         name="home" 
         options={{
@@ -50,9 +52,31 @@ export default function TabsLayout() {
           ),
         }}
       />
+    <Tabs.Screen
+        name="jobs" 
+        options={{
+          title: "Job",
+          tabBarLabel: "Job",
+          tabBarIcon: ({ color, size }) => (
+            <Entypo name="man" color={color} size={size} />
+          ),
+        }}
+      />
+    <Tabs.Screen
+        name="marketPlace" 
+        options={{
+          title: "Market Place",
+          tabBarLabel: "Market Place",
+          tabBarIcon: ({ color, size }) => (
+            <Feather name="home" color={color} size={size} />
+          ),
+        }}
+      />
+
+
 
       <Tabs.Screen
-        name="Setting" 
+        name="setting" 
         options={{
           title: "Settings",
           tabBarLabel: "Settings",

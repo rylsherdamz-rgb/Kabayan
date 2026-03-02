@@ -82,8 +82,5 @@ export default function useAccount ()  {
         } 
     }
 
-
-
-
- 
+    return {Resend, SignOut, ResetEmailPassword,SignUpWithEmailAndPassword, SignInWithPassword}
 }
