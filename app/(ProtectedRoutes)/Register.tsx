@@ -1,13 +1,16 @@
-import CustomBottomSheet from "@/components/CustomComponents/CustomBackButtonComponents"
+import CustomBottomSheet from "@/components/CustomComponents/CustomBottomSheet"
 import useAccount from "@/hooks/useAccountHooks"
-import {useState} from "react"
+import {useState, useRef} from "react"
 import { RegisterFormType, RegisterFormSchema } from "@/schema/loginSchema"
 import { zodResolver } from "@hookform/resolvers/zod"
+import bottomSheet from "@gorhom/bottom-sheet"
 import { useForm } from "react-hook-form"
+
 import {View, Text, Pressable} from "react-native"
 
 export default function Login() {
     // show only one type of registration screen out of the bottomsheet
+    const bottomSheetRef = useRef<bottomSheet>(null)
     const {register, handleSubmit,formState: {errors}} = useForm<RegisterFormType>({
         resolver : zodResolver(RegisterFormSchema)
     })
@@ -25,12 +28,12 @@ return (
         </Text>
         </View>
         <View className="flex flex-row gap-x-5">
-            <Pressable onPress={() => setVisible(true)} className="">
+            <Pressable onPress={() => bottomSheetRef.current?.expand()} className="">
             <Text className="text-white">
                Register 
             </Text> 
             </Pressable>
-            <Pressable onPress={() => setVisible(true)} className="">
+            <Pressable onPress={() => bottomSheetRef.current?.expand() } className="">
             <Text className="text-white">
                Sign Up 
             </Text> 
@@ -38,7 +41,7 @@ return (
 
 
         </View>
-    {/* <CustomBottomSheet /> */}
+    <CustomBottomSheet bottomSheetRef={bottomSheetRef}  />
     </View>
 )    
 }
