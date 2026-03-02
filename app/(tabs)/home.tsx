@@ -3,11 +3,9 @@ import CustomSearchComponent from "@/components/CustomComponents/CustomSearchCom
 
 export default function Home() {
   return (
-    <View className=" w-full h-full px-[5%]">
-    <View className="w-full h-[10vh] bg-green-500">
-      <Text className="text-2xl font-bold">
-         hello
-      </Text>
+    <View className=" w-full h-full py-4 px-[5%]">
+    <View className="w-full h-10 py-2.5 px-5 rounded-2xl border  ">
+      <CustomSearchComponent />      
     </View>
 
     </View>
