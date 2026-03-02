@@ -1,6 +1,5 @@
 import CustomLoading from "@/components/CustomComponents/CustomLoadingSpinner";
 import useLandingPage from "@/hooks/useLandingPage";
-import { Redirect } from "expo-router";
 import Drawer from "expo-router/drawer";
 import { useEffect, useState } from "react";
 import { StatusBar, View } from "react-native";

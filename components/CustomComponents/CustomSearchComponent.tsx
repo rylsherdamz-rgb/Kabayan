@@ -1,7 +1,9 @@
 import {TextInput,Text, View, Pressable} from "react-native"
-import 
+import {Feather, Ionicons} from "@expo/vector-icons"
 
 
 export default function CustomSearchComponent() {
-    return
+    return <Pressable className="flex flex-row gap-x-10">
+        
+    </Pressable> 
 }
