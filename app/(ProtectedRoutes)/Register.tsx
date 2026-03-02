@@ -11,6 +11,7 @@ import {View, Text, Pressable} from "react-native"
 export default function Login() {
     // show only one type of registration screen out of the bottomsheet
     const bottomSheetRef = useRef<bottomSheet>(null)
+    const [type, setType] =  useState<string>("")
     return (
     <View className="w-full h-full flex justify-center gap-y-10 items-center  bg-black">
         <View className="">
@@ -19,20 +20,24 @@ export default function Login() {
         </Text>
         </View>
         <View className="flex flex-row gap-x-5">
-            <Pressable onPress={() => bottomSheetRef.current?.expand()} className="">
-            <Text className="text-white">
-               Register 
-            </Text> 
-            </Pressable>
-            <Pressable onPress={() => bottomSheetRef.current?.expand() } className="">
+            <Pressable onPress={() => {bottomSheetRef.current?.expand()
+                setType("signUp")
+            }} className="">
             <Text className="text-white">
                Sign Up 
+            </Text> 
+            </Pressable>
+            <Pressable onPress={() => {bottomSheetRef.current?.expand()
+                setType("SignIn")
+            } } className="">
+            <Text className="text-white">
+               Sign In
             </Text> 
             </Pressable>
 
 
         </View>
-    <CustomBottomSheet bottomSheetRef={bottomSheetRef}  />
+    <CustomBottomSheet type={type}  bottomSheetRef={bottomSheetRef}  />
     </View>
 )    
 }
