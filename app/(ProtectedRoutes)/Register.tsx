@@ -11,16 +11,7 @@ import {View, Text, Pressable} from "react-native"
 export default function Login() {
     // show only one type of registration screen out of the bottomsheet
     const bottomSheetRef = useRef<bottomSheet>(null)
-    const {register, handleSubmit,formState: {errors}} = useForm<RegisterFormType>({
-        resolver : zodResolver(RegisterFormSchema)
-    })
-    const [visible, setVisible]  = useState<boolean>()
-    const {SignUpWithEmailAndPassword, SignInWithPassword, Resend} = useAccount() 
-
-    
-
-
-return (
+    return (
     <View className="w-full h-full flex justify-center gap-y-10 items-center  bg-black">
         <View className="">
         <Text className="text-lg scale-x-150 scale-y-125 font-[800] text-white">
