@@ -8,8 +8,7 @@ export default function Login() {
         resolver : zodResolver(RegisterFormSchema)
     })
 
-    const onSubmit: SubmitHandler<RegisterFormType> = async ({email, password} : RegisterFormType) => {
-    }
+    
 
 
 }
