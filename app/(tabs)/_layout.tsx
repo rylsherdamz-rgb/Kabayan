@@ -1,91 +1,96 @@
+import React from "react";
 import { Tabs } from "expo-router";
-import {StatusBar, Pressable,} from "react-native"
-import { Feather, Entypo, Ionicons } from "@expo/vector-icons";
-import CustomBackButton from "@/components/CustomComponents/CustomBackButtonComponents"
-import {useNavigation} from "expo-router"
-import {DrawerActions} from"@react-navigation/native"
-
+import { StatusBar, Pressable, View, Text } from "react-native";
+import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { useTheme } from "@/hooks/useTheme";
 
 export default function TabsLayout() {
-  // const navigator = useNavigation()
+  const { t } = useTheme();
 
-  return (<>
-    <StatusBar barStyle="light-content" />
-    <Tabs
-      screenOptions={{
-        headerShown: true,
-        headerTitle: "",
-        headerStyle: {
-          backgroundColor: "#000",
-          shadowOpacity: 0, 
-          height :80,
-
-        },
-        tabBarStyle: {
-          backgroundColor: "#000",
-          borderTopWidth: 0,
-        },
-        tabBarActiveTintColor: "#fff",
-        tabBarInactiveTintColor: "#888",
-        tabBarLabelStyle: {
-        },
-        // headerLeft :  () => (<Pressable className="" onPress={() => navigator.dispatch(DrawerActions.toggleDrawer())}>
-        //   <Feather name="menu" color="#fff" size={24} />
-        // </Pressable>),
-        headerRight : () => (<Pressable>
-          <Ionicons name="notifications-outline" size={20} color="#fff" />
-        </Pressable>),
-        headerRightContainerStyle: {
-      paddingRight: 10, // Adds padding inside the right container
-      },
-      headerLeftContainerStyle: {
-      paddingLeft: 10,     },
-      }}
-    >
-      <Tabs.Screen
-        name="home" 
-        options={{
-          title: "Home",
-          tabBarLabel: "Home",
-          tabBarIcon: ({ color, size }) => (
-            <Feather name="home" color={color} size={size} />
+  return (
+    <>
+      <StatusBar barStyle={t.isDarkMode ? "light-content" : "dark-content"} />
+      <Tabs
+        screenOptions={{
+          headerShown: true,
+          headerTitle: "",
+          headerStyle: {
+            backgroundColor: t.isDarkMode ? "#0F172A" : "#FFFFFF",
+            elevation: 0,
+            shadowOpacity: 0,
+            borderBottomWidth: 1,
+            borderBottomColor: t.isDarkMode ? "#1E293B" : "#F1F5F9",
+            height: 100,
+          },
+          tabBarStyle: {
+            backgroundColor: t.isDarkMode ? "#0F172A" : "#FFFFFF",
+            borderTopWidth: 1,
+            borderTopColor: t.isDarkMode ? "#1E293B" : "#F1F5F9",
+            height: 65,
+            paddingBottom: 10,
+            paddingTop: 5,
+          },
+          tabBarActiveTintColor: "#2563EB",
+          tabBarInactiveTintColor: t.isDarkMode ? "#64748B" : "#94A3B8",
+          tabBarLabelStyle: {
+            fontSize: 10,
+            fontWeight: "800",
+            textTransform: "uppercase",
+            letterSpacing: 0.5,
+          },
+          headerRight: () => (
+            <Pressable className="mr-5 p-2 rounded-xl bg-slate-50 dark:bg-slate-800">
+              <Ionicons name="notifications-outline" size={20} color={t.icon} />
+            </Pressable>
+          ),
+          headerLeft: () => (
+            <View className="ml-5">
+              <Text className="text-blue-600 font-black tracking-tighter text-xl">KABAYAN</Text>
+            </View>
           ),
         }}
-      />
-    <Tabs.Screen
-        name="jobs" 
-        options={{
-          title: "Job",
-          tabBarLabel: "Job",
-          tabBarIcon: ({ color, size }) => (
-            <Entypo name="man" color={color} size={size} />
-          ),
-        }}
-      />
-    <Tabs.Screen
-        name="marketPlace" 
-        options={{
-          title: "Market Place",
-          tabBarLabel: "Market Place",
-          tabBarIcon: ({ color, size }) => (
-            <Feather name="home" color={color} size={size} />
-          ),
-        }}
-      />
-
-
-
-      <Tabs.Screen
-        name="setting" 
-        options={{
-          title: "Settings",
-          tabBarLabel: "Settings",
-          tabBarIcon: ({ color, size }) => (
-            <Feather name="settings" color={color} size={size} />
-          ),
-        }}
-      />
-    </Tabs>
-  </>
+      >
+        <Tabs.Screen
+          name="home"
+          options={{
+            title: "Home",
+            tabBarLabel: "Home",
+            tabBarIcon: ({ color, focused }) => (
+              <Feather name="grid" color={color} size={focused ? 24 : 22} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="jobs"
+          options={{
+            title: "Jobs",
+            tabBarLabel: "Jobs",
+            tabBarIcon: ({ color, focused }) => (
+              <MaterialCommunityIcons name="briefcase-variant-outline" color={color} size={focused ? 24 : 22} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="marketPlace"
+          options={{
+            title: "Market",
+            tabBarLabel: "Market",
+            tabBarIcon: ({ color, focused }) => (
+              <Feather name="shopping-bag" color={color} size={focused ? 24 : 22} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="setting"
+          options={{
+            title: "Profile",
+            tabBarLabel: "Profile",
+            tabBarIcon: ({ color, focused }) => (
+              <Feather name="user" color={color} size={focused ? 24 : 22} />
+            ),
+          }}
+        />
+      </Tabs>
+    </>
   );
 }
