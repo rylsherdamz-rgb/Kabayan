@@ -8,7 +8,7 @@ import { useTheme } from "@/hooks/useTheme";
 export default function Login() {
   const { t } = useTheme();
   const bottomSheetRef = useRef<BottomSheet>(null);
-  const [type, setType] = useState<string>("");
+  const [type, setType] = useState<"signIn" | "signUp">();
 
   const handleOpenSheet = (mode: string) => {
     setType(mode);
