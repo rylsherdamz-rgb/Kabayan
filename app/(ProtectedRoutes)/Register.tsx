@@ -3,7 +3,7 @@ import { View, Text, Pressable, ImageBackground, StatusBar } from "react-native"
 import { useRouter } from "expo-router";
 import BottomSheet from "@gorhom/bottom-sheet";
 import CustomBottomSheet from "@/components/CustomComponents/CustomBottomSheet";
-import { useTheme } from "./useTheme";
+import { useTheme } from "@/hooks/useTheme";
 
 export default function Login() {
   const { t } = useTheme();
