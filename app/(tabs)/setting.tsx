@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Switch, Image } from 'react-native';
+imp
 import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons';
 import { useTheme } from '@/hooks/useTheme';
 
