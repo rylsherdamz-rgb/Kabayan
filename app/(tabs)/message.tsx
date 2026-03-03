@@ -32,8 +32,7 @@ export default function Inbox() {
 
   return (
     <View className={`flex-1 ${t.bgPage}`}>
-      <View className={`pt-12 pb-6 px-6 ${t.bgCard} border-b ${t.border}`}>
-        <Text className={`text-2xl font-black tracking-tighter ${t.text}`}>Messages</Text>
+      <View className={`pt-3 pb-6 px-6 ${t.bgCard} border-b ${t.border}`}>
         <View className={`flex-row items-center mt-4 px-4 h-12 rounded-2xl ${t.bgSurface} border ${t.border}`}>
           <Feather name="search" size={16} color={t.icon} />
           <TextInput placeholder="Search conversations..." className={`flex-1 ml-3 text-sm ${t.text}`} placeholderTextColor={t.icon} />
