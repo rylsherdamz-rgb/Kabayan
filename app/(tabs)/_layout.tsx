@@ -84,6 +84,16 @@ export default function TabsLayout() {
           }}
         />
         <Tabs.Screen
+          name="message"
+          options={{
+            title: "Message",
+            tabBarLabel: "Message",
+            tabBarIcon: ({ color, focused }) => (
+              <Feather name="message-circle" color={color} size={focused ? 24 : 22} />
+            ),
+          }}
+        />
+        <Tabs.Screen
           name="setting"
           options={{
             title: "Profile",
