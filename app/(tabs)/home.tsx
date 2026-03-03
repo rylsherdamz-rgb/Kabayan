@@ -18,20 +18,7 @@ export default function Home() {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} className="flex-1 px-[5%] mt-6">
-        <View className="flex-row justify-between mb-8">
-          <StatCard 
-            label={userMode === 'seeker' ? "Earnings" : "Spent"} 
-            value={userMode === 'seeker' ? "₱12,450" : "₱8,200"} 
-            icon="wallet-outline" 
-            t={t} 
-          />
-          <StatCard 
-            label={userMode === 'seeker' ? "Jobs Done" : "Active Posts"} 
-            value={userMode === 'seeker' ? "48" : "3"} 
-            icon="briefcase-outline" 
-            t={t} 
-          />
-        </View>
+        
 
         <View className="mb-6">
           <View className="flex-row justify-between items-end mb-4">
