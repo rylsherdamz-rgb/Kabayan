@@ -1,19 +1,33 @@
-import {TextInput,Text, View, Pressable} from "react-native"
-import {Feather, Ionicons, FontAwesome5} from "@expo/vector-icons"
-import {useState} from "react"
+import React from 'react';
+import { TextInput, View, Pressable } from 'react-native';
+import { Feather, FontAwesome5 } from "@expo/vector-icons";
+import { useTheme } from '@/hooks/useTheme';
 
+export default function CustomSearchComponent({ onNavigateToMap, onSearch }) {
+  const { t } = useTheme();
 
-export default function CustomSearchComponent() {
+  return (
+    <View className={`flex-row items-center h-12 px-4 rounded-2xl border ${t.border} ${t.bgSurface}`}>
+      
+      <Feather name="search" color={t.icon} size={18} />
+      
+      <TextInput 
+        className={`flex-1 h-full ml-3 text-sm font-medium ${t.text}`}
+        placeholder="Search for skills or food..."
+        placeholderTextColor={t.isDarkMode ? "#64748B" : "#94A3B8"}
+        onChangeText={onSearch}
+        selectionColor="#2563EB"
+      />
 
-    function NavigateToMap() {
+      <View className={`w-[1px] h-6 mx-3 ${t.border}`} />
 
-    }
-
-    return <Pressable className=" text-black h-10 -mt-1 flex flex-row gap-x-3">
-        <Feather name="search" className="w-1/8"  color="black" size={20} />
-        <TextInput className=" w-3/4 -mt-4   placeholder:text-gray-400 "    placeholder="Search here..." />  
-        <Pressable className="w-1/8 " >
-        <FontAwesome5 name="map-marked-alt"   color="black" size={20}  />
-        </Pressable>
-    </Pressable> 
+      <Pressable 
+        onPress={onNavigateToMap}
+        className="p-1 active:opacity-50"
+      >
+        <FontAwesome5 name="map-marked-alt" color={t.accent} size={18} />
+      </Pressable>
+      
+    </View>
+  );
 }
