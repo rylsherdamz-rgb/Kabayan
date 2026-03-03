@@ -46,7 +46,7 @@ export default function Inbox() {
         estimatedItemSize={90}
         renderItem={({ item }) => (
           <TouchableOpacity 
-            onPress={() => router.push('/chat-room')}
+            onPress={() => router.push(`/`)}
             className={`flex-row items-center p-5 border-b ${t.border} active:bg-slate-50`}
           >
             <View className="relative">

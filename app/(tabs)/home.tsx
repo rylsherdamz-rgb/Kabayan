@@ -13,24 +13,7 @@ export default function Home() {
 
   return (
     <View className={`flex-1 ${t.bgPage}`}>
-      <View className={`${t.bgCard} pt-12 pb-6 px-[5%] rounded-b-[40px] shadow-sm`}>
-        <View className="flex-row justify-between items-center mb-6">
-          <View>
-            <Text className={`text-xs font-black uppercase tracking-[2px] ${t.textMuted}`}>Welcome back,</Text>
-            <Text className={`text-2xl font-black tracking-tight ${t.text}`}>Kuya Jojo</Text>
-          </View>
-          <TouchableOpacity 
-            onPress={() => setUserMode(userMode === 'seeker' ? 'employer' : 'seeker')}
-            className={`${t.brandSoft} px-4 py-2 rounded-2xl border ${t.border}`}
-          >
-            <Text className={`text-[10px] font-black uppercase ${t.brand}`}>
-              Switch to {userMode === 'seeker' ? 'Hire' : 'Work'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
         <CustomSearchComponent onSearch={() => router.back()} onNavigateToMap={() => router.push('/map')} />
-      </View>
 
       <ScrollView showsVerticalScrollIndicator={false} className="flex-1 px-[5%] mt-6">
         <View className="flex-row justify-between mb-8">
