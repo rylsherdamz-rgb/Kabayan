@@ -1,11 +1,12 @@
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Switch, Image } from 'react-native';
-imp
 import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons';
+import {useRouter} from "expo-router"
 import { useTheme } from '@/hooks/useTheme';
 
 export default function Setting() {
   const { t, toggleTheme } = useTheme();
+  const router = useRouter()
 
   return (
     <View className={`flex-1 ${t.bgPage}`}>
@@ -78,7 +79,7 @@ export default function Setting() {
               </View>
               <MaterialIcons name="chevron-right" size={24} color={t.icon} />
             </TouchableOpacity>
-            <TouchableOpacity className="flex-row items-center justify-between p-4">
+            <TouchableOpacity onPress={() => router.push("/Register")} className="flex-row items-center justify-between p-4">
               <View className="flex-row items-center">
                 <Feather name="log-out" size={20} color="#EF4444" />
                 <Text className="text-base font-medium ml-3 text-red-500">Sign Out</Text>
