@@ -13,7 +13,9 @@ export default function Home() {
 
   return (
     <View className={`flex-1 ${t.bgPage}`}>
+      <View className={` pt-6  px-[5%]  `}>
         <CustomSearchComponent onSearch={() => router.back()} onNavigateToMap={() => router.push('/map')} />
+      </View>
 
       <ScrollView showsVerticalScrollIndicator={false} className="flex-1 px-[5%] mt-6">
         <View className="flex-row justify-between mb-8">
