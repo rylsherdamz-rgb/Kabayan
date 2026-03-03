@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, ScrollView, TouchableOpacity, Image } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, Image, Pressable } from "react-native";
 import { useRouter } from "expo-router";
 import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import CustomSearchComponent from "@/components/CustomComponents/CustomSearchComponent";
@@ -30,7 +30,7 @@ export default function Home() {
             </TouchableOpacity>
           </View>
           
-          <View className="h-64 rounded-[32px] overflow-hidden border border-slate-200 shadow-lg">
+          <Pressable onPress={() => router.push("/map/mapView")} className="h-64 rounded-[32px] overflow-hidden border border-slate-200 shadow-lg">
             <CustomMapComponents />
             <View className="absolute bottom-4 left-4 right-4 bg-white/90 p-4 rounded-2xl flex-row items-center justify-between shadow-md">
               <View>
@@ -41,7 +41,7 @@ export default function Home() {
                 <Feather name="maximize" size={18} color="white" />
               </TouchableOpacity>
             </View>
-          </View>
+          </Pressable>
         </View>
 
         <View className="mb-10">
