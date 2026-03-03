@@ -2,10 +2,12 @@ import React from "react";
 import { Tabs } from "expo-router";
 import { StatusBar, Pressable, View, Text } from "react-native";
 import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import {useSafeAreaInsets} from "react-native-safe-area-context"
 import { useTheme } from "@/hooks/useTheme";
 
 export default function TabsLayout() {
   const { t } = useTheme();
+  const inset = useSafeAreaInsets()
 
   return (
     <>
@@ -26,7 +28,8 @@ export default function TabsLayout() {
             backgroundColor: t.isDarkMode ? "#0F172A" : "#FFFFFF",
             borderTopWidth: 1,
             borderTopColor: t.isDarkMode ? "#1E293B" : "#F1F5F9",
-            height: 65,
+            height: 65 ,
+            marginBottom : inset.bottom,
             paddingBottom: 10,
             paddingTop: 5,
           },
