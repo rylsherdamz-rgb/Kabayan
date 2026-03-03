@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Image } from 'react-native';
+import CustomSearchBarComponent from "@/components/CustomComponents/CustomSearchComponent"
 import { LegendList } from '@legendapp/list';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useTheme } from '@/hooks/useTheme';
@@ -26,17 +27,10 @@ export default function MarketPlace() {
 
   return (
     <View className={`flex-1 ${t.bgPage}`}>
-      <View className={`pt-12 pb-4 px-5 ${t.bgCard} border-b ${t.border}`}>
-        <View className="flex-row justify-between items-center mb-4">
-          <View>
-            <Text className={`text-2xl font-black tracking-tighter ${t.text}`}>Marketplace</Text>
-            <Text className={`${t.textMuted} text-[10px] font-bold uppercase tracking-widest`}>Fresh Community Food</Text>
-          </View>
-          <TouchableOpacity className={`${t.brandSoft} p-2 rounded-2xl`}>
-            <Ionicons name="search" size={20} color={t.accent} />
-          </TouchableOpacity>
-        </View>
-        
+      <View className={`pt-6 pb-4 px-5 flex flex-col gap-y-3 ${t.bgCard} border-b ${t.border}`}>
+
+        <CustomSearchBarComponent />
+       
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           {CATEGORIES.map((cat) => (
             <TouchableOpacity 
