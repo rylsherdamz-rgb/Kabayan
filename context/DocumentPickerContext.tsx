@@ -1,44 +1,58 @@
-import React, {createContext, useContext, useState} from "react"
-import * as DocumentPicker from "expo-document-picker" 
-
-// only use this document picker in the unessary page to ensure it works
+import React, { createContext, useContext, useState } from "react"
+import * as DocumentPicker from "expo-document-picker"
 
 interface DocumentPickerContextType {
-    document? : DocumentPicker.DocumentPickerResult | null
-    setDocument : React.Dispatch<React.SetStateAction<DocumentPicker.DocumentPickerResult| null>> 
+  document: DocumentPicker.DocumentPickerResult | null
+  setDocument: React.Dispatch<
+    React.SetStateAction<DocumentPicker.DocumentPickerResult | null>
+  >
 }
 
+const DocumentPickerContext = createContext<DocumentPickerContextType | undefined>(
+  undefined
+)
 
-export const DocumentPickerContext = createContext<DocumentPickerContextType | undefined>(undefined)
+export function DocumentPickerContextProvider({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  const [document, setDocument] =
+    useState<DocumentPicker.DocumentPickerResult | null>(null)
 
-export function DocumentPickerContextProvider({children} : {children :React.ReactNode}) {
-    const [document, setDocument] = useState<DocumentPicker.DocumentPickerResult | null>(null)
-    return <DocumentPickerContext.Provider value={{document, setDocument}}>
-        {children}
-    </DocumentPickerContext.Provider> 
+  return (
+    <DocumentPickerContext.Provider value={{ document, setDocument }}>
+      {children}
+    </DocumentPickerContext.Provider>
+  )
 }
 
+export function useDocumentPicker() {
+  const context = useContext(DocumentPickerContext)
 
-export default function useDocumentPicker() {
-    const documentPickerContext = useContext(DocumentPickerContext)
-    if (!documentPickerContext) return null
-    const {document, setDocument} = documentPickerContext
-    const [error, setError] = useState<any>()
+  if (!context) {
+    throw new Error(
+      "useDocumentPicker must be used inside DocumentPickerContextProvider"
+    )
+  }
 
-    const DocumentPickerFunction  = async () => {
-        try {
-        const documentPicked = await DocumentPicker.getDocumentAsync({
-            type : ["images/*", "pdf/application"],
-            copyToCacheDirectory : true,
-            multiple : false
-        })
+  const { document, setDocument } = context
+  const [error, setError] = useState<unknown>(null)
 
-        setDocument(documentPicked)
-        return documentPicked
-        } catch (err) {
-           setError(err) 
-        }
+  const pickDocument = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ["image/*", "application/pdf"],
+        copyToCacheDirectory: true,
+        multiple: false,
+      })
+
+      setDocument(result)
+      return result
+    } catch (err) {
+      setError(err)
     }
+  }
 
-    return {document, setDocument, DocumentPickerFunction}
+  return { document, setDocument, pickDocument, error }
 }

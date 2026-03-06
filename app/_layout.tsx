@@ -8,6 +8,7 @@ import Index from "./index"
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import CustomDrawerContent from "@/components/CustomComponents/CustomDrawerContent" 
 import "../global.css";
+import {DocumentPickerContextProvider} from "@/context/DocumentPickerContext"
 
 export default function RootLayout() {
   const { getIsFirstOpened, setIsFirstOpened } = useLandingPage();
@@ -42,6 +43,7 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <StatusBar barStyle="dark-content" />
+        <DocumentPickerContextProvider>
         <Drawer
         drawerContent={(props) => <CustomDrawerContent {...props} />}
          screenOptions={{ headerShown: false }}>
@@ -54,6 +56,7 @@ export default function RootLayout() {
             options={{ drawerItemStyle: { display: "none" } }}
           />
         </Drawer>
+        </DocumentPickerContextProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
