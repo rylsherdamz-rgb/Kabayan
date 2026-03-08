@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
-import { ScrollView, Text, TouchableOpacity, View, Image } from 'react-native';
+import { ScrollView, Text, TouchableOpacity, View, Image,Pressable } from 'react-native';
+import {useRouter} from "expo-router"
 import { LegendList } from '@legendapp/list';
 import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons';
 import { useTheme } from '@/hooks/useTheme';
-
-
 
 const JOBS_POSTED = [
   {
@@ -38,8 +37,7 @@ export default function Jobs() {
     <View className={`flex-1 ${t.bgPage}`}>
       
 
-      <LegendList
-        data={mode === 'seeker' ? JOBS_POSTED : TALENT_PROFILES}
+      <LegendList data={mode === 'seeker' ? JOBS_POSTED : TALENT_PROFILES}
         keyExtractor={(item) => item.id}
         estimatedItemSize={120}
         contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
@@ -52,8 +50,10 @@ export default function Jobs() {
 }
 
 function JobCard({ job, t }) {
+
+  const router  =  useRouter()
   return (
-    <TouchableOpacity className={`p-5 rounded-[24px] mb-4 ${t.bgCard} border ${t.border} shadow-sm`}>
+    <Pressable onPress={() => router.push("/job/JobView")} className={`p-5 rounded-[24px] mb-4 ${t.bgCard} border ${t.border} shadow-sm`}>
       <View className="flex-row justify-between items-start">
         <View className="flex-1">
           <View className="bg-red-50 self-start px-2 py-1 rounded-md mb-2">
@@ -72,10 +72,12 @@ function JobCard({ job, t }) {
         </View>
         <Text className={`text-[10px] font-bold ${t.textMuted}`}>{job.posted}</Text>
       </View>
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 
+
+// for employer
 function TalentCard({ talent, t }) {
   return (
     <TouchableOpacity className={`p-4 rounded-[24px] mb-4 ${t.bgCard} border ${t.border} flex-row items-center`}>

@@ -79,7 +79,7 @@ export default function Setting() {
               </View>
               <MaterialIcons name="chevron-right" size={24} color={t.icon} />
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => router.push("/Register")} className="flex-row items-center justify-between p-4">
+            <TouchableOpacity onPress={() => router.push("/AuthenticationPage")} className="flex-row items-center justify-between p-4">
               <View className="flex-row items-center">
                 <Feather name="log-out" size={20} color="#EF4444" />
                 <Text className="text-base font-medium ml-3 text-red-500">Sign Out</Text>

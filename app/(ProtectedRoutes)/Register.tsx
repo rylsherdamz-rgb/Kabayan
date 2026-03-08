@@ -3,15 +3,12 @@ import { useState } from "react"
 import {useDocumentPicker} from "@/context/DocumentPickerContext"
 
 export default function Register() {
-
   const documentPickerContext = useDocumentPicker()
   const { document, setDocument, pickDocument } = documentPickerContext
 
-  // user info
   const [firstName, setFirstName] = useState<string>("")
   const [lastName, setLastName] = useState<string>("")
 
-  // documents
   const [validId, setValidId] = useState<any>(null)
   const [resume, setResume] = useState<any>(null)
 
@@ -34,10 +31,7 @@ export default function Register() {
       validId,
       resume
     }
-    // use zod to build this
-
-
-  }
+    }
 
   return (
     <View style={{ padding: 20, gap: 16 }}>

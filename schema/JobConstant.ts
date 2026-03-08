@@ -1,6 +1,6 @@
 
 
-interface JobPostedType {
+ export interface JobPostedType {
     id : string,
     title : string,
     company : string,
