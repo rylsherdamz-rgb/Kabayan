@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, Image, ActivityIndicator, Alert } from 'react-native';
 import { DrawerContentScrollView } from '@react-navigation/drawer';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,12 +17,6 @@ type DrawerProfile = {
   location_label: string | null;
 };
 
-type MenuItem = {
-  label: string;
-  icon: keyof typeof Feather.glyphMap;
-  route: string;
-};
-
 const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400';
 
 const titleCase = (value?: string | null) => {
@@ -35,6 +29,9 @@ const titleCase = (value?: string | null) => {
     .join(' ');
 };
 
+const isAuthSessionMissing = (message?: string | null) =>
+  (message ?? '').toLowerCase().includes('auth session missing');
+
 export default function CustomDrawerContent(props: any) {
   const { t } = useTheme();
   const inset = useSafeAreaInsets();
@@ -45,26 +42,17 @@ export default function CustomDrawerContent(props: any) {
   const [jobsCount, setJobsCount] = useState(0);
   const [listingsCount, setListingsCount] = useState(0);
 
-  const menuItems: MenuItem[] = useMemo(
-    () => [
-      { label: 'Home', icon: 'home', route: '/home' },
-      { label: 'Marketplace', icon: 'shopping-bag', route: '/marketPlace' },
-      { label: 'Job Board', icon: 'briefcase', route: '/jobs' },
-      { label: 'Messages', icon: 'message-circle', route: '/message' },
-      { label: 'Profile', icon: 'user', route: '/profile' },
-    ],
-    []
-  );
-
   useEffect(() => {
     let active = true;
 
     const loadDrawerData = async () => {
       try {
         const { data: userData, error: userError } = await supabaseClient.auth.getUser();
-        if (userError) throw new Error(userError.message);
+        if (userError && !isAuthSessionMissing(userError.message)) {
+          throw new Error(userError.message);
+        }
 
-        const user = userData.user;
+        const user = userData?.user;
         setEmail(user?.email ?? null);
         if (!user) {
           if (active) setLoading(false);
@@ -129,8 +117,8 @@ export default function CustomDrawerContent(props: any) {
   return (
     <View className={`flex-1 ${t.bgCard}`}>
       <DrawerContentScrollView {...props} scrollEnabled={true} contentContainerStyle={{ paddingTop: 0 }}>
-        
-        <View 
+        <TouchableOpacity
+          onPress={() => router.push('/profile')}
           style={{ paddingTop: inset.top + 20 }} 
           className={`px-6 pb-8 border-b ${t.border} ${t.brandSoft}`} 
         >
@@ -167,29 +155,14 @@ export default function CustomDrawerContent(props: any) {
               <Text className={`text-base font-black ${t.text}`}>{listingsCount}</Text>
             </View>
           </View>
-        </View>
+        </TouchableOpacity>
 
-        <View className="mt-6 px-4">
-          {loading ? (
-            <View className="py-6 items-center">
-              <ActivityIndicator />
-              <Text className={`mt-2 text-xs ${t.textMuted}`}>Loading drawer…</Text>
-            </View>
-          ) : (
-            menuItems.map((item, index) => (
-            <TouchableOpacity 
-              key={index}
-              onPress={() => router.push(item.route)}
-              className="flex-row items-center p-4 rounded-2xl active:bg-blue-50/50"
-            >
-              <View className={`${t.bgSurface} p-2.5 rounded-xl mr-4`}>
-                <Feather name={item.icon} size={18} color={t.accent} />
-              </View>
-                <Text className={`text-sm font-bold ${t.text}`}>{item.label}</Text>
-              </TouchableOpacity>
-            ))
-          )}
-        </View>
+        {loading ? (
+          <View className="py-6 items-center">
+            <ActivityIndicator />
+            <Text className={`mt-2 text-xs ${t.textMuted}`}>Loading drawer…</Text>
+          </View>
+        ) : null}
       </DrawerContentScrollView>
 
       <View 

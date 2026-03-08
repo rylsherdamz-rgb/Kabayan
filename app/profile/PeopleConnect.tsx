@@ -15,6 +15,9 @@ type PersonRow = {
   id_verification_status: string;
 };
 
+const isAuthSessionMissing = (message?: string | null) =>
+  (message ?? "").toLowerCase().includes("auth session missing");
+
 export default function PeopleConnect() {
   const { t } = useTheme();
   const router = useRouter();
@@ -32,7 +35,11 @@ export default function PeopleConnect() {
       if (!active) return;
 
       if (error) {
-        Alert.alert("Auth Error", error.message);
+        if (!isAuthSessionMissing(error.message)) {
+          Alert.alert("Auth Error", error.message);
+        }
+        setUserId(null);
+        setPeople([]);
         setLoading(false);
         return;
       }

@@ -20,6 +20,9 @@ type ApplicantRow = {
   resume_uri: string | null;
 };
 
+const isAuthSessionMissing = (message?: string | null) =>
+  (message ?? "").toLowerCase().includes("auth session missing");
+
 export default function JobApplicants() {
   const { t } = useTheme();
   const router = useRouter();
@@ -34,7 +37,16 @@ export default function JobApplicants() {
       setLoading(true);
       try {
         const { data: authData, error: authError } = await supabaseClient.auth.getUser();
-        if (authError) throw new Error(authError.message);
+        if (authError) {
+          if (!isAuthSessionMissing(authError.message)) {
+            throw new Error(authError.message);
+          }
+          if (active) {
+            setRows([]);
+            setLoading(false);
+          }
+          return;
+        }
 
         const employerId = authData.user?.id;
         if (!employerId) {

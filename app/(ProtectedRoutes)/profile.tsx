@@ -11,6 +11,9 @@ type ProfileSummary = {
   location_label: string | null;
 };
 
+const isAuthSessionMissing = (message?: string | null) =>
+  (message ?? "").toLowerCase().includes("auth session missing");
+
 export default function Profile () {
   const { t, toggleTheme } = useTheme();
   const router = useRouter();
@@ -23,7 +26,16 @@ export default function Profile () {
     const load = async () => {
       try {
         const { data: userData, error: userError } = await supabaseClient.auth.getUser();
-        if (userError) throw new Error(userError.message);
+        if (userError) {
+          if (!isAuthSessionMissing(userError.message)) {
+            throw new Error(userError.message);
+          }
+          if (active) {
+            setProfile(null);
+            setLoading(false);
+          }
+          return;
+        }
 
         const uid = userData.user?.id;
         if (!uid) {
