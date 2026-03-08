@@ -3,16 +3,17 @@ import { Tabs } from "expo-router";
 import { StatusBar, Pressable, View, Text } from "react-native";
 import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import {useSafeAreaInsets} from "react-native-safe-area-context"
+import {useNavigation} from "expo-router"
 import { useTheme } from "@/hooks/useTheme";
+import {DrawerActions} from "@react-navigation/native"
 
 export default function TabsLayout() {
   const { t } = useTheme();
   const inset = useSafeAreaInsets()
+  const navigation = useNavigation()
 
   return (
-    <>
-      <StatusBar barStyle={t.isDarkMode ? "light-content" : "dark-content"} />
-      <Tabs
+     <Tabs
         screenOptions={{
           headerShown: true,
           headerTitle: "",
@@ -47,9 +48,9 @@ export default function TabsLayout() {
             </Pressable>
           ),
           headerLeft: () => (
-            <View className="ml-5">
-              <Text className="text-blue-600 font-black tracking-tighter text-xl">KABAYAN</Text>
-            </View>
+            <Pressable onPress={() => navigation.dispatch(DrawerActions.toggleDrawer())} className="ml-5 p-2 rounded-xl ">
+              <Feather name="menu" size={20} color={t.icon} />
+            </Pressable>
           ),
         }}
       >
@@ -104,6 +105,5 @@ export default function TabsLayout() {
           }}
         />
       </Tabs>
-    </>
   );
 }

@@ -45,7 +45,7 @@ export default function Profile () {
           <Text className={`mt-2 ${t.textMuted}`}>Loading…</Text>
         </View>
       ) : (
-        <>
+        <View>
           <View className={`p-5 rounded-3xl ${t.bgCard} border ${t.border} shadow-sm`}>
             <View className="flex-row items-center justify-between">
               <View>
@@ -89,7 +89,7 @@ export default function Profile () {
               onPress={() => router.push("/profile/ProfiletView")}
             />
           </View>
-        </>
+        </View>
       )}
     </View>
   );
