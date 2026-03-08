@@ -4,6 +4,8 @@ import { LegendList } from '@legendapp/list';
 import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons';
 import { useTheme } from '@/hooks/useTheme';
 
+
+
 const JOBS_POSTED = [
   {
     id: '1',
