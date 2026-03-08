@@ -15,7 +15,7 @@ interface AuthenticationFormProps {
 export default function AuthenticationForm({ mode = "signIn", onModeChange }: AuthenticationFormProps) {
   const { t } = useTheme();
   const router= useRouter()
-  const { SignUpWithEmailAndPassword, SignInWithPassword, error } = useAccount();
+  const { SignUpWithEmailAndPassword, SignInWithPassword, error, data } = useAccount();
 
   const [currentMode, setCurrentMode] = useState<AuthMode>(mode);
   const [email, setEmail] = useState("");
@@ -41,7 +41,9 @@ export default function AuthenticationForm({ mode = "signIn", onModeChange }: Au
       await SignUpWithEmailAndPassword({ email, password });
     }
     setSubmitting(false);
-    router.push("/(tabs)/home");
+    if (!data || error) return
+    router.push("/home")
+
   };
 
   return (
