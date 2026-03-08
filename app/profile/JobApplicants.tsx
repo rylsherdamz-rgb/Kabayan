@@ -1,0 +1,205 @@
+import React, { useEffect, useMemo, useState } from "react";
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Image } from "react-native";
+import { useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import { useTheme } from "@/hooks/useTheme";
+import { supabaseClient } from "@/utils/supabase";
+
+type ApplicantRow = {
+  job_id: string;
+  job_title: string;
+  application_id: string;
+  applicant_id: string;
+  applicant_name: string;
+  applicant_avatar_url: string | null;
+  cover_letter: string | null;
+  expected_rate: number | string | null;
+  status: string;
+  applied_at: string;
+  availability_note: string | null;
+  resume_uri: string | null;
+};
+
+export default function JobApplicants() {
+  const { t } = useTheme();
+  const router = useRouter();
+  const [rows, setRows] = useState<ApplicantRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [openingChatFor, setOpeningChatFor] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadApplicants = async () => {
+      setLoading(true);
+      try {
+        const { data: authData, error: authError } = await supabaseClient.auth.getUser();
+        if (authError) throw new Error(authError.message);
+
+        const employerId = authData.user?.id;
+        if (!employerId) {
+          if (active) {
+            setRows([]);
+            setLoading(false);
+          }
+          return;
+        }
+
+        const { data, error } = await supabaseClient.rpc("rpc_get_employer_job_applicants", {
+          p_employer_id: employerId,
+        });
+
+        if (error) throw new Error(error.message);
+
+        if (active) {
+          setRows((data ?? []) as ApplicantRow[]);
+        }
+      } catch (err) {
+        if (active) {
+          const message = err instanceof Error ? err.message : "Failed to load applicants.";
+          Alert.alert("Applicants Error", message);
+        }
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+
+    loadApplicants();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const groupedByJob = useMemo(() => {
+    const grouped = new Map<string, { jobId: string; jobTitle: string; applicants: ApplicantRow[] }>();
+    rows.forEach((row) => {
+      if (!grouped.has(row.job_id)) {
+        grouped.set(row.job_id, {
+          jobId: row.job_id,
+          jobTitle: row.job_title,
+          applicants: [],
+        });
+      }
+      grouped.get(row.job_id)?.applicants.push(row);
+    });
+    return Array.from(grouped.values());
+  }, [rows]);
+
+  const openApplicantChat = async (row: ApplicantRow) => {
+    if (openingChatFor) return;
+
+    setOpeningChatFor(row.application_id);
+    try {
+      const { data, error } = await supabaseClient.rpc("rpc_open_job_conversation_with_user", {
+        p_job_id: row.job_id,
+        p_other_user_id: row.applicant_id,
+      });
+      if (error) throw new Error(error.message);
+      if (!data) throw new Error("Unable to open conversation.");
+
+      router.push({
+        pathname: "/chatRoom/chatRoom",
+        params: {
+          roomId: data,
+          name: row.applicant_name,
+          jobTitle: row.job_title,
+        },
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unable to message applicant.";
+      Alert.alert("Message Failed", message);
+    } finally {
+      setOpeningChatFor(null);
+    }
+  };
+
+  if (loading) {
+    return (
+      <View className={`flex-1 items-center justify-center ${t.bgPage}`}>
+        <ActivityIndicator />
+        <Text className={`mt-2 ${t.textMuted}`}>Loading applicants…</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View className={`flex-1 ${t.bgPage}`}>
+      <View className={`px-6 pt-12 pb-4 border-b ${t.border} ${t.bgCard}`}>
+        <View className="flex-row items-center">
+          <TouchableOpacity onPress={() => router.back()} className="mr-3 p-2 rounded-xl">
+            <Ionicons name="chevron-back" size={22} color={t.text} />
+          </TouchableOpacity>
+          <View>
+            <Text className={`text-2xl font-black ${t.text}`}>Job Applicants</Text>
+            <Text className={`text-xs mt-1 ${t.textMuted}`}>See who applied and contact them directly.</Text>
+          </View>
+        </View>
+      </View>
+
+      {groupedByJob.length === 0 ? (
+        <View className="flex-1 items-center justify-center px-6">
+          <Text className={`text-base font-semibold ${t.text}`}>No applicants yet</Text>
+          <Text className={`text-xs mt-2 ${t.textMuted}`}>Post jobs and applicants will appear here.</Text>
+        </View>
+      ) : (
+        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 24 }}>
+          {groupedByJob.map((group) => (
+            <View key={group.jobId} className={`mb-5 rounded-3xl border ${t.border} ${t.bgCard} overflow-hidden`}>
+              <View className={`px-5 py-4 border-b ${t.border}`}>
+                <Text className={`text-lg font-black ${t.text}`}>{group.jobTitle}</Text>
+                <Text className={`text-xs ${t.textMuted}`}>{group.applicants.length} applicant{group.applicants.length === 1 ? "" : "s"}</Text>
+              </View>
+
+              <View className="p-4">
+                {group.applicants.map((applicant) => (
+                  <View key={applicant.application_id} className={`mb-3 p-4 rounded-2xl border ${t.border} ${t.bgSurface}`}>
+                    <View className="flex-row items-start justify-between">
+                      <View className="flex-row flex-1 pr-3">
+                        {applicant.applicant_avatar_url ? (
+                          <Image source={{ uri: applicant.applicant_avatar_url }} className="w-10 h-10 rounded-xl" />
+                        ) : (
+                          <View className="w-10 h-10 rounded-xl bg-slate-200 items-center justify-center">
+                            <Text className="text-slate-700 font-black">{applicant.applicant_name.slice(0, 1).toUpperCase()}</Text>
+                          </View>
+                        )}
+
+                        <View className="ml-3 flex-1">
+                          <Text className={`text-sm font-black ${t.text}`}>{applicant.applicant_name}</Text>
+                          <Text className={`text-[11px] ${t.textMuted}`}>Applied {new Date(applicant.applied_at).toLocaleDateString()}</Text>
+                          {applicant.expected_rate !== null && applicant.expected_rate !== undefined ? (
+                            <Text className={`text-[11px] mt-1 ${t.textMuted}`}>Expected rate: ₱{Number(applicant.expected_rate).toLocaleString()}</Text>
+                          ) : null}
+                        </View>
+                      </View>
+
+                      <View className="px-2 py-1 rounded-lg bg-blue-50 border border-blue-200">
+                        <Text className="text-[10px] font-black uppercase text-blue-700">{applicant.status}</Text>
+                      </View>
+                    </View>
+
+                    {applicant.cover_letter ? (
+                      <Text className={`text-xs mt-3 leading-5 ${t.textMuted}`}>{applicant.cover_letter}</Text>
+                    ) : null}
+
+                    <TouchableOpacity
+                      onPress={() => openApplicantChat(applicant)}
+                      disabled={openingChatFor === applicant.application_id}
+                      className="mt-3 h-10 rounded-xl bg-blue-600 items-center justify-center"
+                    >
+                      <View className="flex-row items-center">
+                        <Ionicons name="chatbubble-ellipses-outline" size={14} color="white" />
+                        <Text className="ml-1 text-white font-black text-xs uppercase tracking-widest">
+                          {openingChatFor === applicant.application_id ? "Opening..." : "Message Applicant"}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            </View>
+          ))}
+        </ScrollView>
+      )}
+    </View>
+  );
+}

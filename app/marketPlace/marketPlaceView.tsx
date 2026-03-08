@@ -1,24 +1,124 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, ScrollView, Image, TouchableOpacity, SafeAreaView } from 'react-native';
+import { View, Text, ScrollView, Image, TouchableOpacity, Modal, TextInput, Alert, ActivityIndicator } from 'react-native';
 import { Feather, Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useTheme } from '@/hooks/useTheme';
 import MarketModal from '@/components/MarketPlace/MarketModal';
 import { supabaseClient } from '@/utils/supabase';
 
+type ListingFeedRow = {
+  id: string;
+  vendor_id: string;
+  name: string;
+  description: string | null;
+  category: string;
+  price: number;
+  location_label: string;
+  image_url: string | null;
+  is_open: boolean;
+  created_at: string;
+  avg_rating: number;
+  review_count: number;
+};
+
+type ReviewRow = {
+  id: string;
+  listing_id: string;
+  buyer_id: string;
+  rating: number;
+  comment: string | null;
+  created_at: string;
+  reviewer_name: string;
+  reviewer_avatar_url: string | null;
+};
+
+const toNumber = (value: number | string | null | undefined, fallback = 0) => {
+  if (typeof value === "number") return Number.isFinite(value) ? value : fallback;
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  }
+  return fallback;
+};
+
+const normalizeListing = (row: any): ListingFeedRow => ({
+  id: row.id,
+  vendor_id: row.vendor_id,
+  name: row.name,
+  description: row.description ?? null,
+  category: row.category,
+  price: toNumber(row.price, 0),
+  location_label: row.location_label,
+  image_url: row.image_url ?? null,
+  is_open: Boolean(row.is_open),
+  created_at: row.created_at,
+  avg_rating: toNumber(row.avg_rating, 0),
+  review_count: Number(row.review_count ?? 0),
+});
+
+const normalizeReview = (row: any): ReviewRow => ({
+  id: row.id,
+  listing_id: row.listing_id,
+  buyer_id: row.buyer_id,
+  rating: Number(row.rating ?? 0),
+  comment: row.comment ?? null,
+  created_at: row.created_at,
+  reviewer_name: row.reviewer_name ?? "Community Member",
+  reviewer_avatar_url: row.reviewer_avatar_url ?? null,
+});
+
 export default function MarketPlaceView() {
   const { t } = useTheme();
   const router = useRouter();
   const [showModal, setShowModal] = useState(false);
-  const [listings, setListings] = useState<any[]>([]);
-  const params = useLocalSearchParams<{ openModal?: string }>();
+  const [reviewModalVisible, setReviewModalVisible] = useState(false);
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState("");
+  const [listings, setListings] = useState<ListingFeedRow[]>([]);
+  const [reviews, setReviews] = useState<ReviewRow[]>([]);
+  const [loadingListings, setLoadingListings] = useState(true);
+  const [loadingReviews, setLoadingReviews] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const params = useLocalSearchParams<{ openModal?: string; id?: string }>();
+
+  const loadListings = async () => {
+    setLoadingListings(true);
+    const { data, error } = await supabaseClient.rpc("rpc_get_marketplace_listings_feed");
+    if (error) {
+      Alert.alert("Marketplace Error", error.message);
+      setLoadingListings(false);
+      return;
+    }
+
+    const normalized = (data ?? []).map(normalizeListing);
+    setListings(normalized);
+    setSelectedId((prev) => {
+      const requestedId = typeof params.id === "string" ? params.id : null;
+      if (requestedId && normalized.some((item) => item.id === requestedId)) return requestedId;
+      if (prev && normalized.some((item) => item.id === prev)) return prev;
+      return normalized[0]?.id ?? null;
+    });
+    setLoadingListings(false);
+  };
+
+  const loadReviews = async (listingId: string) => {
+    setLoadingReviews(true);
+    const { data, error } = await supabaseClient.rpc("rpc_get_marketplace_reviews", {
+      p_listing_id: listingId,
+    });
+    if (error) {
+      Alert.alert("Reviews Error", error.message);
+      setLoadingReviews(false);
+      return;
+    }
+    setReviews((data ?? []).map(normalizeReview));
+    setLoadingReviews(false);
+  };
 
   useEffect(() => {
-    supabaseClient
-      .from("marketplace_listings")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .then(({ data }) => data && setListings(data));
+    loadListings();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -27,23 +127,121 @@ export default function MarketPlaceView() {
     }
   }, [params.openModal]);
 
-  const featured = useMemo(() => listings[0], [listings]);
+  useEffect(() => {
+    if (typeof params.id === "string") {
+      setSelectedId(params.id);
+    }
+  }, [params.id]);
+
+  const featured = useMemo(() => {
+    if (!listings.length) return null;
+    return listings.find((item) => item.id === selectedId) ?? listings[0];
+  }, [listings, selectedId]);
+
+  useEffect(() => {
+    if (!featured?.id) {
+      setReviews([]);
+      return;
+    }
+    loadReviews(featured.id);
+  }, [featured?.id]);
+
   const permitVerified = useMemo(
     () => (featured?.description ?? "").toLowerCase().includes("permit: verified"),
     [featured]
   );
 
+  const vendorItems = useMemo(() => {
+    if (!featured) return [];
+    const sameVendor = listings.filter((item) => item.vendor_id === featured.vendor_id);
+    return sameVendor.length > 0 ? sameVendor : [featured];
+  }, [featured, listings]);
+
+  const handleOpenReviewModal = async () => {
+    const { data, error } = await supabaseClient.auth.getUser();
+    if (error) {
+      Alert.alert("Auth Error", error.message);
+      return;
+    }
+    if (!data.user) {
+      Alert.alert("Sign in required", "Please sign in before writing a review.");
+      return;
+    }
+    if (!featured) return;
+    setReviewModalVisible(true);
+  };
+
+  const handleSubmitReview = async () => {
+    if (!featured || submittingReview) return;
+
+    const rating = Math.max(1, Math.min(5, Math.round(reviewRating)));
+    setSubmittingReview(true);
+
+    try {
+      const { error } = await supabaseClient.rpc("rpc_create_marketplace_review", {
+        p_listing_id: featured.id,
+        p_rating: rating,
+        p_comment: reviewComment.trim() || null,
+      });
+
+      if (error) throw new Error(error.message);
+
+      setReviewModalVisible(false);
+      setReviewRating(5);
+      setReviewComment("");
+      await Promise.all([loadListings(), loadReviews(featured.id)]);
+      Alert.alert("Review posted", "Thanks for sharing your feedback.");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unable to submit review.";
+      Alert.alert("Review Failed", message);
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
+
+  if (loadingListings) {
+    return (
+      <View className={`flex-1 items-center justify-center ${t.bgPage}`}>
+        <ActivityIndicator />
+        <Text className={`mt-2 ${t.textMuted}`}>Loading marketplace…</Text>
+      </View>
+    );
+  }
+
+  if (!featured) {
+    return (
+      <View className={`flex-1 items-center justify-center px-6 ${t.bgPage}`}>
+        <Text className={`text-base font-semibold ${t.text}`}>No listings found</Text>
+        <TouchableOpacity onPress={() => setShowModal(true)} className="mt-4 bg-blue-600 px-6 py-3 rounded-2xl">
+          <Text className="text-white font-black text-xs uppercase tracking-widest">Add Item</Text>
+        </TouchableOpacity>
+
+        <MarketModal
+          visible={showModal}
+          onClose={() => setShowModal(false)}
+          onCreated={() => {
+            setShowModal(false);
+            loadListings();
+          }}
+        />
+      </View>
+    );
+  }
+
   return (
     <View className={`flex-1 ${t.bgPage}`}>
       <ScrollView showsVerticalScrollIndicator={false}>
-        
         <View className="h-72 w-full relative">
-          <Image 
-            source={{ uri: featured?.image_url ?? 'https://images.unsplash.com/photo-1555126634-323283e090fa?w=800' }} 
-            className="w-full h-full"
-          />
+          {featured.image_url ? (
+            <Image source={{ uri: featured.image_url }} className="w-full h-full" />
+          ) : (
+            <View className={`w-full h-full items-center justify-center ${t.bgSurface}`}>
+              <Feather name="image" size={36} color={t.icon} />
+              <Text className={`mt-2 text-sm font-semibold ${t.textMuted}`}>No listing photo</Text>
+            </View>
+          )}
           <View className="absolute top-4 left-5 right-5 flex-row justify-between">
-            <TouchableOpacity 
+            <TouchableOpacity
               onPress={() => router.back()}
               className="bg-white/90 p-2.5 rounded-2xl shadow-sm"
             >
@@ -56,53 +254,63 @@ export default function MarketPlaceView() {
         </View>
 
         <View className={`-mt-10 px-6 pt-8 pb-32 rounded-t-[40px] ${t.bgCard} border-t ${t.border}`}>
-          
           <View className="flex-row justify-between items-start">
             <View className="flex-1">
-              <View className="flex-row items-center">
-                <Text className={`text-3xl font-black tracking-tighter ${t.text}`}>{featured?.name ?? "Your Food Stall"}</Text>
+              <View className="flex-row items-center flex-wrap">
+                <Text className={`text-3xl font-black tracking-tighter ${t.text}`}>{featured.name}</Text>
                 {permitVerified && (
-                  <View className="flex-row items-center bg-emerald-100 px-2 py-1 rounded-lg ml-2">
+                  <View className="flex-row items-center bg-emerald-100 px-2 py-1 rounded-lg ml-2 mt-1">
                     <Ionicons name="shield-checkmark" size={14} color="#059669" />
                     <Text className="ml-1 text-[10px] font-black text-emerald-700">Permit Verified</Text>
                   </View>
                 )}
               </View>
               <View className="flex-row items-center mt-2">
-                <View className="bg-emerald-50 px-2 py-1 rounded-md mr-3">
-                  <Text className="text-emerald-600 font-black text-[10px] uppercase">Open Now</Text>
+                <View className={`${featured.is_open ? 'bg-emerald-50' : 'bg-rose-50'} px-2 py-1 rounded-md mr-3`}>
+                  <Text className={`${featured.is_open ? 'text-emerald-600' : 'text-rose-600'} font-black text-[10px] uppercase`}>
+                    {featured.is_open ? "Open" : "Closed"}
+                  </Text>
                 </View>
                 <Ionicons name="star" size={14} color="#F59E0B" />
-                <Text className={`ml-1 text-sm font-bold ${t.text}`}>4.8</Text>
-                <Text className={`ml-1 text-sm font-medium ${t.textMuted}`}>(120+ Reviews)</Text>
+                {featured.review_count > 0 ? (
+                  <>
+                    <Text className={`ml-1 text-sm font-bold ${t.text}`}>{featured.avg_rating.toFixed(1)}</Text>
+                    <Text className={`ml-1 text-sm font-medium ${t.textMuted}`}>
+                      ({featured.review_count} review{featured.review_count === 1 ? "" : "s"})
+                    </Text>
+                  </>
+                ) : (
+                  <Text className={`ml-1 text-sm font-medium ${t.textMuted}`}>No reviews yet</Text>
+                )}
               </View>
             </View>
-            {featured?.image_url && (
-              <Image 
-                source={{ uri: featured.image_url }} 
-                className="w-16 h-16 rounded-2xl border-2 border-white shadow-lg"
-              />
-            )}
+
+            <View className="items-end">
+              <Text className={`text-2xl font-black ${t.price}`}>₱{featured.price.toLocaleString()}</Text>
+              <Text className={`mt-1 text-xs font-semibold ${t.textMuted}`}>{featured.category}</Text>
+            </View>
           </View>
 
           <View className="flex-row mt-8 gap-x-4">
-            <TouchableOpacity onPress={() => router.push({ pathname: "/map/mapView", params: { location: featured?.location_label } })}>
-              <InfoChip icon="map-pin" label={featured?.location_label ?? "Location"} t={t} />
+            <TouchableOpacity onPress={() => router.push({ pathname: "/map/mapView", params: { location: featured.location_label } })}>
+              <InfoChip icon="map-pin" label={featured.location_label} t={t} />
             </TouchableOpacity>
-            <InfoChip icon="clock" label="15-20 mins" t={t} />
+            <InfoChip icon="tag" label={featured.category} t={t} />
           </View>
 
           <View className="mt-10">
-            <Text className={`text-lg font-black tracking-tight mb-4 ${t.text}`}>Popular Dishes</Text>
+            <Text className={`text-lg font-black tracking-tight mb-4 ${t.text}`}>More from this vendor</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} className="-mx-6 px-6">
-              {(listings.length ? listings : [featured]).filter(Boolean).map((item) => (
+              {vendorItems.map((item) => (
                 <MenuCard
                   key={item.id}
                   name={item.name}
-                  price={`₱${Number(item.price || 0).toLocaleString()}`}
-                  img={item.image_url ?? 'https://images.unsplash.com/photo-1512152272829-e3139592d56f?w=300'}
+                  price={`₱${item.price.toLocaleString()}`}
+                  img={item.image_url}
                   verified={(item.description ?? "").toLowerCase().includes("permit: verified")}
                   t={t}
+                  onPress={() => setSelectedId(item.id)}
+                  isActive={item.id === featured.id}
                 />
               ))}
             </ScrollView>
@@ -111,24 +319,34 @@ export default function MarketPlaceView() {
           <View className="mt-10">
             <View className="flex-row justify-between items-center mb-6">
               <Text className={`text-lg font-black tracking-tight ${t.text}`}>Community Reviews</Text>
-              <Text className={`text-xs font-bold ${t.brand}`}>Write a Review</Text>
+              <TouchableOpacity onPress={handleOpenReviewModal}>
+                <Text className={`text-xs font-bold ${t.brand}`}>Write a Review</Text>
+              </TouchableOpacity>
             </View>
-            
-            <ReviewItem 
-              user="Maria C." 
-              comment="The best Pares in Quiapo! Super lambot ng baka and the soup is very rich. Highly recommended!"
-              rating={5}
-              t={t}
-            />
-          </View>
 
+            {loadingReviews ? (
+              <View className="py-8 items-center">
+                <ActivityIndicator />
+                <Text className={`mt-2 text-xs ${t.textMuted}`}>Loading reviews…</Text>
+              </View>
+            ) : reviews.length === 0 ? (
+              <View className={`p-5 rounded-3xl ${t.bgSurface} border ${t.border}`}>
+                <Text className={`text-sm font-semibold ${t.text}`}>No reviews yet</Text>
+                <Text className={`text-xs mt-2 ${t.textMuted}`}>Be the first to leave feedback for this listing.</Text>
+              </View>
+            ) : (
+              reviews.map((review) => (
+                <ReviewItem key={review.id} review={review} t={t} />
+              ))
+            )}
+          </View>
         </View>
       </ScrollView>
 
       <View className={`absolute bottom-0 left-0 right-0 p-6 ${t.bgCard} border-t ${t.border} flex-row items-center`}>
         <View className="flex-1">
-          <Text className={`text-[10px] font-black uppercase tracking-widest ${t.textMuted}`}>Est. Total</Text>
-          <Text className={`text-2xl font-black ${t.text}`}>₱120.00</Text>
+          <Text className={`text-[10px] font-black uppercase tracking-widest ${t.textMuted}`}>Current Item</Text>
+          <Text className={`text-2xl font-black ${t.text}`}>₱{featured.price.toLocaleString()}</Text>
         </View>
         <TouchableOpacity onPress={() => setShowModal(true)} className="bg-blue-600 px-10 h-14 rounded-2xl items-center justify-center shadow-lg shadow-blue-500/40">
           <Text className="text-white font-black uppercase text-sm tracking-widest">Add Item</Text>
@@ -140,13 +358,63 @@ export default function MarketPlaceView() {
         onClose={() => setShowModal(false)}
         onCreated={() => {
           setShowModal(false);
-          supabaseClient
-            .from("marketplace_listings")
-            .select("*")
-            .order("created_at", { ascending: false })
-            .then(({ data }) => data && setListings(data));
+          loadListings();
         }}
       />
+
+      <Modal
+        visible={reviewModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setReviewModalVisible(false)}
+      >
+        <View className="flex-1 bg-black/50 justify-end">
+          <View className={`rounded-t-[28px] px-6 pt-6 pb-8 ${t.bgCard}`}>
+            <View className="flex-row items-center justify-between mb-5">
+              <Text className={`text-xl font-black ${t.text}`}>Write a Review</Text>
+              <TouchableOpacity onPress={() => setReviewModalVisible(false)}>
+                <Ionicons name="close" size={22} color={t.icon} />
+              </TouchableOpacity>
+            </View>
+
+            <Text className={`text-xs font-black uppercase tracking-widest ${t.textMuted}`}>Rating</Text>
+            <View className="flex-row mt-2 mb-4">
+              {[1, 2, 3, 4, 5].map((value) => (
+                <TouchableOpacity key={value} onPress={() => setReviewRating(value)} className="mr-2">
+                  <Ionicons
+                    name={value <= reviewRating ? "star" : "star-outline"}
+                    size={26}
+                    color={value <= reviewRating ? "#F59E0B" : "#94A3B8"}
+                  />
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <Text className={`text-xs font-black uppercase tracking-widest ${t.textMuted}`}>Comment</Text>
+            <View className={`mt-2 border ${t.border} rounded-2xl ${t.bgSurface} px-4 py-3`}>
+              <TextInput
+                value={reviewComment}
+                onChangeText={setReviewComment}
+                placeholder="Share your experience"
+                placeholderTextColor={t.icon}
+                multiline
+                className={`${t.text}`}
+                style={{ minHeight: 90, textAlignVertical: "top" }}
+              />
+            </View>
+
+            <TouchableOpacity
+              onPress={handleSubmitReview}
+              disabled={submittingReview}
+              className="mt-6 bg-blue-600 h-12 rounded-2xl items-center justify-center"
+            >
+              <Text className="text-white font-black uppercase text-xs tracking-widest">
+                {submittingReview ? "Submitting..." : "Submit Review"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -160,10 +428,19 @@ function InfoChip({ icon, label, t }: any) {
   );
 }
 
-function MenuCard({ name, price, img, verified, t } : any) {
+function MenuCard({ name, price, img, verified, t, onPress, isActive }: any) {
   return (
-    <TouchableOpacity className={`mr-4 w-40 rounded-3xl overflow-hidden ${t.bgSurface} border ${t.border}`}>
-      <Image source={{ uri: img }} className="h-28 w-full" />
+    <TouchableOpacity
+      onPress={onPress}
+      className={`mr-4 w-40 rounded-3xl overflow-hidden ${t.bgSurface} border ${isActive ? 'border-blue-500' : t.border}`}
+    >
+      {img ? (
+        <Image source={{ uri: img }} className="h-28 w-full" />
+      ) : (
+        <View className="h-28 w-full items-center justify-center bg-slate-100">
+          <Feather name="image" size={20} color="#94A3B8" />
+        </View>
+      )}
       <View className="p-3">
         <View className="flex-row items-center">
           <Text className={`font-black text-sm tracking-tight ${t.text}`}>{name}</Text>
@@ -177,18 +454,37 @@ function MenuCard({ name, price, img, verified, t } : any) {
   );
 }
 
-function ReviewItem({ user, comment, rating, t } : any) {
+function ReviewItem({ review, t }: { review: ReviewRow; t: any }) {
   return (
     <View className={`p-5 rounded-3xl ${t.bgSurface} border ${t.border} mb-4`}>
       <View className="flex-row justify-between items-center mb-2">
-        <Text className={`font-black text-sm ${t.text}`}>{user}</Text>
+        <View className="flex-row items-center flex-1 pr-4">
+          {review.reviewer_avatar_url ? (
+            <Image source={{ uri: review.reviewer_avatar_url }} className="w-8 h-8 rounded-full mr-2" />
+          ) : (
+            <View className="w-8 h-8 rounded-full mr-2 bg-slate-200 items-center justify-center">
+              <Text className="text-[11px] font-black text-slate-600">{review.reviewer_name.slice(0, 1).toUpperCase()}</Text>
+            </View>
+          )}
+          <Text className={`font-black text-sm ${t.text}`}>{review.reviewer_name}</Text>
+        </View>
         <View className="flex-row">
-          {[...Array(rating)].map((_, i) => (
-            <Ionicons key={i} name="star" size={12} color="#F59E0B" />
+          {[...Array(5)].map((_, i) => (
+            <Ionicons
+              key={i}
+              name={i < review.rating ? "star" : "star-outline"}
+              size={12}
+              color="#F59E0B"
+            />
           ))}
         </View>
       </View>
-      <Text className={`text-xs leading-5 font-medium ${t.textMuted}`}>{comment}</Text>
+      {review.comment ? (
+        <Text className={`text-xs leading-5 font-medium ${t.textMuted}`}>{review.comment}</Text>
+      ) : (
+        <Text className={`text-xs leading-5 font-medium italic ${t.textMuted}`}>No written comment.</Text>
+      )}
+      <Text className={`text-[10px] mt-2 font-semibold ${t.textMuted}`}>{new Date(review.created_at).toLocaleDateString()}</Text>
     </View>
   );
 }

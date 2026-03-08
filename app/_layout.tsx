@@ -1,4 +1,5 @@
 import CustomLoading from "@/components/CustomComponents/CustomLoadingSpinner";
+import AppPermissionsModal from "@/components/PermissionModal/AppPermissionsModal";
 import useLandingPage from "@/hooks/useLandingPage";
 import Drawer from "expo-router/drawer";
 import { useEffect, useState } from "react";
@@ -9,21 +10,31 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import CustomDrawerContent from "@/components/CustomComponents/CustomDrawerContent" 
 import "../global.css";
 import {DocumentPickerContextProvider} from "@/context/DocumentPickerContext"
+import { ImagePickerContextProvider } from "@/context/ImagePicker";
+import { storage } from "@/utils/MMKVConfig";
 
 export default function RootLayout() {
-  const { getIsFirstOpened, setIsFirstOpened } = useLandingPage();
+  const { getIsFirstOpened } = useLandingPage();
   const [FirstOpened, setFirstOpened] = useState<boolean | null>(false);
+  const [showPermissionModal, setShowPermissionModal] = useState(false);
 
   useEffect(() => {
     const hasOpened = getIsFirstOpened();
     const LandingPageValue = hasOpened === undefined ? true : !hasOpened;
     setFirstOpened(LandingPageValue);
-  }, []);
+  }, [getIsFirstOpened]);
 
-  // pass this funciton in the landingpage of the onboarding
-  const handleFinishOnBoarding = () => {
-    setIsFirstOpened();
-    setFirstOpened(false);
+  useEffect(() => {
+    if (FirstOpened !== false) return;
+    const hasSeenPermissionModal = storage.getBoolean("app_permissions_modal_seen");
+    if (!hasSeenPermissionModal) {
+      setShowPermissionModal(true);
+    }
+  }, [FirstOpened]);
+
+  const handlePermissionModalDone = () => {
+    storage.set("app_permissions_modal_seen", true);
+    setShowPermissionModal(false);
   };
 
   if (FirstOpened === null) {
@@ -43,21 +54,28 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <StatusBar barStyle="dark-content" />
-        <DocumentPickerContextProvider>
-        <Drawer
-          drawerContent={(props) => <CustomDrawerContent {...props} />}
-          screenOptions={{ headerShown: false }}
-        >
-          <Drawer.Screen
-            name="(tabs)"
-            options={{ drawerLabel: "Home" }}
-          />
-          <Drawer.Screen
-            name="index"
-            options={{ drawerItemStyle: { display: "none" } }}
-          />
-        </Drawer>
-        </DocumentPickerContextProvider>
+        <ImagePickerContextProvider>
+          <DocumentPickerContextProvider>
+            <Drawer
+              drawerContent={(props) => <CustomDrawerContent {...props} />}
+              screenOptions={{ headerShown: false }}
+            >
+              <Drawer.Screen
+                name="(tabs)"
+                options={{ drawerLabel: "Home" }}
+              />
+              <Drawer.Screen
+                name="(ProtectedRoutes)"
+                options={{ drawerItemStyle: { display: "none" } }}
+              />
+              <Drawer.Screen
+                name="index"
+                options={{ drawerItemStyle: { display: "none" } }}
+              />
+            </Drawer>
+            <AppPermissionsModal visible={showPermissionModal} onDone={handlePermissionModalDone} />
+          </DocumentPickerContextProvider>
+        </ImagePickerContextProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

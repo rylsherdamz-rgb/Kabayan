@@ -1,15 +1,32 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, SafeAreaView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Camera, MapView, PointAnnotation, UserLocation } from '@maplibre/maplibre-react-native';
+import { Camera, MapView, PointAnnotation } from '@maplibre/maplibre-react-native';
 
 const DEFAULT_COORDINATE: [number, number] = [120.9842, 14.5995]; // Manila
 const STREET_STYLE = 'https://tiles.openfreemap.org/styles/liberty';
 
-export default function CustomMapComponents() {
+type CustomMapComponentsProps = {
+  markerCoordinate?: [number, number] | null;
+  markerLabel?: string | null;
+};
+
+export default function CustomMapComponents({ markerCoordinate, markerLabel }: CustomMapComponentsProps) {
   const cameraRef = useRef<Camera>(null);
   const [zoomLevel, setZoomLevel] = useState(13);
   const [center, setCenter] = useState(DEFAULT_COORDINATE);
+  const activeCoordinate = markerCoordinate ?? DEFAULT_COORDINATE;
+
+  useEffect(() => {
+    if (!markerCoordinate) return;
+    setCenter(markerCoordinate);
+    setZoomLevel(15);
+    cameraRef.current?.setCamera({
+      centerCoordinate: markerCoordinate,
+      zoomLevel: 15,
+      animationDuration: 700,
+    });
+  }, [markerCoordinate]);
 
   const marker = useMemo(() => (
     <View style={styles.markerWrap}>
@@ -45,14 +62,16 @@ export default function CustomMapComponents() {
             heading={0}
           />
 
-          <PointAnnotation id="manilaMarker" coordinate={DEFAULT_COORDINATE}>
+          <PointAnnotation id="targetMarker" coordinate={activeCoordinate}>
             {marker}
           </PointAnnotation>
         </MapView>
 
         <View style={styles.searchBar}>
           <Ionicons name="search" size={18} color="#6b7280" />
-          <Text style={styles.searchText}>Search places</Text>
+          <Text style={styles.searchText} numberOfLines={1}>
+            {markerLabel?.trim() ? markerLabel : 'Pinned location'}
+          </Text>
         </View>
 
       </View>

@@ -27,10 +27,7 @@ export default function Jobs() {
 
   const loadJobs = async () => {
     setLoading(true);
-    const { data, error } = await supabaseClient
-      .from("jobs")
-      .select("id,title,description,location_label,budget_min,budget_max,is_urgent,status,created_at")
-      .order("created_at", { ascending: false });
+    const { data, error } = await supabaseClient.rpc("rpc_get_jobs");
     if (!error && data) setJobs(data);
     setLoading(false);
   };

@@ -11,16 +11,6 @@ export default function useAccount ()  {
     const [data, setData] = useState<any>()
     const [error, setError] = useState<supabaseError>(null)
 
-    const createProfile = async (userId: string, email: string) => {
-        const displayName = email.split("@")[0] || email;
-        const { error: profileError } = await supabaseClient
-          .from("profiles")
-          .insert({ user_id: userId, display_name: displayName });
-        if (profileError) {
-          setError(profileError as unknown as AuthError);
-        }
-      };
-
     const SignInWithPassword: SubmitHandler<RegisterFormType> = async ({email, password} : RegisterFormType) => {
     try {
         const {data, error} = await supabaseClient.auth.signInWithPassword({email, password}) 
@@ -42,9 +32,6 @@ export default function useAccount ()  {
         setError(error)
         return
         }
-        if (data.user?.id) {
-            await createProfile(data.user.id, email);
-          }
         setData(data)
         setError(null)
         } catch (err) {
@@ -66,7 +53,7 @@ export default function useAccount ()  {
         } 
     }
 
-    const SignOut : SubmitHandler<RegisterFormType> = async ({email} : RegisterFormType) => {
+    const SignOut : SubmitHandler<RegisterFormType> = async () => {
         try {
         const { error} = await supabaseClient.auth.signOut() 
         if (error) {
@@ -80,7 +67,7 @@ export default function useAccount ()  {
 
     const Resend : SubmitHandler<RegisterFormType> = async ({email } : RegisterFormType) => {
         try {
-        const { data, error} = await supabaseClient.auth.resend({
+        const { error} = await supabaseClient.auth.resend({
             type : "signup",
             email, 
         }) 

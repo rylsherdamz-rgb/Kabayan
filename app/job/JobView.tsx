@@ -1,12 +1,13 @@
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useTheme } from "@/hooks/useTheme";
-import { View, Text, ScrollView, TouchableOpacity, Image, ActivityIndicator } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, Image, ActivityIndicator, Alert } from "react-native";
 import { useEffect, useState } from "react";
 import { supabaseClient } from "@/utils/supabase";
 
 type JobDetail = {
   id: string;
+  employer_id?: string;
   title: string;
   description: string;
   location_label: string;
@@ -23,16 +24,16 @@ export default function JobView() {
   const { jobId } = useLocalSearchParams<{ jobId?: string }>();
   const [job, setJob] = useState<JobDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [applying, setApplying] = useState(false);
+  const [messaging, setMessaging] = useState(false);
 
   useEffect(() => {
     const fetchJob = async () => {
       if (!jobId) return;
       setLoading(true);
       const { data, error } = await supabaseClient
-        .from("jobs")
-        .select("id,title,description,location_label,budget_min,budget_max,is_urgent,status,created_at")
-        .eq("id", jobId)
-        .single();
+        .rpc("rpc_get_job_by_id", { p_job_id: jobId })
+        .maybeSingle();
       if (!error && data) setJob(data);
       setLoading(false);
     };
@@ -60,6 +61,96 @@ export default function JobView() {
   }
 
   const salary = formatBudget(job.budget_min, job.budget_max);
+  const isClosed = job.status !== "open";
+
+  const handleApply = async () => {
+    if (!job || applying) return;
+
+    setApplying(true);
+    try {
+      const { data: userData, error: userError } = await supabaseClient.auth.getUser();
+      if (userError) throw new Error(userError.message);
+      if (!userData.user) {
+        Alert.alert("Sign in required", "Please sign in before applying.");
+        return;
+      }
+
+      const { error } = await supabaseClient.rpc("rpc_apply_to_job", {
+        p_job_id: job.id,
+      });
+      if (error) throw new Error(error.message);
+
+      Alert.alert("Application sent", "Your application has been submitted.");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unable to apply right now.";
+      Alert.alert("Apply failed", message);
+    } finally {
+      setApplying(false);
+    }
+  };
+
+  const handleMessageEmployer = async () => {
+    if (!job || messaging) return;
+
+    setMessaging(true);
+    try {
+      const { data: userData, error: userError } = await supabaseClient.auth.getUser();
+      if (userError) throw new Error(userError.message);
+      if (!userData.user) {
+        Alert.alert("Sign in required", "Please sign in to message the employer.");
+        return;
+      }
+
+      let roomId: string | null = null;
+      if (job.employer_id) {
+        const unified = await supabaseClient.rpc("rpc_open_job_conversation_with_user", {
+          p_job_id: job.id,
+          p_other_user_id: job.employer_id,
+        });
+        if (!unified.error && unified.data) {
+          roomId = unified.data;
+        }
+      }
+
+      if (!roomId) {
+        const primary = await supabaseClient.rpc("rpc_open_job_conversation_for_job", {
+          p_job_id: job.id,
+        });
+        if (!primary.error && primary.data) {
+          roomId = primary.data;
+        }
+      }
+
+      if (!roomId && job.employer_id) {
+        // Legacy fallback for older DBs.
+        const legacy = await supabaseClient.rpc("rpc_open_job_conversation", {
+          p_job_id: job.id,
+          p_employer_id: job.employer_id,
+        });
+        if (!legacy.error && legacy.data) {
+          roomId = legacy.data;
+        }
+      }
+
+      if (!roomId) {
+        throw new Error("Could not open conversation. Run `npx supabase db push` and restart the app.");
+      }
+
+      router.push({
+        pathname: "/chatRoom/chatRoom",
+        params: {
+          roomId,
+          name: "Employer",
+          jobTitle: job.title,
+        },
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unable to open chat right now.";
+      Alert.alert("Message failed", message);
+    } finally {
+      setMessaging(false);
+    }
+  };
 
   return (
     <View className={`flex-1 ${t.bgPage}`}>
@@ -121,11 +212,19 @@ export default function JobView() {
           </View>
 
           <View className="flex-row gap-3 mt-6">
-            <TouchableOpacity className="flex-1 bg-blue-600 py-4 rounded-2xl items-center shadow-sm">
-              <Text className="text-white font-black">Apply Now</Text>
+            <TouchableOpacity
+              onPress={handleApply}
+              disabled={applying || isClosed}
+              className={`flex-1 py-4 rounded-2xl items-center shadow-sm ${isClosed ? "bg-slate-400" : "bg-blue-600"}`}
+            >
+              <Text className="text-white font-black">{applying ? "Applying..." : "Apply Now"}</Text>
             </TouchableOpacity>
-            <TouchableOpacity className={`flex-1 ${t.bgCard} border ${t.border} py-4 rounded-2xl items-center`}>
-              <Text className={`${t.text} font-black`}>Message Employer</Text>
+            <TouchableOpacity
+              onPress={handleMessageEmployer}
+              disabled={messaging}
+              className={`flex-1 ${t.bgCard} border ${t.border} py-4 rounded-2xl items-center`}
+            >
+              <Text className={`${t.text} font-black`}>{messaging ? "Opening..." : "Message Employer"}</Text>
             </TouchableOpacity>
           </View>
 

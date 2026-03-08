@@ -2,27 +2,63 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Image, ActivityIndicator, RefreshControl } from 'react-native';
 import CustomSearchBarComponent from "@/components/CustomComponents/CustomSearchComponent";
 import { LegendList } from '@legendapp/list';
-import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { Feather, Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useTheme } from '@/hooks/useTheme';
 import { supabaseClient } from '@/utils/supabase';
 import { useRouter } from 'expo-router';
 
 const CATEGORIES = ['All', 'Street Food', 'Kakanin', 'Ulam', 'Desserts'];
 
+type ListingFeedRow = {
+  id: string;
+  vendor_id: string;
+  name: string;
+  description: string | null;
+  category: string;
+  price: number;
+  location_label: string;
+  image_url: string | null;
+  is_open: boolean;
+  created_at: string;
+  avg_rating: number;
+  review_count: number;
+};
+
+const toNumber = (value: number | string | null | undefined, fallback = 0) => {
+  if (typeof value === "number") return Number.isFinite(value) ? value : fallback;
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  }
+  return fallback;
+};
+
+const normalizeListing = (row: any): ListingFeedRow => ({
+  id: row.id,
+  vendor_id: row.vendor_id,
+  name: row.name,
+  description: row.description ?? null,
+  category: row.category,
+  price: toNumber(row.price, 0),
+  location_label: row.location_label,
+  image_url: row.image_url ?? null,
+  is_open: Boolean(row.is_open),
+  created_at: row.created_at,
+  avg_rating: toNumber(row.avg_rating, 0),
+  review_count: Number(row.review_count ?? 0),
+});
+
 export default function MarketPlace() {
   const { t } = useTheme();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('All');
-  const [listings, setListings] = useState<any[]>([]);
+  const [listings, setListings] = useState<ListingFeedRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   const loadListings = async () => {
     setLoading(true);
-    const { data } = await supabaseClient
-      .from("marketplace_listings")
-      .select("id,name,category,price,location_label,image_url,description,created_at")
-      .order("created_at", { ascending: false });
-    setListings(data ?? []);
+    const { data } = await supabaseClient.rpc("rpc_get_marketplace_listings_feed");
+    setListings((data ?? []).map(normalizeListing));
     setLoading(false);
   };
 
@@ -87,19 +123,34 @@ function VendorCard({ vendor, t, onPress }: { vendor: any; t: any; onPress: () =
   return (
     <TouchableOpacity activeOpacity={0.95} className={`rounded-[32px] overflow-hidden mb-6 ${t.bgCard} border ${t.border} shadow-sm`} onPress={onPress}>
       <View className="h-36 w-full relative">
-        <Image source={{ uri: vendor.image_url ?? 'https://images.unsplash.com/photo-1555126634-323283e090fa?w=800' }} className="w-full h-full" />
+        {vendor.image_url ? (
+          <Image source={{ uri: vendor.image_url }} className="w-full h-full" />
+        ) : (
+          <View className={`w-full h-full items-center justify-center ${t.bgSurface}`}>
+            <Feather name="image" size={28} color={t.icon} />
+            <Text className={`mt-2 text-xs font-semibold ${t.textMuted}`}>No photo uploaded</Text>
+          </View>
+        )}
         <View className="absolute top-4 right-4 bg-white/95 px-2 py-1 rounded-xl flex-row items-center shadow-sm">
           <Ionicons name="star" size={12} color="#F59E0B" />
-          <Text className="text-[11px] font-black ml-1 text-slate-900">{vendor.rating ?? "New"}</Text>
+          <Text className="text-[11px] font-black ml-1 text-slate-900">
+            {vendor.review_count > 0 ? vendor.avg_rating.toFixed(1) : "New"}
+          </Text>
         </View>
       </View>
 
       <View className="px-5 pb-6 pt-12 relative">
         <View className="absolute -top-10 left-5">
-          <Image 
-            source={{ uri: vendor.image_url ?? 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200' }} 
-            className="w-20 h-20 rounded-3xl border-4 border-white shadow-xl" 
-          />
+          {vendor.image_url ? (
+            <Image
+              source={{ uri: vendor.image_url }}
+              className="w-20 h-20 rounded-3xl border-4 border-white shadow-xl"
+            />
+          ) : (
+            <View className="w-20 h-20 rounded-3xl border-4 border-white shadow-xl bg-slate-200 items-center justify-center">
+              <Text className="text-slate-600 font-black text-lg">{String(vendor.name ?? "M").slice(0, 1).toUpperCase()}</Text>
+            </View>
+          )}
         </View>
 
         <View className="flex-row justify-between items-start">
@@ -110,11 +161,11 @@ function VendorCard({ vendor, t, onPress }: { vendor: any; t: any; onPress: () =
             </View>
             <View className="flex-row items-center mt-1">
               <MaterialIcons name="location-on" size={14} color="#3B82F6" />
-              <Text className={`text-xs ml-1 font-bold ${t.textMuted}`}>{vendor.location_label ?? "Location TBD"}</Text>
+              <Text className={`text-xs ml-1 font-bold ${t.textMuted}`}>{vendor.location_label}</Text>
             </View>
           </View>
           <View className={`${t.brandSoft} px-3 py-1.5 rounded-xl`}>
-            <Text className={`${t.brand} font-black text-[10px] uppercase`}>{vendor.distance ?? ""}</Text>
+            <Text className={`${t.brand} font-black text-[10px] uppercase`}>{vendor.review_count} review{vendor.review_count === 1 ? "" : "s"}</Text>
           </View>
         </View>
 

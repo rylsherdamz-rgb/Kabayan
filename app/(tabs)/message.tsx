@@ -7,6 +7,18 @@ import { useTheme } from "@/hooks/useTheme";
 import { supabaseClient } from "@/utils/supabase";
 import AuthenticationForm from "@/components/Auth/AuthenticationForm";
 
+type Conversation = {
+  roomId: string;
+  lastMsg: string;
+  lastSenderId: string | null;
+  lastTime: string | null;
+  otherUserId: string | null;
+  otherDisplayName: string;
+  otherAvatarUrl: string | null;
+  jobId: string | null;
+  jobTitle: string | null;
+};
+
 export default function Inbox() {
   const { t } = useTheme();
   const router = useRouter();
@@ -16,33 +28,36 @@ export default function Inbox() {
   const [authModalVisible, setAuthModalVisible] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  const fetchThreads = useCallback(async () => {
-    if (!userId) {
+  const fetchThreads = useCallback(async (targetUserId?: string | null) => {
+    const resolvedUserId = targetUserId ?? userId;
+    if (!resolvedUserId) {
       setLoading(false);
       return;
     }
+
     setLoading(true);
-    const { data, error } = await supabaseClient
-      .from("messages")
-      .select("id, room_id, sender_id, content, created_at")
-      .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
-      .order("created_at", { ascending: false });
+    const { data, error } = await supabaseClient.rpc("rpc_get_conversation_threads_for_user", {
+      p_user_id: resolvedUserId,
+    });
+
     if (error || !data) {
       setLoading(false);
       return;
     }
-    const grouped = new Map<string, Conversation>();
-    data.forEach((row) => {
-      if (!grouped.has(row.room_id)) {
-        grouped.set(row.room_id, {
-          roomId: row.room_id,
-          lastMsg: row.content,
-          lastSenderId: row.sender_id,
-          lastTime: row.created_at,
-        });
-      }
-    });
-    setThreads(Array.from(grouped.values()));
+
+    const mapped: Conversation[] = (data ?? []).map((row: any) => ({
+      roomId: row.room_id,
+      lastMsg: row.last_message ?? "",
+      lastSenderId: row.last_sender_id ?? null,
+      lastTime: row.last_time ?? null,
+      otherUserId: row.other_user_id ?? null,
+      otherDisplayName: row.other_display_name ?? "Unknown User",
+      otherAvatarUrl: row.other_avatar_url ?? null,
+      jobId: row.job_id ?? null,
+      jobTitle: row.job_title ?? null,
+    }));
+
+    setThreads(mapped);
     setLoading(false);
   }, [userId]);
 
@@ -51,14 +66,19 @@ export default function Inbox() {
       let active = true;
       supabaseClient.auth.getUser().then(({ data }) => {
         if (!active) return;
-        setUserId(data.user?.id ?? null);
+        const uid = data.user?.id ?? null;
+        setUserId(uid);
         setAuthModalVisible(!data.user);
-        setLoading(false);
+        if (uid) {
+          fetchThreads(uid);
+        } else {
+          setLoading(false);
+        }
       });
       return () => {
         active = false;
       };
-    }, [])
+    }, [fetchThreads])
   );
 
   useEffect(() => {
@@ -69,21 +89,8 @@ export default function Inbox() {
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "messages" },
-        (payload) => {
-          const row = payload.new as any;
-          if (row.sender_id !== userId && row.receiver_id !== userId) return;
-          setThreads((prev) => {
-            const filtered = prev.filter((t) => t.roomId !== row.room_id);
-            return [
-              {
-                roomId: row.room_id,
-                lastMsg: row.content,
-                lastSenderId: row.sender_id,
-                lastTime: row.created_at,
-              },
-              ...filtered,
-            ];
-          });
+        () => {
+          fetchThreads();
         }
       )
       .subscribe();
@@ -95,7 +102,13 @@ export default function Inbox() {
 
   const filteredThreads = useMemo(() => {
     const q = search.toLowerCase();
-    return threads.filter((t) => t.roomId.toLowerCase().includes(q));
+    return threads.filter((thread) => {
+      return (
+        thread.otherDisplayName.toLowerCase().includes(q) ||
+        thread.roomId.toLowerCase().includes(q) ||
+        (thread.jobTitle ?? "").toLowerCase().includes(q)
+      );
+    });
   }, [threads, search]);
 
   return (
@@ -129,31 +142,51 @@ export default function Inbox() {
               <Text className={`text-sm ${t.textMuted}`}>No messages</Text>
             </View>
           }
-          renderItem={({ item }) => (
-            <TouchableOpacity 
-              onPress={() => router.push({ pathname: "/chatRoom/chatRoom", params: { roomId: item.roomId } })}
-              className={`flex-row items-center p-5 border-b ${t.border} active:bg-slate-50`}
-            >
-              <View className="relative">
-                <Image source={{ uri: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200" }} className="w-14 h-14 rounded-[20px]" />
-              </View>
-
-              <View className="flex-1 ml-4">
-                <View className="flex-row justify-between items-center">
-                  <Text className={`font-black text-base ${t.text}`}>Room {item.roomId.slice(0, 6)}</Text>
-                  <Text className={`text-[10px] font-bold ${t.textMuted}`}>{formatTime(item.lastTime)}</Text>
+          renderItem={({ item }) => {
+            const preview = item.lastMsg ? `${item.lastSenderId === userId ? "You: " : ""}${item.lastMsg}` : "No messages yet";
+            return (
+              <TouchableOpacity
+                onPress={() =>
+                  router.push({
+                    pathname: "/chatRoom/chatRoom",
+                    params: {
+                      roomId: item.roomId,
+                      name: item.otherDisplayName,
+                      jobTitle: item.jobTitle ?? undefined,
+                    },
+                  })
+                }
+                className={`flex-row items-center p-5 border-b ${t.border} active:bg-slate-50`}
+              >
+                <View className="relative">
+                  {item.otherAvatarUrl ? (
+                    <Image source={{ uri: item.otherAvatarUrl }} className="w-14 h-14 rounded-[20px]" />
+                  ) : (
+                    <View className="w-14 h-14 rounded-[20px] bg-slate-200 items-center justify-center">
+                      <Text className="text-slate-600 font-black text-lg">{item.otherDisplayName.slice(0, 1).toUpperCase()}</Text>
+                    </View>
+                  )}
                 </View>
-                <Text className={`text-xs mt-1 font-medium ${t.textMuted}`} numberOfLines={1}>
-                  {item.lastMsg || "No messages yet"}
-                </Text>
-                <View className="flex-row items-center mt-2">
-                  <View className={`${t.brandSoft} px-2 py-0.5 rounded-md`}>
-                     <Text className={`text-[9px] font-black uppercase ${t.brand}`}>Supabase</Text>
+
+                <View className="flex-1 ml-4">
+                  <View className="flex-row justify-between items-center">
+                    <Text className={`font-black text-base ${t.text}`}>{item.otherDisplayName}</Text>
+                    <Text className={`text-[10px] font-bold ${t.textMuted}`}>{formatTime(item.lastTime)}</Text>
+                  </View>
+                  <Text className={`text-xs mt-1 font-medium ${t.textMuted}`} numberOfLines={1}>
+                    {preview}
+                  </Text>
+                  <View className="flex-row items-center mt-2">
+                    <View className={`${t.brandSoft} px-2 py-0.5 rounded-md`}>
+                      <Text className={`text-[9px] font-black uppercase ${t.brand}`}>
+                        {item.jobTitle ? `Job: ${item.jobTitle}` : "Direct Message"}
+                      </Text>
+                    </View>
                   </View>
                 </View>
-              </View>
-            </TouchableOpacity>
-          )}
+              </TouchableOpacity>
+            );
+          }}
         />
       )}
 
@@ -181,14 +214,8 @@ export default function Inbox() {
   );
 }
 
-type Conversation = {
-  roomId: string;
-  lastMsg: string;
-  lastSenderId: string;
-  lastTime: string;
-};
-
-const formatTime = (iso: string) => {
+const formatTime = (iso: string | null) => {
+  if (!iso) return "";
   const date = new Date(iso);
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();

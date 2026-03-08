@@ -1,19 +1,39 @@
 import React, { useState } from "react";
-import { Modal, SafeAreaView, View, Text, TextInput, TouchableOpacity, ScrollView } from "react-native";
-import { Feather, Ionicons, MaterialIcons } from "@expo/vector-icons";
+import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView, Alert } from "react-native";
+import { Feather, Ionicons } from "@expo/vector-icons";
+import {useSafeAreaInsets} from "react-native-safe-area-context"
 import { useTheme } from "@/hooks/useTheme";
 import { supabaseClient } from "@/utils/supabase";
+import * as Location from "expo-location";
+
+const FALLBACK_COORDINATE = {
+  latitude: 14.5995,
+  longitude: 120.9842,
+};
+
+type CreatedJob = {
+  id: string;
+  title: string;
+  description: string;
+  location_label: string;
+  budget_min: number;
+  budget_max: number;
+  is_urgent: boolean;
+  status: string;
+  created_at: string;
+};
 
 type JobModalProps = {
   visible: boolean;
   onClose: () => void;
-  onCreated?: () => void;
+  onCreated?: (job?: CreatedJob) => void;
 };
 
 export default function JobModal({ visible, onClose, onCreated }: JobModalProps) {
   const { t } = useTheme();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const insets = useSafeAreaInsets()
   const [location, setLocation] = useState("");
   const [budgetMin, setBudgetMin] = useState("");
   const [budgetMax, setBudgetMax] = useState("");
@@ -28,38 +48,97 @@ export default function JobModal({ visible, onClose, onCreated }: JobModalProps)
     setBudgetMin("");
     setBudgetMax("");
     setRequirements("");
+    setError(null);
   };
 
   const handleSave = async () => {
     if (saving) return;
-    setSaving(true);
-    setError(null);
-    const { data, error } = await supabaseClient.from("jobs").insert({
-      title,
-      description,
-      location_label: location,
-      budget_min: Number(budgetMin) || 0,
-      budget_max: Number(budgetMax) || 0,
-      requirements: requirements ? requirements.split(",").map((r) => r.trim()) : [],
-      status: "open",
-      is_urgent: false,
-    }).select("*").single();
+    const trimmedTitle = title.trim();
+    const trimmedDescription = description.trim();
+    const trimmedLocation = location.trim();
+    const min = budgetMin.trim() === "" ? 0 : Number(budgetMin);
+    const max = budgetMax.trim() === "" ? 0 : Number(budgetMax);
 
-    if (error) {
-      setError(error.message);
-      setSaving(false);
+    if (!trimmedTitle || !trimmedDescription || !trimmedLocation) {
+      setError("Title, description, and location are required.");
       return;
     }
 
-    setSaving(false);
-    clearForm();
-    onCreated?.(data);
-    onClose();
+    if (Number.isNaN(min) || Number.isNaN(max)) {
+      setError("Budget must be a valid number.");
+      return;
+    }
+
+    if (max < min) {
+      setError("Maximum budget must be greater than or equal to minimum budget.");
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+
+    try {
+      const { data: authData, error: authError } = await supabaseClient.auth.getUser();
+      if (authError) throw new Error(authError.message);
+
+      const employerId = authData.user?.id;
+      if (!employerId) {
+        throw new Error("You must be signed in to post a job.");
+      }
+
+      let latitude = FALLBACK_COORDINATE.latitude;
+      let longitude = FALLBACK_COORDINATE.longitude;
+      try {
+        const geo = await Location.geocodeAsync(trimmedLocation);
+        if (geo.length > 0) {
+          latitude = geo[0].latitude;
+          longitude = geo[0].longitude;
+        }
+      } catch {
+        // Keep fallback coordinates so the insert remains valid.
+      }
+
+      const requirementsArray = requirements
+        ? requirements
+            .split(",")
+            .map((r) => r.trim())
+            .filter(Boolean)
+        : [];
+
+      const { data, error: insertError } = await supabaseClient
+        .rpc("rpc_create_job", {
+          p_employer_id: employerId,
+          p_title: trimmedTitle,
+          p_description: trimmedDescription,
+          p_location_label: trimmedLocation,
+          p_latitude: latitude,
+          p_longitude: longitude,
+          p_budget_min: min,
+          p_budget_max: max,
+          p_requirements: requirementsArray,
+          p_status: "open",
+          p_is_urgent: false,
+        })
+        .maybeSingle();
+
+      if (insertError) throw new Error(insertError.message);
+
+      clearForm();
+      onCreated?.(data);
+      onClose();
+      Alert.alert("Job posted", "Your job listing is now live.");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to post job.";
+      setError(message);
+      Alert.alert("Unable to post job", message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <SafeAreaView className="flex-1 bg-black/50 justify-end">
+    <Modal  visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View  style={{paddingBottom : insets.bottom}} className="flex-1 bg-black/50 justify-end">
         <View className={`max-h-[80%] bg-white rounded-t-[32px] p-6 ${t.bgCard}`}>
           <View className="flex-row items-center justify-between mb-4">
             <View className="flex-row items-center">
@@ -76,7 +155,7 @@ export default function JobModal({ visible, onClose, onCreated }: JobModalProps)
             </TouchableOpacity>
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={false}>
+          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             <Field
               label="Job title"
               placeholder="e.g. Master Plumber needed for leak repair"
@@ -151,7 +230,7 @@ export default function JobModal({ visible, onClose, onCreated }: JobModalProps)
             <View className="h-4" />
           </ScrollView>
         </View>
-      </SafeAreaView>
+      </View>
     </Modal>
   );
 }

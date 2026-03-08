@@ -11,13 +11,16 @@ import {
 } from "react-native";
 import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
+import {useSafeAreaInsets} from "react-native-safe-area-context"
 import { useTheme } from "@/hooks/useTheme";
 import { supabaseClient } from "@/utils/supabase";
 
 export default function ChatRoomLayout() {
   const { t } = useTheme();
   const router = useRouter();
+  const insets = useSafeAreaInsets()
   const { roomId = "demo-room", name, jobTitle } = useLocalSearchParams<{
+    
     roomId?: string;
     name?: string;
     jobTitle?: string;
@@ -37,10 +40,7 @@ export default function ChatRoomLayout() {
     let isMounted = true;
     const loadMessages = async () => {
       const { data, error } = await supabaseClient
-        .from("messages")
-        .select("*")
-        .eq("room_id", roomId)
-        .order("created_at", { ascending: true });
+        .rpc("rpc_get_messages_by_room", { p_room_id: roomId });
       if (!error && isMounted && data) {
         setMessages(data.map(mapMessage));
       }
@@ -75,9 +75,11 @@ export default function ChatRoomLayout() {
     if (!text || !userId || sending) return;
     setSending(true);
     setMessage("");
-    const { error } = await supabaseClient
-      .from("messages")
-      .insert({ room_id: roomId, sender_id: userId, content: text });
+    const { error } = await supabaseClient.rpc("rpc_send_message", {
+      p_room_id: roomId,
+      p_sender_id: userId,
+      p_content: text,
+    });
     if (error) {
       // roll back local clear if needed
       setMessage(text);
@@ -89,7 +91,7 @@ export default function ChatRoomLayout() {
   const headerJob = jobTitle ?? "Conversation";
 
   return (
-    <View className={`flex-1 ${t.bgPage}`}>
+    <View style={{paddingBottom : insets.bottom}} className={`flex-1 ${t.bgPage}`}>
       <View className={`pt-12 pb-4 px-4 ${t.bgCard} border-b ${t.border} flex-row items-center justify-between shadow-sm`}>
         <View className="flex-row items-center flex-1">
           <TouchableOpacity onPress={() => router.back()} className="p-2 mr-1">
@@ -138,7 +140,7 @@ export default function ChatRoomLayout() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
         showsVerticalScrollIndicator={false}
-        renderItem={({ item }) => <ChatBubble item={item} t={t} userId={userId} />}
+        renderItem={({ item }) => <ChatBubble item={item} t={t} userId={userId} otherName={headerName} />}
       />
 
       <KeyboardAvoidingView
@@ -181,7 +183,17 @@ export default function ChatRoomLayout() {
   );
 }
 
-function ChatBubble({ item, t, userId }: { item: ChatMessage; t: any; userId: string | null }) {
+function ChatBubble({
+  item,
+  t,
+  userId,
+  otherName,
+}: {
+  item: ChatMessage;
+  t: any;
+  userId: string | null;
+  otherName: string;
+}) {
   const isMe = userId ? item.senderId === userId : item.senderId === "me";
   return (
     <View className={`mb-4 flex-row ${isMe ? "justify-end" : "justify-start"}`}>
@@ -189,6 +201,9 @@ function ChatBubble({ item, t, userId }: { item: ChatMessage; t: any; userId: st
         className={`max-w-[75%] px-4 py-3 rounded-[24px] shadow-sm 
         ${isMe ? "bg-blue-600 rounded-tr-none" : `${t.bgSurface} border ${t.border} rounded-tl-none`}`}
       >
+        <Text className={`text-[9px] mb-1 font-black uppercase tracking-widest ${isMe ? "text-blue-200" : t.textMuted}`}>
+          {isMe ? "You" : otherName}
+        </Text>
         <Text className={`text-sm font-medium leading-5 ${isMe ? "text-white" : t.text}`}>
           {item.text}
         </Text>

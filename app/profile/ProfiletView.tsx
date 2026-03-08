@@ -31,10 +31,8 @@ export default function ProfileView() {
         return;
       }
       const { data } = await supabaseClient
-        .from("profiles")
-        .select("user_id,display_name,avatar_url,job_role,id_verification_status,location_label,created_at")
-        .eq("user_id", uid)
-        .single();
+        .rpc("rpc_get_profile_detail", { p_user_id: uid })
+        .maybeSingle();
       if (active) {
         setProfile(data ?? null);
         setLoading(false);

@@ -1,23 +1,130 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, Image } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { View, Text, TouchableOpacity, Image, ActivityIndicator, Alert } from 'react-native';
 import { DrawerContentScrollView } from '@react-navigation/drawer';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Feather, MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
+import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/hooks/useTheme';
+import { supabaseClient } from '@/utils/supabase';
+
+type DrawerProfile = {
+  user_id: string;
+  display_name: string | null;
+  avatar_url: string | null;
+  id_verification_status: string;
+  job_role: string;
+  market_role: string;
+  location_label: string | null;
+};
+
+type MenuItem = {
+  label: string;
+  icon: keyof typeof Feather.glyphMap;
+  route: string;
+};
+
+const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400';
+
+const titleCase = (value?: string | null) => {
+  if (!value) return '';
+  return value
+    .replace(/_/g, ' ')
+    .split(' ')
+    .filter(Boolean)
+    .map((word) => word[0].toUpperCase() + word.slice(1))
+    .join(' ');
+};
 
 export default function CustomDrawerContent(props: any) {
   const { t } = useTheme();
   const inset = useSafeAreaInsets();
   const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState<DrawerProfile | null>(null);
+  const [email, setEmail] = useState<string | null>(null);
+  const [jobsCount, setJobsCount] = useState(0);
+  const [listingsCount, setListingsCount] = useState(0);
 
-  const menuItems = [
-    { label: 'Marketplace', icon: 'shopping-bag', route: '/marketPlace' },
-    { label: 'Job Board', icon: 'briefcase', route: '/jobs' },
-    { label: 'My Wallet', icon: 'credit-card', route: '/wallet' },
-    { label: 'Community Forum', icon: 'users', route: '/forum' },
-    { label: 'Help & Support', icon: 'help-circle', route: '/support' },
-  ];
+  const menuItems: MenuItem[] = useMemo(
+    () => [
+      { label: 'Home', icon: 'home', route: '/home' },
+      { label: 'Marketplace', icon: 'shopping-bag', route: '/marketPlace' },
+      { label: 'Job Board', icon: 'briefcase', route: '/jobs' },
+      { label: 'Messages', icon: 'message-circle', route: '/message' },
+      { label: 'Profile', icon: 'user', route: '/profile' },
+    ],
+    []
+  );
+
+  useEffect(() => {
+    let active = true;
+
+    const loadDrawerData = async () => {
+      try {
+        const { data: userData, error: userError } = await supabaseClient.auth.getUser();
+        if (userError) throw new Error(userError.message);
+
+        const user = userData.user;
+        setEmail(user?.email ?? null);
+        if (!user) {
+          if (active) setLoading(false);
+          return;
+        }
+
+        const uid = user.id;
+
+        const [profileRes, jobsRes, listingsRes] = await Promise.all([
+          supabaseClient
+            .rpc('rpc_get_drawer_profile', { p_user_id: uid })
+            .maybeSingle(),
+          supabaseClient.rpc('rpc_get_jobs_count_by_employer', { p_employer_id: uid }),
+          supabaseClient.rpc('rpc_get_listings_count_by_vendor', { p_vendor_id: uid }),
+        ]);
+
+        if (!active) return;
+
+        if (profileRes.error) throw new Error(profileRes.error.message);
+        if (jobsRes.error) throw new Error(jobsRes.error.message);
+        if (listingsRes.error) throw new Error(listingsRes.error.message);
+
+        setProfile(profileRes.data ?? null);
+        setJobsCount(Number(jobsRes.data ?? 0));
+        setListingsCount(Number(listingsRes.data ?? 0));
+      } catch (err) {
+        if (active) {
+          const message = err instanceof Error ? err.message : 'Failed to load drawer data.';
+          Alert.alert('Drawer Error', message);
+        }
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+
+    loadDrawerData();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const handleSignOut = async () => {
+    const { error } = await supabaseClient.auth.signOut();
+    if (error) {
+      Alert.alert('Sign Out Failed', error.message);
+      return;
+    }
+    router.replace('/AuthenticationPage');
+  };
+
+  const displayName = profile?.display_name ?? (email ? email.split('@')[0] : 'Guest User');
+  const verificationStatus = profile?.id_verification_status ?? 'unverified';
+  const verificationLabel = titleCase(verificationStatus);
+  const isVerified = verificationStatus === 'verified';
+  const roleLabel = profile
+    ? `${titleCase(profile.job_role)} • ${titleCase(profile.market_role)}`
+    : 'No profile role';
+  const locationLabel = profile?.location_label ?? 'Location unknown';
+
+  const verificationColor = isVerified ? '#3B82F6' : '#94A3B8';
 
   return (
     <View className={`flex-1 ${t.bgCard}`}>
@@ -29,25 +136,47 @@ export default function CustomDrawerContent(props: any) {
         >
           <View className="relative w-20 h-20 mb-4">
             <Image
-              source={{ uri: 'https://images.unsplash.com/photo-1531427186611-ecfd6d936c79?w=400' }}
+              source={{ uri: profile?.avatar_url ?? DEFAULT_AVATAR }}
               className="w-full h-full rounded-[24px] border-4 border-white shadow-sm"
             />
             <View className="absolute -bottom-1 -right-1 bg-emerald-500 w-5 h-5 rounded-full border-2 border-white" />
           </View>
-          
+
           <Text className={`text-2xl font-black tracking-tighter ${t.text}`}>
-            Kuya Jojo
+            {displayName}
           </Text>
           <View className="flex-row items-center mt-1">
-            <MaterialCommunityIcons name="check-decagram" size={14} color="#3B82F6" />
+            <MaterialCommunityIcons
+              name={isVerified ? 'check-decagram' : 'clock-outline'}
+              size={14}
+              color={verificationColor}
+            />
             <Text className={`ml-1 text-[10px] font-bold uppercase tracking-widest ${t.textMuted}`}>
-              Verified Kabayan
+              {verificationLabel}
             </Text>
+          </View>
+          <Text className={`mt-1 text-xs font-semibold ${t.textMuted}`}>{locationLabel}</Text>
+          {email ? <Text className={`mt-1 text-[11px] ${t.textMuted}`}>{email}</Text> : null}
+          <View className="mt-4 flex-row gap-2">
+            <View className={`flex-1 ${t.bgCard} border ${t.border} rounded-xl px-3 py-2`}>
+              <Text className={`text-[10px] font-black uppercase tracking-widest ${t.textMuted}`}>Jobs</Text>
+              <Text className={`text-base font-black ${t.text}`}>{jobsCount}</Text>
+            </View>
+            <View className={`flex-1 ${t.bgCard} border ${t.border} rounded-xl px-3 py-2`}>
+              <Text className={`text-[10px] font-black uppercase tracking-widest ${t.textMuted}`}>Listings</Text>
+              <Text className={`text-base font-black ${t.text}`}>{listingsCount}</Text>
+            </View>
           </View>
         </View>
 
         <View className="mt-6 px-4">
-          {menuItems.map((item, index) => (
+          {loading ? (
+            <View className="py-6 items-center">
+              <ActivityIndicator />
+              <Text className={`mt-2 text-xs ${t.textMuted}`}>Loading drawer…</Text>
+            </View>
+          ) : (
+            menuItems.map((item, index) => (
             <TouchableOpacity 
               key={index}
               onPress={() => router.push(item.route)}
@@ -56,9 +185,10 @@ export default function CustomDrawerContent(props: any) {
               <View className={`${t.bgSurface} p-2.5 rounded-xl mr-4`}>
                 <Feather name={item.icon} size={18} color={t.accent} />
               </View>
-              <Text className={`text-sm font-bold ${t.text}`}>{item.label}</Text>
-            </TouchableOpacity>
-          ))}
+                <Text className={`text-sm font-bold ${t.text}`}>{item.label}</Text>
+              </TouchableOpacity>
+            ))
+          )}
         </View>
       </DrawerContentScrollView>
 
@@ -72,11 +202,14 @@ export default function CustomDrawerContent(props: any) {
           </View>
           <View>
             <Text className={`text-[10px] font-black uppercase tracking-widest ${t.textMuted}`}>Status</Text>
-            <Text className={`text-xs font-black ${t.text}`}>Elite Member</Text> 
+            <Text className={`text-xs font-black ${t.text}`}>{roleLabel}</Text>
           </View>
         </View>
         
-        <TouchableOpacity className={`w-12 h-12 ${t.bgSurface} border ${t.border} rounded-2xl items-center justify-center active:bg-rose-50`}>
+        <TouchableOpacity
+          onPress={handleSignOut}
+          className={`w-12 h-12 ${t.bgSurface} border ${t.border} rounded-2xl items-center justify-center active:bg-rose-50`}
+        >
           <Feather name="log-out" size={20} color="#EF4444" /> 
         </TouchableOpacity>
       </View>

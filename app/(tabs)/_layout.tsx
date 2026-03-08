@@ -1,9 +1,8 @@
 import React from "react";
-import { Tabs } from "expo-router";
-import { StatusBar, Pressable, View, Text } from "react-native";
+import { Tabs, useNavigation } from "expo-router";
+import { Pressable } from "react-native";
 import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import {useSafeAreaInsets} from "react-native-safe-area-context"
-import {useNavigation} from "expo-router"
 import { useTheme } from "@/hooks/useTheme";
 import {DrawerActions} from "@react-navigation/native"
 
@@ -91,16 +90,6 @@ export default function TabsLayout() {
             tabBarLabel: "Message",
             tabBarIcon: ({ color, focused }) => (
               <Feather name="message-circle" color={color} size={focused ? 24 : 22} />
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="profile"
-          options={{
-            title: "Profile",
-            tabBarLabel: "Profile",
-            tabBarIcon: ({ color, focused }) => (
-              <Feather name="user" color={color} size={focused ? 24 : 22} />
             ),
           }}
         />

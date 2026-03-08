@@ -1,9 +1,15 @@
 import React, { useState } from "react";
-import { Modal, SafeAreaView, View, Text, TextInput, TouchableOpacity, ScrollView, Image } from "react-native";
+import { Modal, SafeAreaView, View, Text, TextInput, TouchableOpacity, ScrollView, Image, Alert } from "react-native";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/hooks/useTheme";
 import { supabaseClient } from "@/utils/supabase";
 import { useImagePicker } from "@/context/ImagePicker";
+import * as Location from "expo-location";
+
+const FALLBACK_COORDINATE = {
+  latitude: 14.5995,
+  longitude: 120.9842,
+};
 
 type MarketModalProps = {
   visible: boolean;
@@ -22,6 +28,7 @@ export default function MarketModal({ visible, onClose, onCreated }: MarketModal
   const [location, setLocation] = useState("");
   const [backgroundUri, setBackgroundUri] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [allergens, setAllergens] = useState("");
   const [storage, setStorage] = useState("");
   const [permitVerified, setPermitVerified] = useState(false);
@@ -37,6 +44,7 @@ export default function MarketModal({ visible, onClose, onCreated }: MarketModal
     setAllergens("");
     setStorage("");
     setPermitVerified(false);
+    setError(null);
   };
 
   const handlePickForeground = async () => {
@@ -51,31 +59,81 @@ export default function MarketModal({ visible, onClose, onCreated }: MarketModal
 
   const handleSave = async () => {
     if (saving) return;
-    setSaving(true);
-    const composedDescription = [
-      description,
-      allergens ? `Allergens: ${allergens}` : "",
-      storage ? `Storage: ${storage}` : "",
-      `Permit: ${permitVerified ? "Verified" : "Not verified"}`,
-    ]
-      .filter(Boolean)
-      .join("\n");
+    const trimmedName = name.trim();
+    const trimmedCategory = category.trim();
+    const trimmedLocation = location.trim();
+    const trimmedDescription = description.trim();
+    const priceValue = price.trim() === "" ? 0 : Number(price);
 
-    await supabaseClient.from("marketplace_listings").insert({
-      name,
-      description: composedDescription,
-      category,
-      price: Number(price) || 0,
-      location_label: location,
-      latitude: null,
-      longitude: null,
-      image_url: image?.uri ?? null,
-      is_open: true,
-    });
-    setSaving(false);
-    clearForm();
-    onCreated?.();
-    onClose();
+    if (!trimmedName || !trimmedCategory || !trimmedLocation) {
+      setError("Item name, category, and location are required.");
+      return;
+    }
+
+    if (Number.isNaN(priceValue) || priceValue < 0) {
+      setError("Price must be a valid non-negative number.");
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+
+    try {
+      const { data: authData, error: authError } = await supabaseClient.auth.getUser();
+      if (authError) throw new Error(authError.message);
+
+      const vendorId = authData.user?.id;
+      if (!vendorId) {
+        throw new Error("You must be signed in to publish an item.");
+      }
+
+      let latitude = FALLBACK_COORDINATE.latitude;
+      let longitude = FALLBACK_COORDINATE.longitude;
+      try {
+        const geo = await Location.geocodeAsync(trimmedLocation);
+        if (geo.length > 0) {
+          latitude = geo[0].latitude;
+          longitude = geo[0].longitude;
+        }
+      } catch {
+        // Keep fallback coordinates so the insert remains valid.
+      }
+
+      const composedDescription = [
+        trimmedDescription,
+        allergens ? `Allergens: ${allergens.trim()}` : "",
+        storage ? `Storage: ${storage.trim()}` : "",
+        `Permit: ${permitVerified ? "Verified" : "Not verified"}`,
+      ]
+        .filter(Boolean)
+        .join("\n");
+
+      const { error: insertError } = await supabaseClient.rpc("rpc_create_marketplace_listing", {
+        p_vendor_id: vendorId,
+        p_name: trimmedName,
+        p_description: composedDescription || null,
+        p_category: trimmedCategory,
+        p_price: priceValue,
+        p_location_label: trimmedLocation,
+        p_latitude: latitude,
+        p_longitude: longitude,
+        p_image_url: image?.uri ?? null,
+        p_is_open: true,
+      });
+
+      if (insertError) throw new Error(insertError.message);
+
+      clearForm();
+      onCreated?.();
+      onClose();
+      Alert.alert("Item published", "Your marketplace listing is now live.");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to publish item.";
+      setError(message);
+      Alert.alert("Unable to publish item", message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -97,7 +155,7 @@ export default function MarketModal({ visible, onClose, onCreated }: MarketModal
             </TouchableOpacity>
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={false}>
+          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             <Field
               label="Item name"
               placeholder="e.g. Chicken Inasal Barkada"
@@ -198,6 +256,9 @@ export default function MarketModal({ visible, onClose, onCreated }: MarketModal
                 {saving ? "Saving…" : "Publish Item"}
               </Text>
             </TouchableOpacity>
+            {error && (
+              <Text className="mt-3 text-red-500 text-sm font-semibold">{error}</Text>
+            )}
             <View className="h-6" />
           </ScrollView>
         </View>
