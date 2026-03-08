@@ -32,15 +32,6 @@ export default function Home() {
           
           <Pressable onPress={() => router.push("/map/mapView")} className="h-64 rounded-[32px] overflow-hidden border border-slate-200 shadow-lg">
             <CustomMapComponents />
-            <View className="absolute bottom-4 left-4 right-4 bg-white/90 p-4 rounded-2xl flex-row items-center justify-between shadow-md">
-              <View>
-                <Text className="text-[10px] font-black text-slate-400 uppercase">Live Map View</Text>
-                <Text className="text-slate-900 font-bold">Find local {userMode === 'seeker' ? 'clients' : 'pros'}</Text>
-              </View>
-              <TouchableOpacity className="bg-slate-900 p-2 rounded-xl">
-                <Feather name="maximize" size={18} color="white" />
-              </TouchableOpacity>
-            </View>
           </Pressable>
         </View>
 
@@ -65,7 +56,7 @@ export default function Home() {
   );
 }
 
-function StatCard({ label, value, icon, t }) {
+function StatCard({ label, value, icon, t } : any) {
   return (
     <View className={`w-[47%] p-5 rounded-[32px] ${t.bgCard} border ${t.border} shadow-sm`}>
       <View className={`${t.brandSoft} w-10 h-10 rounded-2xl items-center justify-center mb-3`}>
