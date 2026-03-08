@@ -5,7 +5,7 @@ import { useRouter } from "expo-router";
 import { useTheme } from '@/hooks/useTheme';
 import { supabaseClient } from '@/utils/supabase';
 
-export default function Setting() {
+export default function Profile () {
   const { t, toggleTheme } = useTheme();
   const router = useRouter();
   const [profile, setProfile] = useState<any>(null);

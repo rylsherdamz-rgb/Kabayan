@@ -45,10 +45,11 @@ export default function RootLayout() {
         <StatusBar barStyle="dark-content" />
         <DocumentPickerContextProvider>
         <Drawer
-        drawerContent={(props) => <CustomDrawerContent {...props} />}
-         screenOptions={{ headerShown: false }}>
+          drawerContent={(props) => <CustomDrawerContent {...props} />}
+          screenOptions={{ headerShown: false }}
+        >
           <Drawer.Screen
-            name="/(tabs)/Home"
+            name="(tabs)"
             options={{ drawerLabel: "Home" }}
           />
           <Drawer.Screen

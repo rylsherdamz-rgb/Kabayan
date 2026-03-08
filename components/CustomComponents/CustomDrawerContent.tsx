@@ -39,7 +39,7 @@ export default function CustomDrawerContent(props: any) {
             Kuya Jojo
           </Text>
           <View className="flex-row items-center mt-1">
-            <MaterialCommunityIcons name="verified" size={14} color="#3B82F6" />
+            <MaterialCommunityIcons name="check-decagram" size={14} color="#3B82F6" />
             <Text className={`ml-1 text-[10px] font-bold uppercase tracking-widest ${t.textMuted}`}>
               Verified Kabayan
             </Text>

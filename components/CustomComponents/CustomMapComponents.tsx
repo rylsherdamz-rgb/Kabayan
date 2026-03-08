@@ -45,8 +45,6 @@ export default function CustomMapComponents() {
             heading={0}
           />
 
-          <UserLocation visible showsUserHeadingIndicator androidRenderMode="gps" />
-
           <PointAnnotation id="manilaMarker" coordinate={DEFAULT_COORDINATE}>
             {marker}
           </PointAnnotation>
