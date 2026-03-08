@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, Pressable } from "react-native";
 import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import useAccount from "@/hooks/useAccountHooks";
@@ -9,33 +9,48 @@ type AuthMode = "signIn" | "signUp";
 interface AuthenticationFormProps {
   mode?: AuthMode;
   onSubmitted?: () => void;
+  onModeChange?: (mode: AuthMode) => void;
 }
 
-export default function AuthenticationForm({ mode = "signIn", onSubmitted }: AuthenticationFormProps) {
+export default function AuthenticationForm({ mode = "signIn", onSubmitted, onModeChange }: AuthenticationFormProps) {
   const { t } = useTheme();
-  const { SignUpWithEmailAndPassword, SignInWithPassword } = useAccount();
+  const { SignUpWithEmailAndPassword, SignInWithPassword, error } = useAccount();
 
   const [currentMode, setCurrentMode] = useState<AuthMode>(mode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = () => {
+  useEffect(() => {
+    setCurrentMode(mode);
+  }, [mode]);
+
+  const toggleMode = () => {
+    const next = currentMode === "signIn" ? "signUp" : "signIn";
+    setCurrentMode(next);
+    onModeChange?.(next);
+  };
+
+  const handleSubmit = async () => {
+    if (submitting) return;
+    setSubmitting(true);
     if (currentMode === "signIn") {
-      SignInWithPassword({ email, password });
+      await SignInWithPassword({ email, password });
     } else {
-      SignUpWithEmailAndPassword({ email, password });
+      await SignUpWithEmailAndPassword({ email, password });
     }
+    setSubmitting(false);
     onSubmitted?.();
   };
 
   return (
-    <View className="w-full  bg-white/95 rounded-[28px] p-6 border border-slate-200 shadow-xl shadow-slate-900/10">
+    <View className="w-full bg-white/95 rounded-[28px] p-6 border border-slate-200 shadow-xl shadow-slate-900/10">
       <View className="flex-row justify-between items-center mb-4">
         <Text className="text-xl font-black text-slate-900 tracking-tight">
           {currentMode === "signIn" ? "Welcome Back" : "Join Kabayan"}
         </Text>
-        <Pressable className="flex-row  rounded-full p-1">
-          <Feather name="x-circle" color="#000" size={20} />  
+        <Pressable className="flex-row rounded-full p-1" onPress={toggleMode}>
+          <Feather name="repeat" color="#0f172a" size={18} />
         </Pressable>
       </View>
 
@@ -86,28 +101,29 @@ export default function AuthenticationForm({ mode = "signIn", onSubmitted }: Aut
           onPress={handleSubmit}
           activeOpacity={0.85}
           className="bg-blue-600 h-14 rounded-2xl items-center justify-center shadow-lg shadow-blue-500/30 mt-2"
+          disabled={submitting}
         >
           <Text className="text-white font-black uppercase text-base tracking-widest">
-            {currentMode === "signIn" ? "Log In" : "Register"}
+            {submitting ? "Please wait…" : currentMode === "signIn" ? "Log In" : "Register"}
           </Text>
         </TouchableOpacity>
-    {mode && (
-            <View className="mt-8 gap-y-3">
-              <AuthenticationForm mode={mode} />
-              <View className="flex-row justify-center">
-                <Text className="text-slate-400 text-sm">
-                  {mode === "signIn" ? "Don’t have an account? " : "Already have an account? "}
-                </Text>
-                <Pressable onPress={() => setCurrentMode(mode === "signIn" ? "signUp" : "signIn")}>
-                  <Text className="text-blue-400 text-sm font-bold">
-                    {mode === "signIn" ? "Sign up" : "Sign in"}
-                  </Text>
-                </Pressable>
-              </View>
-            </View>
-          )}
 
+        <View className="flex-row justify-center mt-3">
+          <Text className="text-slate-400 text-sm">
+            {currentMode === "signIn" ? "Don’t have an account? " : "Already have an account? "}
+          </Text>
+          <Pressable onPress={toggleMode}>
+            <Text className="text-blue-400 text-sm font-bold">
+              {currentMode === "signIn" ? "Sign up" : "Sign in"}
+            </Text>
+          </Pressable>
+        </View>
 
+        {error && (
+          <Text className="mt-3 text-red-500 text-sm font-semibold">
+            {error.message ?? "Something went wrong"}
+          </Text>
+        )}
 
         <View className="flex-row items-center justify-center mt-2">
           <View className="h-[1px] flex-1 bg-slate-200" />

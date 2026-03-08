@@ -3,6 +3,7 @@ import { View, Text, Image, ActivityIndicator, TouchableOpacity } from "react-na
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/hooks/useTheme";
 import { supabaseClient } from "@/utils/supabase";
+import { useRouter } from "expo-router";
 
 type ProfileRow = {
   user_id: string;
@@ -16,6 +17,7 @@ type ProfileRow = {
 
 export default function ProfileView() {
   const { t } = useTheme();
+  const router = useRouter();
   const [profile, setProfile] = useState<ProfileRow | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -120,10 +122,10 @@ export default function ProfileView() {
 
         <TouchableOpacity
           className="mt-4 bg-blue-600 py-3 rounded-2xl items-center"
-          onPress={() => {}}
+          onPress={() => router.push("/marketPlace/marketPlaceView?openModal=true")}
           activeOpacity={0.85}
         >
-          <Text className="text-white font-black">Manage Verification</Text>
+          <Text className="text-white font-black">Open Store / Add Item</Text>
         </TouchableOpacity>
       </View>
     </View>

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Text, View, Pressable, ActivityIndicator, TouchableOpacity } from "react-native";
+import { Text, View, Pressable, ActivityIndicator, TouchableOpacity, RefreshControl } from "react-native";
 import { useRouter } from "expo-router";
 import { LegendList } from "@legendapp/list";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -25,17 +25,18 @@ export default function Jobs() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
 
+  const loadJobs = async () => {
+    setLoading(true);
+    const { data, error } = await supabaseClient
+      .from("jobs")
+      .select("id,title,description,location_label,budget_min,budget_max,is_urgent,status,created_at")
+      .order("created_at", { ascending: false });
+    if (!error && data) setJobs(data);
+    setLoading(false);
+  };
+
   useEffect(() => {
-    const fetchJobs = async () => {
-      setLoading(true);
-      const { data, error } = await supabaseClient
-        .from("jobs")
-        .select("id,title,description,location_label,budget_min,budget_max,is_urgent,status,created_at")
-        .order("created_at", { ascending: false });
-      if (!error && data) setJobs(data);
-      setLoading(false);
-    };
-    fetchJobs();
+    loadJobs();
   }, []);
 
   const mappedJobs = useMemo(
@@ -60,11 +61,12 @@ export default function Jobs() {
         </View>
       ) : (
         <>
-        <LegendList
-          data={mappedJobs}
-          keyExtractor={(item) => item.id}
-          estimatedItemSize={120}
-          contentContainerStyle={{ padding: 16, paddingBottom: 140 }}
+          <LegendList
+            data={mappedJobs}
+            keyExtractor={(item) => item.id}
+            estimatedItemSize={120}
+            contentContainerStyle={{ padding: 16, paddingBottom: 140 }}
+            refreshControl={<RefreshControl refreshing={loading} onRefresh={loadJobs} />}
             ListEmptyComponent={
               <View className="py-16 items-center">
                 <Text className={`text-sm ${t.textMuted}`}>No jobs available</Text>
@@ -82,14 +84,13 @@ export default function Jobs() {
           <JobModal
             visible={showModal}
             onClose={() => setShowModal(false)}
-            onCreated={() => {
+            onCreated={(newJob?: JobRow) => {
               setShowModal(false);
-              // refresh after creation
-              supabaseClient
-                .from("jobs")
-                .select("id,title,description,location_label,budget_min,budget_max,is_urgent,status,created_at")
-                .order("created_at", { ascending: false })
-                .then(({ data }) => data && setJobs(data));
+              if (newJob) {
+                setJobs((prev) => [newJob, ...prev]);
+              } else {
+                loadJobs();
+              }
             }}
           />
         </>

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, ScrollView, Image, TouchableOpacity, SafeAreaView } from 'react-native';
 import { Feather, Ionicons, MaterialIcons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { useTheme } from '@/hooks/useTheme';
 import MarketModal from '@/components/MarketPlace/MarketModal';
 import { supabaseClient } from '@/utils/supabase';
@@ -11,6 +11,7 @@ export default function MarketPlaceView() {
   const router = useRouter();
   const [showModal, setShowModal] = useState(false);
   const [listings, setListings] = useState<any[]>([]);
+  const params = useLocalSearchParams<{ openModal?: string }>();
 
   useEffect(() => {
     supabaseClient
@@ -19,6 +20,12 @@ export default function MarketPlaceView() {
       .order("created_at", { ascending: false })
       .then(({ data }) => data && setListings(data));
   }, []);
+
+  useEffect(() => {
+    if (params.openModal === "true") {
+      setShowModal(true);
+    }
+  }, [params.openModal]);
 
   const featured = useMemo(() => listings[0], [listings]);
   const permitVerified = useMemo(

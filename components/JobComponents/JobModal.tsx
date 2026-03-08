@@ -19,6 +19,7 @@ export default function JobModal({ visible, onClose, onCreated }: JobModalProps)
   const [budgetMax, setBudgetMax] = useState("");
   const [requirements, setRequirements] = useState("");
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const clearForm = () => {
     setTitle("");
@@ -32,7 +33,8 @@ export default function JobModal({ visible, onClose, onCreated }: JobModalProps)
   const handleSave = async () => {
     if (saving) return;
     setSaving(true);
-    await supabaseClient.from("jobs").insert({
+    setError(null);
+    const { data, error } = await supabaseClient.from("jobs").insert({
       title,
       description,
       location_label: location,
@@ -41,10 +43,17 @@ export default function JobModal({ visible, onClose, onCreated }: JobModalProps)
       requirements: requirements ? requirements.split(",").map((r) => r.trim()) : [],
       status: "open",
       is_urgent: false,
-    });
+    }).select("*").single();
+
+    if (error) {
+      setError(error.message);
+      setSaving(false);
+      return;
+    }
+
     setSaving(false);
     clearForm();
-    onCreated?.();
+    onCreated?.(data);
     onClose();
   };
 
@@ -136,6 +145,9 @@ export default function JobModal({ visible, onClose, onCreated }: JobModalProps)
                 {saving ? "Saving…" : "Post Job"}
               </Text>
             </TouchableOpacity>
+            {error && (
+              <Text className="mt-3 text-red-500 text-sm font-semibold">{error}</Text>
+            )}
             <View className="h-4" />
           </ScrollView>
         </View>
