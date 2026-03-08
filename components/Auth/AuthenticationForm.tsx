@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, Pressable } from "react-native";
 import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import useAccount from "@/hooks/useAccountHooks";
 import { useTheme } from "@/hooks/useTheme";
@@ -34,20 +34,9 @@ export default function AuthenticationForm({ mode = "signIn", onSubmitted }: Aut
         <Text className="text-xl font-black text-slate-900 tracking-tight">
           {currentMode === "signIn" ? "Welcome Back" : "Join Kabayan"}
         </Text>
-        <View className="flex-row bg-slate-100 rounded-full p-1">
-          <TouchableOpacity
-            onPress={() => setCurrentMode("signIn")}
-            className={`px-3 py-1 rounded-full ${currentMode === "signIn" ? "bg-white shadow" : ""}`}
-          >
-            <Text className={`text-xs font-bold ${currentMode === "signIn" ? "text-slate-900" : "text-slate-500"}`}>Sign In</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => setCurrentMode("signUp")}
-            className={`px-3 py-1 rounded-full ${currentMode === "signUp" ? "bg-white shadow" : ""}`}
-          >
-            <Text className={`text-xs font-bold ${currentMode === "signUp" ? "text-slate-900" : "text-slate-500"}`}>Sign Up</Text>
-          </TouchableOpacity>
-        </View>
+        <Pressable className="flex-row  rounded-full p-1">
+          <Feather name="x-circle" color="#000" size={20} />  
+        </Pressable>
       </View>
 
       <Text className="text-sm text-slate-500 mb-6">
@@ -102,6 +91,23 @@ export default function AuthenticationForm({ mode = "signIn", onSubmitted }: Aut
             {currentMode === "signIn" ? "Log In" : "Register"}
           </Text>
         </TouchableOpacity>
+    {mode && (
+            <View className="mt-8 gap-y-3">
+              <AuthenticationForm mode={mode} />
+              <View className="flex-row justify-center">
+                <Text className="text-slate-400 text-sm">
+                  {mode === "signIn" ? "Don’t have an account? " : "Already have an account? "}
+                </Text>
+                <Pressable onPress={() => setCurrentMode(mode === "signIn" ? "signUp" : "signIn")}>
+                  <Text className="text-blue-400 text-sm font-bold">
+                    {mode === "signIn" ? "Sign up" : "Sign in"}
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+          )}
+
+
 
         <View className="flex-row items-center justify-center mt-2">
           <View className="h-[1px] flex-1 bg-slate-200" />

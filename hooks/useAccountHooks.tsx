@@ -1,9 +1,8 @@
-import { RegisterFormType, RegisterFormSchema } from "@/schema/loginSchema"
-import {supabaseClient} from "@/utils/supabase"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { SubmitHandler } from "react-hook-form"
-import {useState} from "react"
-import { AuthError } from "@supabase/supabase-js"
+import { RegisterFormType } from "@/schema/loginSchema";
+import { supabaseClient } from "@/utils/supabase";
+import { SubmitHandler } from "react-hook-form";
+import { useState } from "react";
+import { AuthError } from "@supabase/supabase-js";
 
 
 type supabaseError = AuthError | null
@@ -11,6 +10,17 @@ type supabaseError = AuthError | null
 export default function useAccount ()  {
     const [data, setData] = useState<any>()
     const [error, setError] = useState<supabaseError>(null)
+
+    const createProfile = async (userId: string, email: string) => {
+        const displayName = email.split("@")[0] || email;
+        const { error: profileError } = await supabaseClient
+          .from("profiles")
+          .insert({ user_id: userId, display_name: displayName });
+        if (profileError) {
+          // surface but do not block signup
+          setError(profileError as AuthError);
+        }
+      };
 
     const SignInWithPassword: SubmitHandler<RegisterFormType> = async ({email, password} : RegisterFormType) => {
     try {
@@ -34,6 +44,9 @@ export default function useAccount ()  {
         setError(error)
         return
         }
+        if (data.user?.id) {
+            await createProfile(data.user.id, email);
+          }
         setData(data)
         setError(null)
         } catch (err) {

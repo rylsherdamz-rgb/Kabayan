@@ -1,17 +1,72 @@
-import { Feather, Ionicons, MaterialIcons } from "@expo/vector-icons";
-import { router } from "expo-router";
-import {useTheme} from "@/hooks/useTheme"
-import { View,Text, ScrollView, TouchableOpacity,  Image } from "react-native";
+import { Feather, Ionicons } from "@expo/vector-icons";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useTheme } from "@/hooks/useTheme";
+import { View, Text, ScrollView, TouchableOpacity, Image, ActivityIndicator } from "react-native";
+import { useEffect, useState } from "react";
+import { supabaseClient } from "@/utils/supabase";
+
+type JobDetail = {
+  id: string;
+  title: string;
+  description: string;
+  location_label: string;
+  budget_min: number;
+  budget_max: number;
+  is_urgent: boolean;
+  status: string;
+  created_at: string;
+};
 
 export default function JobView() {
-    const {t, toggleTheme} = useTheme()
+  const { t } = useTheme();
+  const router = useRouter();
+  const { jobId } = useLocalSearchParams<{ jobId?: string }>();
+  const [job, setJob] = useState<JobDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchJob = async () => {
+      if (!jobId) return;
+      setLoading(true);
+      const { data, error } = await supabaseClient
+        .from("jobs")
+        .select("id,title,description,location_label,budget_min,budget_max,is_urgent,status,created_at")
+        .eq("id", jobId)
+        .single();
+      if (!error && data) setJob(data);
+      setLoading(false);
+    };
+    fetchJob();
+  }, [jobId]);
+
+  if (loading) {
     return (
+      <View className={`flex-1 items-center justify-center ${t.bgPage}`}>
+        <ActivityIndicator />
+        <Text className={`mt-2 ${t.textMuted}`}>Loading job…</Text>
+      </View>
+    );
+  }
+
+  if (!job) {
+    return (
+      <View className={`flex-1 items-center justify-center ${t.bgPage}`}>
+        <Text className={`text-base font-semibold ${t.text}`}>Job not found</Text>
+        <TouchableOpacity onPress={() => router.back()} className="mt-3 px-4 py-2 bg-blue-600 rounded-full">
+          <Text className="text-white font-bold">Go back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  const salary = formatBudget(job.budget_min, job.budget_max);
+
+  return (
     <View className={`flex-1 ${t.bgPage}`}>
       <ScrollView showsVerticalScrollIndicator={false}>
-        
         <View className="bg-white">
           <Image 
-            source={{ uri: 'https://images.unsplash.com/photo-1504150559640-a0ce165d472d?w=800' }}
+            source={{ uri: "https://images.unsplash.com/photo-1504150559640-a0ce165d472d?w=800" }}
             className="w-full h-40"
             resizeMode="cover"
           />
@@ -19,73 +74,67 @@ export default function JobView() {
           <View className="px-5 pb-6">
             <View className="relative -mt-12 mb-4">
               <Image
-                source={{ uri: 'https://images.unsplash.com/photo-1531427186611-ecfd6d936c79?w=400' }}
+                source={{ uri: "https://images.unsplash.com/photo-1531427186611-ecfd6d936c79?w=400" }}
                 className="w-24 h-24 rounded-2xl border-4 border-white shadow-sm"
               />
-              <TouchableOpacity className="absolute bottom-0 left-20 bg-white w-8 h-8 rounded-full items-center justify-center shadow-md border border-slate-100">
-                <Feather name="camera" size={14} color="#475569" />
-              </TouchableOpacity>
+              <View className="absolute bottom-0 left-20 bg-white w-8 h-8 rounded-full items-center justify-center shadow-md border border-slate-100">
+                <Feather name="briefcase" size={14} color="#475569" />
+              </View>
             </View>
 
             <View className="flex-row justify-between items-start">
-              <View>
-                <Text className={`text-2xl font-bold tracking-tight ${t.text}`}>Kuya Jojo</Text>
-                <Text className="text-blue-600 font-semibold text-sm">Licensed Tubero • Master Plumber</Text>
-                <Text className={`text-sm mt-1 ${t.textMuted}`}>Manila, Philippines • 500+ Connections</Text>
+              <View className="flex-1">
+                <Text className={`text-2xl font-bold tracking-tight ${t.text}`}>{job.title}</Text>
+                <Text className="text-blue-600 font-semibold text-sm">{job.location_label}</Text>
+                <Text className={`text-sm mt-1 ${t.textMuted}`}>{formatTime(job.created_at)}</Text>
               </View>
-              <TouchableOpacity className="bg-blue-600 px-6 py-2 rounded-full shadow-sm">
-                <Text className="text-white font-bold text-sm">Edit</Text>
-              </TouchableOpacity>
+              <View className="items-end">
+                <Text className="text-emerald-600 font-black text-lg">{salary}</Text>
+                <View className="bg-red-50 px-2 py-1 rounded-md mt-2">
+                  <Text className="text-red-600 font-black text-[10px] uppercase tracking-widest">
+                    {job.is_urgent ? "Urgent" : job.status}
+                  </Text>
+                </View>
+              </View>
             </View>
           </View>
         </View>
 
         <View className="px-4 mt-6">
-          <Text className={`text-xs font-bold ${t.textMuted} uppercase tracking-widest mb-3 ml-1`}>App Settings</Text>
-          <View className={`rounded-2xl overflow-hidden ${t.bgCard}`}>
-            <View className="flex-row items-center justify-between p-4">
-              <View className="flex-row items-center">
-                <Ionicons name={t.isDarkMode ? "moon" : "sunny"} size={20} color={t.icon} />
-                <Text className={`text-base font-medium ml-3 ${t.text}`}>Dark Mode</Text>
-              </View>
-              <Switch
-                trackColor={{ false: '#CBD5E1', true: '#2563EB' }}
-                thumbColor="#FFFFFF"
-                onValueChange={toggleTheme}
-                value={t.isDarkMode}
-              />
-            </View>
-            
-            <View className={`h-[1px] mx-4 ${t.border}`} />
+          <Text className={`text-xs font-bold ${t.textMuted} uppercase tracking-widest mb-3 ml-1`}>Description</Text>
+          <View className={`p-4 rounded-2xl ${t.bgCard} border ${t.border}`}>
+            <Text className={`${t.text} leading-6`}>{job.description || "No description provided."}</Text>
+          </View>
 
-            <TouchableOpacity className="flex-row items-center justify-between p-4">
-              <View className="flex-row items-center">
-                <Ionicons name="notifications-outline" size={20} color={t.icon} />
-                <Text className={`text-base font-medium ml-3 ${t.text}`}>Notifications</Text>
-              </View>
-              <MaterialIcons name="chevron-right" size={24} color={t.icon} />
+          <Text className={`text-xs font-bold ${t.textMuted} uppercase tracking-widest mt-6 mb-3 ml-1`}>Location</Text>
+          <View className={`p-4 rounded-2xl ${t.bgCard} border ${t.border} flex-row items-center`}>
+            <Ionicons name="location-sharp" size={18} color={t.icon} />
+            <Text className={`ml-2 ${t.text}`}>{job.location_label}</Text>
+          </View>
+
+          <View className="flex-row gap-3 mt-6">
+            <TouchableOpacity className="flex-1 bg-blue-600 py-4 rounded-2xl items-center shadow-sm">
+              <Text className="text-white font-black">Apply Now</Text>
+            </TouchableOpacity>
+            <TouchableOpacity className={`flex-1 ${t.bgCard} border ${t.border} py-4 rounded-2xl items-center`}>
+              <Text className={`${t.text} font-black`}>Message Employer</Text>
             </TouchableOpacity>
           </View>
 
-          <Text className={`text-xs font-bold ${t.textMuted} uppercase tracking-widest mt-6 mb-3 ml-1`}>Support</Text>
-          <View className={`rounded-2xl overflow-hidden mb-8 ${t.bgCard}`}>
-            <TouchableOpacity className={`flex-row items-center justify-between p-4 border-b ${t.border}`}>
-              <View className="flex-row items-center">
-                <Feather name="help-circle" size={20} color={t.icon} />
-                <Text className={`text-base font-medium ml-3 ${t.text}`}>Help Center</Text>
-              </View>
-              <MaterialIcons name="chevron-right" size={24} color={t.icon} />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => router.push("/Authentication")} className="flex-row items-center justify-between p-4">
-              <View className="flex-row items-center">
-                <Feather name="log-out" size={20} color="#EF4444" />
-                <Text className="text-base font-medium ml-3 text-red-500">Sign Out</Text>
-              </View>
-            </TouchableOpacity>
-          </View>
+          <View className="h-10" />
         </View>
-
       </ScrollView>
     </View>
-    )
+  );
 }
+
+const formatBudget = (min: number, max: number) => {
+  if (!min && !max) return "N/A";
+  if (min === max) return `₱${min.toLocaleString()}`;
+  return `₱${min.toLocaleString()} - ₱${max.toLocaleString()}`;
+};
+
+const formatTime = (iso: string) => {
+  const date = new Date(iso);
+  return date.toLocaleDateString();
+};

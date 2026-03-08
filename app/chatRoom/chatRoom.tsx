@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { 
   View, 
   Text, 
@@ -10,14 +10,83 @@ import {
   Image,
 } from "react-native";
 import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { useTheme } from "@/hooks/useTheme";
+import { supabaseClient } from "@/utils/supabase";
 
 export default function ChatRoomLayout() {
   const { t } = useTheme();
   const router = useRouter();
+  const { roomId = "demo-room", name, jobTitle } = useLocalSearchParams<{
+    roomId?: string;
+    name?: string;
+    jobTitle?: string;
+  }>();
+
   const [message, setMessage] = useState("");
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
   const flatListRef = useRef<FlatList>(null);
+
+  useEffect(() => {
+    supabaseClient.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadMessages = async () => {
+      const { data, error } = await supabaseClient
+        .from("messages")
+        .select("*")
+        .eq("room_id", roomId)
+        .order("created_at", { ascending: true });
+      if (!error && isMounted && data) {
+        setMessages(data.map(mapMessage));
+      }
+    };
+    loadMessages();
+
+    const channel = supabaseClient
+      .channel(`room:${roomId}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "messages", filter: `room_id=eq.${roomId}` },
+        (payload) => {
+          setMessages((prev) => [...prev, mapMessage(payload.new as any)]);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      isMounted = false;
+      supabaseClient.removeChannel(channel);
+    };
+  }, [roomId]);
+
+  useEffect(() => {
+    if (messages.length > 0 && flatListRef.current) {
+      flatListRef.current.scrollToEnd({ animated: true });
+    }
+  }, [messages]);
+
+  const handleSend = async () => {
+    const text = message.trim();
+    if (!text || !userId || sending) return;
+    setSending(true);
+    setMessage("");
+    const { error } = await supabaseClient
+      .from("messages")
+      .insert({ room_id: roomId, sender_id: userId, content: text });
+    if (error) {
+      // roll back local clear if needed
+      setMessage(text);
+    }
+    setSending(false);
+  };
+
+  const headerName = name ?? "Chat Partner";
+  const headerJob = jobTitle ?? "Conversation";
 
   return (
     <View className={`flex-1 ${t.bgPage}`}>
@@ -36,7 +105,7 @@ export default function ChatRoomLayout() {
           </View>
 
           <View className="ml-3">
-            <Text className={`font-black text-sm tracking-tight ${t.text}`}>Boss Ricardo</Text>
+            <Text className={`font-black text-sm tracking-tight ${t.text}`}>{headerName}</Text>
             <Text className="text-emerald-500 text-[10px] font-black uppercase tracking-widest">Active Now</Text>
           </View>
         </View>
@@ -55,7 +124,7 @@ export default function ChatRoomLayout() {
         <View className="flex-row items-center flex-1">
           <MaterialCommunityIcons name="hammer-wrench" size={16} color={t.accent} />
           <Text className={`ml-2 text-[10px] font-black uppercase tracking-widest ${t.textMuted}`} numberOfLines={1}>
-            Job: Emergency Pipe Repair
+            {`Job: ${headerJob}`}
           </Text>
         </View>
         <TouchableOpacity>
@@ -65,11 +134,11 @@ export default function ChatRoomLayout() {
 
       <FlatList
         ref={flatListRef}
-        data={MOCK_MESSAGES}
+        data={messages}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
         showsVerticalScrollIndicator={false}
-        renderItem={({ item }) => <ChatBubble item={item} t={t} />}
+        renderItem={({ item }) => <ChatBubble item={item} t={t} userId={userId} />}
       />
 
       <KeyboardAvoidingView
@@ -93,7 +162,7 @@ export default function ChatRoomLayout() {
             />
             {message.length > 0 && (
               <TouchableOpacity 
-                onPress={() => setMessage("")}
+                onPress={handleSend}
                 className="ml-2 bg-blue-600 w-8 h-8 rounded-full items-center justify-center shadow-sm"
               >
                 <Ionicons name="arrow-up" size={18} color="white" />
@@ -112,8 +181,8 @@ export default function ChatRoomLayout() {
   );
 }
 
-function ChatBubble({ item, t }: any) {
-  const isMe = item.senderId === "me";
+function ChatBubble({ item, t, userId }: { item: ChatMessage; t: any; userId: string | null }) {
+  const isMe = userId ? item.senderId === userId : item.senderId === "me";
   return (
     <View className={`mb-4 flex-row ${isMe ? "justify-end" : "justify-start"}`}>
       <View 
@@ -124,15 +193,23 @@ function ChatBubble({ item, t }: any) {
           {item.text}
         </Text>
         <Text className={`text-[8px] font-black uppercase mt-1 text-right ${isMe ? "text-blue-200" : t.textMuted}`}>
-          12:45 PM
+          {new Date(item.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
         </Text>
       </View>
     </View>
   );
 }
 
-const MOCK_MESSAGES = [
-  { id: "1", text: "Hi! I saw your post about the pipe repair. Is this still available?", senderId: "other" },
-  { id: "2", text: "Yes po Boss, need it fixed ASAP. The leak is getting worse.", senderId: "me" },
-  { id: "3", text: "I can be there in 30 minutes. My rate is ₱1,500 inclusive of tools. Deal?", senderId: "other" },
-];
+type ChatMessage = {
+  id: string;
+  text: string;
+  senderId: string;
+  createdAt: string;
+};
+
+const mapMessage = (row: any): ChatMessage => ({
+  id: row.id,
+  text: row.content,
+  senderId: row.sender_id,
+  createdAt: row.created_at,
+});
