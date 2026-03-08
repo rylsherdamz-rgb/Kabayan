@@ -4,9 +4,8 @@ import { Ionicons, Feather } from '@expo/vector-icons';
 import { useRouter } from "expo-router";
 import { useTheme } from '@/hooks/useTheme';
 import { getCurrentUserId } from "@/hooks/useAccountHooks";
-import { getProfileByUserId } from "@/utils/localProfiles";
-
-export default function Profile () {
+import { getProfileByUserId } from "@/utils/localProfiles"; import SettingButton from "@/components/CustomComponents/CustomSetting"
+export default function  Profile  ()  {
   const { t, toggleTheme } = useTheme();
   const router = useRouter();
   const [profile, setProfile] = useState<any>(null);
@@ -40,7 +39,7 @@ export default function Profile () {
           <Text className={`mt-2 ${t.textMuted}`}>Loading…</Text>
         </View>
       ) : (
-        <>
+        <View>
           <View className={`p-5 rounded-3xl ${t.bgCard} border ${t.border} shadow-sm`}>
             <View className="flex-row items-center justify-between">
               <View>
@@ -68,7 +67,7 @@ export default function Profile () {
           </View>
 
           <View className="mt-4 gap-3">
-            {/* <SettingButton
+            <SettingButton
               label="Open your store"
               icon="storefront-outline"
               onPress={() => router.push({ pathname: "/marketPlace/marketPlaceView", params: { openModal: "false" } })}
@@ -82,26 +81,12 @@ export default function Profile () {
               label="Manage verification"
               icon="shield-checkmark-outline"
               onPress={() => router.push("/profile/ProfiletView")}
-            /> */}
+            />
           </View>
-        </>
+        </View>
       )}
     </View>
   );
 }
 
-function SettingButton({ label, icon, onPress }: { label: string; icon: keyof typeof Ionicons.glyphMap; onPress: () => void }) {
-  return (
-    <TouchableOpacity
-      onPress={onPress}
-      className="flex-row items-center justify-between p-4 rounded-2xl bg-white border border-slate-200 shadow-sm"
-      activeOpacity={0.85}
-    >
-      <View className="flex-row items-center">
-        <Ionicons name={icon} size={20} color="#2563eb" />
-        <Text className="ml-3 text-base font-semibold text-slate-900">{label}</Text>
-      </View>
-      <Feather name="chevron-right" size={18} color="#94A3B8" />
-    </TouchableOpacity>
-  );
-}
+
