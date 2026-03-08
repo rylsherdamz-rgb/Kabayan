@@ -1,4 +1,5 @@
 import CustomLoading from "@/components/CustomComponents/CustomLoadingSpinner";
+import {ImagePickerContextProvider} from "@/context/ImagePicker"
 import useLandingPage from "@/hooks/useLandingPage";
 import Drawer from "expo-router/drawer";
 import { useEffect, useState } from "react";
@@ -44,6 +45,8 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <StatusBar barStyle="dark-content" />
         <DocumentPickerContextProvider>
+        <ImagePickerContextProvider>
+
         <Drawer
           drawerContent={(props) => <CustomDrawerContent {...props} />}
           screenOptions={{ headerShown: false }}
@@ -57,7 +60,9 @@ export default function RootLayout() {
             options={{ drawerItemStyle: { display: "none" } }}
           />
         </Drawer>
+        </ImagePickerContextProvider>
         </DocumentPickerContextProvider>
+
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
