@@ -14,9 +14,11 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { useTheme } from "@/hooks/useTheme";
 import { getCurrentUserId } from "@/hooks/useAccountHooks";
 import { getMessagesForRoom, addMessageToRoom, ChatMessage } from "@/utils/localMessages";
+import {useSafeAreaInsets} from "react-native-safe-area-context"
 
 export default function ChatRoomLayout() {
   const { t } = useTheme();
+  const inset = useSafeAreaInsets()
   const router = useRouter();
   const { roomId = "demo-room", name, jobTitle } = useLocalSearchParams<{
     roomId?: string;
@@ -67,7 +69,7 @@ export default function ChatRoomLayout() {
   const headerJob = jobTitle ?? "Conversation";
 
   return (
-    <View className={`flex-1 ${t.bgPage}`}>
+    <View style={{paddingTop : inset.top, paddingBottom : inset.bottom}} className={`flex-1 ${t.bgPage}`}>
       <View className={`pt-12 pb-4 px-4 ${t.bgCard} border-b ${t.border} flex-row items-center justify-between shadow-sm`}>
         <View className="flex-row items-center flex-1">
           <TouchableOpacity onPress={() => router.back()} className="p-2 mr-1">
