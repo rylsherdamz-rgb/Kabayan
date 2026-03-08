@@ -1,12 +1,30 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, ScrollView, Image, TouchableOpacity, SafeAreaView } from 'react-native';
 import { Feather, Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useTheme } from '@/hooks/useTheme';
+import MarketModal from '@/components/MarketPlace/MarketModal';
+import { supabaseClient } from '@/utils/supabase';
 
 export default function MarketPlaceView() {
   const { t } = useTheme();
   const router = useRouter();
+  const [showModal, setShowModal] = useState(false);
+  const [listings, setListings] = useState<any[]>([]);
+
+  useEffect(() => {
+    supabaseClient
+      .from("marketplace_listings")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .then(({ data }) => data && setListings(data));
+  }, []);
+
+  const featured = useMemo(() => listings[0], [listings]);
+  const permitVerified = useMemo(
+    () => (featured?.description ?? "").toLowerCase().includes("permit: verified"),
+    [featured]
+  );
 
   return (
     <View className={`flex-1 ${t.bgPage}`}>
@@ -14,7 +32,7 @@ export default function MarketPlaceView() {
         
         <View className="h-72 w-full relative">
           <Image 
-            source={{ uri: 'https://images.unsplash.com/photo-1555126634-323283e090fa?w=800' }} 
+            source={{ uri: featured?.image_url ?? 'https://images.unsplash.com/photo-1555126634-323283e090fa?w=800' }} 
             className="w-full h-full"
           />
           <View className="absolute top-4 left-5 right-5 flex-row justify-between">
@@ -34,7 +52,15 @@ export default function MarketPlaceView() {
           
           <View className="flex-row justify-between items-start">
             <View className="flex-1">
-              <Text className={`text-3xl font-black tracking-tighter ${t.text}`}>Mang Inasal ni Totoy</Text>
+              <View className="flex-row items-center">
+                <Text className={`text-3xl font-black tracking-tighter ${t.text}`}>{featured?.name ?? "Your Food Stall"}</Text>
+                {permitVerified && (
+                  <View className="flex-row items-center bg-emerald-100 px-2 py-1 rounded-lg ml-2">
+                    <Ionicons name="shield-checkmark" size={14} color="#059669" />
+                    <Text className="ml-1 text-[10px] font-black text-emerald-700">Permit Verified</Text>
+                  </View>
+                )}
+              </View>
               <View className="flex-row items-center mt-2">
                 <View className="bg-emerald-50 px-2 py-1 rounded-md mr-3">
                   <Text className="text-emerald-600 font-black text-[10px] uppercase">Open Now</Text>
@@ -44,22 +70,34 @@ export default function MarketPlaceView() {
                 <Text className={`ml-1 text-sm font-medium ${t.textMuted}`}>(120+ Reviews)</Text>
               </View>
             </View>
-            <Image 
-              source={{ uri: 'https://images.unsplash.com/photo-1583394838336-acd977730f90?w=200' }} 
-              className="w-16 h-16 rounded-2xl border-2 border-white shadow-lg"
-            />
+            {featured?.image_url && (
+              <Image 
+                source={{ uri: featured.image_url }} 
+                className="w-16 h-16 rounded-2xl border-2 border-white shadow-lg"
+              />
+            )}
           </View>
 
           <View className="flex-row mt-8 gap-x-4">
-            <InfoChip icon="map-pin" label="0.5 km away" t={t} />
+            <TouchableOpacity onPress={() => router.push({ pathname: "/map/mapView", params: { location: featured?.location_label } })}>
+              <InfoChip icon="map-pin" label={featured?.location_label ?? "Location"} t={t} />
+            </TouchableOpacity>
             <InfoChip icon="clock" label="15-20 mins" t={t} />
           </View>
 
           <View className="mt-10">
             <Text className={`text-lg font-black tracking-tight mb-4 ${t.text}`}>Popular Dishes</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} className="-mx-6 px-6">
-              <MenuCard name="Pares Overload" price="₱120" img="https://images.unsplash.com/photo-1512152272829-e3139592d56f?w=300" t={t} />
-              <MenuCard name="Sizzling Sisig" price="₱150" img="https://images.unsplash.com/photo-162601519-1bb440ed7333?w=300" t={t} />
+              {(listings.length ? listings : [featured]).filter(Boolean).map((item) => (
+                <MenuCard
+                  key={item.id}
+                  name={item.name}
+                  price={`₱${Number(item.price || 0).toLocaleString()}`}
+                  img={item.image_url ?? 'https://images.unsplash.com/photo-1512152272829-e3139592d56f?w=300'}
+                  verified={(item.description ?? "").toLowerCase().includes("permit: verified")}
+                  t={t}
+                />
+              ))}
             </ScrollView>
           </View>
 
@@ -85,10 +123,23 @@ export default function MarketPlaceView() {
           <Text className={`text-[10px] font-black uppercase tracking-widest ${t.textMuted}`}>Est. Total</Text>
           <Text className={`text-2xl font-black ${t.text}`}>₱120.00</Text>
         </View>
-        <TouchableOpacity className="bg-blue-600 px-10 h-14 rounded-2xl items-center justify-center shadow-lg shadow-blue-500/40">
-          <Text className="text-white font-black uppercase text-sm tracking-widest">Order Now</Text>
+        <TouchableOpacity onPress={() => setShowModal(true)} className="bg-blue-600 px-10 h-14 rounded-2xl items-center justify-center shadow-lg shadow-blue-500/40">
+          <Text className="text-white font-black uppercase text-sm tracking-widest">Add Item</Text>
         </TouchableOpacity>
       </View>
+
+      <MarketModal
+        visible={showModal}
+        onClose={() => setShowModal(false)}
+        onCreated={() => {
+          setShowModal(false);
+          supabaseClient
+            .from("marketplace_listings")
+            .select("*")
+            .order("created_at", { ascending: false })
+            .then(({ data }) => data && setListings(data));
+        }}
+      />
     </View>
   );
 }
@@ -102,12 +153,17 @@ function InfoChip({ icon, label, t }) {
   );
 }
 
-function MenuCard({ name, price, img, t }) {
+function MenuCard({ name, price, img, verified, t }) {
   return (
     <TouchableOpacity className={`mr-4 w-40 rounded-3xl overflow-hidden ${t.bgSurface} border ${t.border}`}>
       <Image source={{ uri: img }} className="h-28 w-full" />
       <View className="p-3">
-        <Text className={`font-black text-sm tracking-tight ${t.text}`}>{name}</Text>
+        <View className="flex-row items-center">
+          <Text className={`font-black text-sm tracking-tight ${t.text}`}>{name}</Text>
+          {verified && (
+            <Ionicons name="shield-checkmark" size={14} color="#059669" style={{ marginLeft: 4 }} />
+          )}
+        </View>
         <Text className="text-emerald-600 font-black text-xs mt-1">{price}</Text>
       </View>
     </TouchableOpacity>

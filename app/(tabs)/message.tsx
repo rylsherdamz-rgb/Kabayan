@@ -17,7 +17,10 @@ export default function Inbox() {
   const [loading, setLoading] = useState(true);
 
   const fetchThreads = useCallback(async () => {
-    if (!userId) return;
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     const { data, error } = await supabaseClient
       .from("messages")

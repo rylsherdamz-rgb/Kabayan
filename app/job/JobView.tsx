@@ -109,7 +109,15 @@ export default function JobView() {
           <Text className={`text-xs font-bold ${t.textMuted} uppercase tracking-widest mt-6 mb-3 ml-1`}>Location</Text>
           <View className={`p-4 rounded-2xl ${t.bgCard} border ${t.border} flex-row items-center`}>
             <Ionicons name="location-sharp" size={18} color={t.icon} />
-            <Text className={`ml-2 ${t.text}`}>{job.location_label}</Text>
+            <Text className={`ml-2 flex-1 ${t.text}`}>{job.location_label}</Text>
+            <TouchableOpacity
+              onPress={() => router.push({ pathname: "/map/mapView", params: { location: job.location_label } })}
+              className="ml-3 px-3 py-2 rounded-lg bg-blue-50 border border-blue-200 flex-row items-center"
+              activeOpacity={0.85}
+            >
+              <Ionicons name="map" size={16} color="#2563eb" />
+              <Text className="ml-1 text-blue-700 text-xs font-bold">View Map</Text>
+            </TouchableOpacity>
           </View>
 
           <View className="flex-row gap-3 mt-6">

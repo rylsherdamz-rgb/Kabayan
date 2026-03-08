@@ -1,7 +1,5 @@
 import AuthenticationForm from "@/components/Auth/AuthenticationForm"
-import {useState} from "react"
 import {View} from "react-native"
-
 
 
 export default function AuthenticationPage () {

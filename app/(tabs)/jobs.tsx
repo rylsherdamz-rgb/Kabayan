@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Text, View, Pressable, ActivityIndicator } from "react-native";
+import { Text, View, Pressable, ActivityIndicator, TouchableOpacity } from "react-native";
 import { useRouter } from "expo-router";
 import { LegendList } from "@legendapp/list";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useTheme } from "@/hooks/useTheme";
 import { supabaseClient } from "@/utils/supabase";
+import JobModal from "@/components/JobComponents/JobModal";
 
 type JobRow = {
   id: string;
@@ -22,6 +23,7 @@ export default function Jobs() {
   const { t } = useTheme();
   const [jobs, setJobs] = useState<JobRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
     const fetchJobs = async () => {
@@ -58,11 +60,11 @@ export default function Jobs() {
         </View>
       ) : (
         <>
-          <LegendList
-            data={mappedJobs}
-            keyExtractor={(item) => item.id}
-            estimatedItemSize={120}
-            contentContainerStyle={{ padding: 16, paddingBottom: 140 }}
+        <LegendList
+          data={mappedJobs}
+          keyExtractor={(item) => item.id}
+          estimatedItemSize={120}
+          contentContainerStyle={{ padding: 16, paddingBottom: 140 }}
             ListEmptyComponent={
               <View className="py-16 items-center">
                 <Text className={`text-sm ${t.textMuted}`}>No jobs available</Text>
@@ -71,12 +73,25 @@ export default function Jobs() {
             renderItem={({ item }) => <JobCard job={item} t={t} />}
           />
           <TouchableOpacity
-            onPress={() => router.push("/job/create")}
+            onPress={() => setShowModal(true)}
             className="absolute bottom-6 right-6 bg-blue-600 w-14 h-14 rounded-full items-center justify-center shadow-lg shadow-blue-500/30"
             activeOpacity={0.85}
           >
             <MaterialIcons name="add" size={26} color="white" />
           </TouchableOpacity>
+          <JobModal
+            visible={showModal}
+            onClose={() => setShowModal(false)}
+            onCreated={() => {
+              setShowModal(false);
+              // refresh after creation
+              supabaseClient
+                .from("jobs")
+                .select("id,title,description,location_label,budget_min,budget_max,is_urgent,status,created_at")
+                .order("created_at", { ascending: false })
+                .then(({ data }) => data && setJobs(data));
+            }}
+          />
         </>
       )}
     </View>
