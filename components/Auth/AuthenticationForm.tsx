@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, Pressable } from "react-native";
+import {useRouter} from "expo-router"
 import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import useAccount from "@/hooks/useAccountHooks";
 import { useTheme } from "@/hooks/useTheme";
@@ -8,12 +9,12 @@ type AuthMode = "signIn" | "signUp";
 
 interface AuthenticationFormProps {
   mode?: AuthMode;
-  onSubmitted?: () => void;
   onModeChange?: (mode: AuthMode) => void;
 }
 
-export default function AuthenticationForm({ mode = "signIn", onSubmitted, onModeChange }: AuthenticationFormProps) {
+export default function AuthenticationForm({ mode = "signIn", onModeChange }: AuthenticationFormProps) {
   const { t } = useTheme();
+  const router= useRouter()
   const { SignUpWithEmailAndPassword, SignInWithPassword, error } = useAccount();
 
   const [currentMode, setCurrentMode] = useState<AuthMode>(mode);
@@ -40,7 +41,7 @@ export default function AuthenticationForm({ mode = "signIn", onSubmitted, onMod
       await SignUpWithEmailAndPassword({ email, password });
     }
     setSubmitting(false);
-    onSubmitted?.();
+    router.push("/(tabs)/home");
   };
 
   return (
@@ -49,9 +50,9 @@ export default function AuthenticationForm({ mode = "signIn", onSubmitted, onMod
         <Text className="text-xl font-black text-slate-900 tracking-tight">
           {currentMode === "signIn" ? "Welcome Back" : "Join Kabayan"}
         </Text>
-        <Pressable className="flex-row rounded-full p-1" onPress={toggleMode}>
-          <Feather name="repeat" color="#0f172a" size={18} />
-        </Pressable>
+        <TouchableOpacity className="flex-row rounded-full p-1" onPress={() => router.push("/(tabs)/home")}>
+          <Feather name="x-circle" color="#0f172a" size={20} />
+        </TouchableOpacity>
       </View>
 
       <Text className="text-sm text-slate-500 mb-6">

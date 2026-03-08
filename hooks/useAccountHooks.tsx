@@ -17,8 +17,7 @@ export default function useAccount ()  {
           .from("profiles")
           .insert({ user_id: userId, display_name: displayName });
         if (profileError) {
-          // surface but do not block signup
-          setError(profileError as AuthError);
+          setError(profileError as unknown as AuthError);
         }
       };
 
@@ -29,7 +28,6 @@ export default function useAccount ()  {
         setError(error)
         return
         }
-
         setData(data)
         setError(null)
     } catch (err) {
