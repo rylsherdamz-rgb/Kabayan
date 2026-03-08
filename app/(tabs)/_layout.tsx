@@ -42,7 +42,7 @@ export default function TabsLayout() {
             letterSpacing: 0.5,
           },
           headerRight: () => (
-            <Pressable className="mr-5 p-2 rounded-xl bg-slate-50 dark:bg-slate-800">
+            <Pressable className="mr-5 p-2 rounded-xl ">
               <Ionicons name="notifications-outline" size={20} color={t.icon} />
             </Pressable>
           ),
