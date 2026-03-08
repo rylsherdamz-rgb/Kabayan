@@ -144,7 +144,7 @@ export default function MarketPlaceView() {
   );
 }
 
-function InfoChip({ icon, label, t }) {
+function InfoChip({ icon, label, t }: any) {
   return (
     <View className={`${t.bgSurface} flex-row items-center px-4 py-2.5 rounded-xl border ${t.border}`}>
       <Feather name={icon} size={14} color={t.accent} />
@@ -153,7 +153,7 @@ function InfoChip({ icon, label, t }) {
   );
 }
 
-function MenuCard({ name, price, img, verified, t }) {
+function MenuCard({ name, price, img, verified, t } : any) {
   return (
     <TouchableOpacity className={`mr-4 w-40 rounded-3xl overflow-hidden ${t.bgSurface} border ${t.border}`}>
       <Image source={{ uri: img }} className="h-28 w-full" />
@@ -161,7 +161,7 @@ function MenuCard({ name, price, img, verified, t }) {
         <View className="flex-row items-center">
           <Text className={`font-black text-sm tracking-tight ${t.text}`}>{name}</Text>
           {verified && (
-            <Ionicons name="shield-checkmark" size={14} color="#059669" style={{ marginLeft: 4 }} />
+            <MaterialIcons name="verified" size={14} color="#059669" style={{ marginLeft: 4 }} />
           )}
         </View>
         <Text className="text-emerald-600 font-black text-xs mt-1">{price}</Text>
@@ -170,7 +170,7 @@ function MenuCard({ name, price, img, verified, t }) {
   );
 }
 
-function ReviewItem({ user, comment, rating, t }) {
+function ReviewItem({ user, comment, rating, t } : any) {
   return (
     <View className={`p-5 rounded-3xl ${t.bgSurface} border ${t.border} mb-4`}>
       <View className="flex-row justify-between items-center mb-2">
