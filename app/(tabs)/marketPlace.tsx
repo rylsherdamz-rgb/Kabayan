@@ -4,7 +4,7 @@ import CustomSearchBarComponent from "@/components/CustomComponents/CustomSearch
 import { LegendList } from '@legendapp/list';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useTheme } from '@/hooks/useTheme';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { getListings, MarketListing } from '@/utils/localMarketplace';
 import MarketModal from '@/components/MarketPlace/MarketModal';
 const CATEGORIES = ['All', 'Street Food', 'Kakanin', 'Ulam', 'Desserts'];

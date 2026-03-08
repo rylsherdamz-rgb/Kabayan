@@ -1,5 +1,5 @@
 import { RegisterFormType } from "@/schema/loginSchema";
-import { MMKV } from "react-native-mmkv";
+import { MMKV, createMMKV } from "react-native-mmkv";
 import { useState } from "react";
 import { addOrUpdateProfile } from "@/utils/localProfiles";
 
@@ -9,7 +9,7 @@ type LocalUser = {
   password: string;
 };
 
-const storage = new MMKV({ id: "kabayan-auth" });
+const storage = createMMKV({ id: "kabayan-auth" });
 
 const getUsers = (): LocalUser[] => {
   const raw = storage.getString("users");
@@ -24,7 +24,7 @@ const setCurrentUserId = (id: string | null) => {
   if (id) {
     storage.set("currentUser", id);
   } else {
-    storage.delete("currentUser");
+    storage.remove("currentUser");
   }
 };
 
