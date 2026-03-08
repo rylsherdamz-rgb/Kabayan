@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Pressable,  Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useRouter } from "expo-router";
 import { useTheme } from '@/hooks/useTheme';
@@ -46,12 +46,12 @@ export default function Profile () {
         </View>
       ) : (
         <View>
-          <View className={`p-5 rounded-3xl ${t.bgCard} border ${t.border} shadow-sm`}>
+          <TouchableOpacity onPress={() => router.push("/AuthenticationPage")} className={`p-5 rounded-3xl ${t.bgCard} border ${t.border} shadow-sm`}>
             <View className="flex-row items-center justify-between">
               <View>
                 <View className="flex-row items-center">
                   <Text className={`text-xl font-black ${t.text}`}>
-                    {profile?.display_name ?? "New User"}
+                    {profile?.display_name ?? "Guest User"}
                   </Text>
                   <View className="flex-row items-center ml-2 px-2 py-1 rounded-lg" style={{ backgroundColor: `${badgeColor}1A` }}>
                     <Ionicons
@@ -70,7 +70,7 @@ export default function Profile () {
                 <Ionicons name={t.isDarkMode ? "moon" : "sunny"} size={18} color={t.icon} />
               </TouchableOpacity>
             </View>
-          </View>
+          </TouchableOpacity>
 
           <View className="mt-4 gap-3">
             <SettingButton
