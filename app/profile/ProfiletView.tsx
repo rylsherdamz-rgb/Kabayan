@@ -2,7 +2,8 @@ import React, { useEffect, useState } from "react";
 import { View, Text, Image, ActivityIndicator, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/hooks/useTheme";
-import { supabaseClient } from "@/utils/supabase";
+import { getCurrentUserId } from "@/hooks/useAccountHooks";
+import { getProfileByUserId } from "@/utils/localProfiles";
 import { useRouter } from "expo-router";
 
 type ProfileRow = {
@@ -22,28 +23,13 @@ export default function ProfileView() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let active = true;
-    const load = async () => {
-      const { data: userData } = await supabaseClient.auth.getUser();
-      const uid = userData.user?.id;
-      if (!uid) {
-        setLoading(false);
-        return;
-      }
-      const { data } = await supabaseClient
-        .from("profiles")
-        .select("user_id,display_name,avatar_url,job_role,id_verification_status,location_label,created_at")
-        .eq("user_id", uid)
-        .single();
-      if (active) {
-        setProfile(data ?? null);
-        setLoading(false);
-      }
-    };
-    load();
-    return () => {
-      active = false;
-    };
+    const uid = getCurrentUserId();
+    if (!uid) {
+      setLoading(false);
+      return;
+    }
+    setProfile(getProfileByUserId(uid));
+    setLoading(false);
   }, []);
 
   const badgeColor =

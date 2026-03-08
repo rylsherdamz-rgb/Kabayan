@@ -31,8 +31,7 @@ export default function TabsLayout() {
             height: 65 ,
             marginBottom : inset.bottom,
             paddingBottom: 10,
-            paddingTop: 5,
-          },
+            paddingTop: 5, },
           tabBarActiveTintColor: "#2563EB",
           tabBarInactiveTintColor: t.isDarkMode ? "#64748B" : "#94A3B8",
           tabBarLabelStyle: {

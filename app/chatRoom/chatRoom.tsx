@@ -1,18 +1,19 @@
 import React, { useEffect, useRef, useState } from "react";
-import { 
-  View, 
-  Text, 
-  TextInput, 
-  TouchableOpacity, 
-  KeyboardAvoidingView, 
-  Platform, 
-  FlatList, 
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  KeyboardAvoidingView,
+  Platform,
+  FlatList,
   Image,
 } from "react-native";
 import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useTheme } from "@/hooks/useTheme";
-import { supabaseClient } from "@/utils/supabase";
+import { getCurrentUserId } from "@/hooks/useAccountHooks";
+import { getMessagesForRoom, addMessageToRoom, ChatMessage } from "@/utils/localMessages";
 
 export default function ChatRoomLayout() {
   const { t } = useTheme();
@@ -27,41 +28,23 @@ export default function ChatRoomLayout() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
+  const [loading, setLoading] = useState(true);
   const flatListRef = useRef<FlatList>(null);
 
   useEffect(() => {
-    supabaseClient.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
+    const id = getCurrentUserId();
+    setUserId(id);
   }, []);
 
   useEffect(() => {
-    let isMounted = true;
-    const loadMessages = async () => {
-      const { data, error } = await supabaseClient
-        .from("messages")
-        .select("*")
-        .eq("room_id", roomId)
-        .order("created_at", { ascending: true });
-      if (!error && isMounted && data) {
-        setMessages(data.map(mapMessage));
-      }
-    };
-    loadMessages();
-
-    const channel = supabaseClient
-      .channel(`room:${roomId}`)
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "messages", filter: `room_id=eq.${roomId}` },
-        (payload) => {
-          setMessages((prev) => [...prev, mapMessage(payload.new as any)]);
-        }
-      )
-      .subscribe();
-
-    return () => {
-      isMounted = false;
-      supabaseClient.removeChannel(channel);
-    };
+    if (!roomId) {
+      setMessages([]);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    setMessages(getMessagesForRoom(roomId));
+    setLoading(false);
   }, [roomId]);
 
   useEffect(() => {
@@ -70,18 +53,13 @@ export default function ChatRoomLayout() {
     }
   }, [messages]);
 
-  const handleSend = async () => {
+  const handleSend = () => {
     const text = message.trim();
-    if (!text || !userId || sending) return;
+    if (!text || !roomId || !userId || sending) return;
     setSending(true);
+    const newMsg = addMessageToRoom(roomId, userId, text);
+    setMessages((prev) => [...prev, newMsg]);
     setMessage("");
-    const { error } = await supabaseClient
-      .from("messages")
-      .insert({ room_id: roomId, sender_id: userId, content: text });
-    if (error) {
-      // roll back local clear if needed
-      setMessage(text);
-    }
     setSending(false);
   };
 
@@ -95,11 +73,11 @@ export default function ChatRoomLayout() {
           <TouchableOpacity onPress={() => router.back()} className="p-2 mr-1">
             <Feather name="chevron-left" size={26} color={t.text} />
           </TouchableOpacity>
-          
+
           <View className="relative">
-            <Image 
-              source={{ uri: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200' }} 
-              className="w-10 h-10 rounded-full" 
+            <Image
+              source={{ uri: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200" }}
+              className="w-10 h-10 rounded-full"
             />
             <View className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white" />
           </View>
@@ -161,7 +139,7 @@ export default function ChatRoomLayout() {
               style={{ maxHeight: 100 }}
             />
             {message.length > 0 && (
-              <TouchableOpacity 
+              <TouchableOpacity
                 onPress={handleSend}
                 className="ml-2 bg-blue-600 w-8 h-8 rounded-full items-center justify-center shadow-sm"
               >
@@ -169,7 +147,7 @@ export default function ChatRoomLayout() {
               </TouchableOpacity>
             )}
           </View>
-          
+
           {message.length === 0 && (
             <TouchableOpacity className="h-12 w-12 items-center justify-center">
               <MaterialCommunityIcons name="microphone-outline" size={24} color={t.icon} />
@@ -185,7 +163,7 @@ function ChatBubble({ item, t, userId }: { item: ChatMessage; t: any; userId: st
   const isMe = userId ? item.senderId === userId : item.senderId === "me";
   return (
     <View className={`mb-4 flex-row ${isMe ? "justify-end" : "justify-start"}`}>
-      <View 
+      <View
         className={`max-w-[75%] px-4 py-3 rounded-[24px] shadow-sm 
         ${isMe ? "bg-blue-600 rounded-tr-none" : `${t.bgSurface} border ${t.border} rounded-tl-none`}`}
       >
@@ -199,17 +177,3 @@ function ChatBubble({ item, t, userId }: { item: ChatMessage; t: any; userId: st
     </View>
   );
 }
-
-type ChatMessage = {
-  id: string;
-  text: string;
-  senderId: string;
-  createdAt: string;
-};
-
-const mapMessage = (row: any): ChatMessage => ({
-  id: row.id,
-  text: row.content,
-  senderId: row.sender_id,
-  createdAt: row.created_at,
-});

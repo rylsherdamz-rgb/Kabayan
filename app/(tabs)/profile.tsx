@@ -3,7 +3,8 @@ import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useRouter } from "expo-router";
 import { useTheme } from '@/hooks/useTheme';
-import { supabaseClient } from '@/utils/supabase';
+import { getCurrentUserId } from "@/hooks/useAccountHooks";
+import { getProfileByUserId } from "@/utils/localProfiles";
 
 export default function Profile () {
   const { t, toggleTheme } = useTheme();
@@ -12,19 +13,13 @@ export default function Profile () {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const load = async () => {
-      const { data: userData } = await supabaseClient.auth.getUser();
-      const uid = userData.user?.id;
+    const load = () => {
+      const uid = getCurrentUserId();
       if (!uid) {
         setLoading(false);
         return;
       }
-      const { data } = await supabaseClient
-        .from("profiles")
-        .select("display_name,id_verification_status,location_label")
-        .eq("user_id", uid)
-        .single();
-      setProfile(data);
+      setProfile(getProfileByUserId(uid));
       setLoading(false);
     };
     load();
@@ -73,7 +68,7 @@ export default function Profile () {
           </View>
 
           <View className="mt-4 gap-3">
-            <SettingButton
+            {/* <SettingButton
               label="Open your store"
               icon="storefront-outline"
               onPress={() => router.push({ pathname: "/marketPlace/marketPlaceView", params: { openModal: "false" } })}
@@ -87,7 +82,7 @@ export default function Profile () {
               label="Manage verification"
               icon="shield-checkmark-outline"
               onPress={() => router.push("/profile/ProfiletView")}
-            />
+            /> */}
           </View>
         </>
       )}

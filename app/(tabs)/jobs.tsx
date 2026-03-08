@@ -4,20 +4,8 @@ import { useRouter } from "expo-router";
 import { LegendList } from "@legendapp/list";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useTheme } from "@/hooks/useTheme";
-import { supabaseClient } from "@/utils/supabase";
 import JobModal from "@/components/JobComponents/JobModal";
-
-type JobRow = {
-  id: string;
-  title: string;
-  description?: string;
-  location_label: string;
-  budget_min: number;
-  budget_max: number;
-  is_urgent: boolean;
-  status: string;
-  created_at: string;
-};
+import { getJobs, JobRow } from "@/utils/localJobs";
 
 export default function Jobs() {
   const { t } = useTheme();
@@ -27,11 +15,8 @@ export default function Jobs() {
 
   const loadJobs = async () => {
     setLoading(true);
-    const { data, error } = await supabaseClient
-      .from("jobs")
-      .select("id,title,description,location_label,budget_min,budget_max,is_urgent,status,created_at")
-      .order("created_at", { ascending: false });
-    if (!error && data) setJobs(data);
+    const data = getJobs();
+    setJobs(data);
     setLoading(false);
   };
 

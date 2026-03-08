@@ -1,97 +1,65 @@
-import React, { useEffect, useMemo, useState, useCallback } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { View, Text, TouchableOpacity, Image, TextInput, Modal, SafeAreaView, ActivityIndicator } from "react-native";
 import { LegendList } from "@legendapp/list";
 import { Feather } from "@expo/vector-icons";
-import { useRouter, useFocusEffect } from "expo-router";
+import { useRouter } from "expo-router";
 import { useTheme } from "@/hooks/useTheme";
-import { supabaseClient } from "@/utils/supabase";
 import AuthenticationForm from "@/components/Auth/AuthenticationForm";
+import { useFocusEffect } from "expo-router";
+import { getAllMessages } from "@/utils/localMessages";
+import { getCurrentUserId } from "@/hooks/useAccountHooks";
+
+type Conversation = {
+  roomId: string;
+  lastMsg: string;
+  lastTime: string;
+};
+
+const formatTime = (iso: string) => {
+  const date = new Date(iso);
+  const now = new Date();
+  const diff = now.getTime() - date.getTime();
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return date.toLocaleDateString();
+};
 
 export default function Inbox() {
   const { t } = useTheme();
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [threads, setThreads] = useState<Conversation[]>([]);
-  const [userId, setUserId] = useState<string | null>(null);
   const [authModalVisible, setAuthModalVisible] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchThreads = useCallback(async () => {
-    if (!userId) {
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    const { data, error } = await supabaseClient
-      .from("messages")
-      .select("id, room_id, sender_id, content, created_at")
-      .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
-      .order("created_at", { ascending: false });
-    if (error || !data) {
-      setLoading(false);
-      return;
-    }
-    const grouped = new Map<string, Conversation>();
-    data.forEach((row) => {
-      if (!grouped.has(row.room_id)) {
-        grouped.set(row.room_id, {
-          roomId: row.room_id,
-          lastMsg: row.content,
-          lastSenderId: row.sender_id,
-          lastTime: row.created_at,
-        });
-      }
-    });
-    setThreads(Array.from(grouped.values()));
-    setLoading(false);
-  }, [userId]);
-
   useFocusEffect(
-    useCallback(() => {
-      let active = true;
-      supabaseClient.auth.getUser().then(({ data }) => {
-        if (!active) return;
-        setUserId(data.user?.id ?? null);
-        setAuthModalVisible(!data.user);
-        setLoading(false);
-      });
-      return () => {
-        active = false;
-      };
+    React.useCallback(() => {
+      const id = getCurrentUserId();
+      setUserId(id);
+      setAuthModalVisible(!id);
     }, [])
   );
 
   useEffect(() => {
-    if (!userId) return;
-    fetchThreads();
-    const channel = supabaseClient
-      .channel("messages:list")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "messages" },
-        (payload) => {
-          const row = payload.new as any;
-          if (row.sender_id !== userId && row.receiver_id !== userId) return;
-          setThreads((prev) => {
-            const filtered = prev.filter((t) => t.roomId !== row.room_id);
-            return [
-              {
-                roomId: row.room_id,
-                lastMsg: row.content,
-                lastSenderId: row.sender_id,
-                lastTime: row.created_at,
-              },
-              ...filtered,
-            ];
-          });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabaseClient.removeChannel(channel);
-    };
-  }, [userId, fetchThreads]);
+    const messages = getAllMessages();
+    const map = new Map<string, Conversation>();
+    messages.forEach((msg) => {
+      const entry = map.get(msg.roomId);
+      if (!entry || new Date(msg.createdAt) > new Date(entry.lastTime)) {
+        map.set(msg.roomId, {
+          roomId: msg.roomId,
+          lastMsg: msg.text,
+          lastTime: msg.createdAt,
+        });
+      }
+    });
+    setThreads(Array.from(map.values()).sort((a, b) => new Date(b.lastTime).getTime() - new Date(a.lastTime).getTime()));
+    setLoading(false);
+  }, []);
 
   const filteredThreads = useMemo(() => {
     const q = search.toLowerCase();
@@ -117,7 +85,7 @@ export default function Inbox() {
       {loading ? (
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator />
-          <Text className={`mt-2 ${t.textMuted}`}>Loading messages…</Text>
+          <Text className={`mt-2 ${t.textMuted}`}>Loading…</Text>
         </View>
       ) : (
         <LegendList
@@ -130,7 +98,7 @@ export default function Inbox() {
             </View>
           }
           renderItem={({ item }) => (
-            <TouchableOpacity 
+            <TouchableOpacity
               onPress={() => router.push({ pathname: "/chatRoom/chatRoom", params: { roomId: item.roomId } })}
               className={`flex-row items-center p-5 border-b ${t.border} active:bg-slate-50`}
             >
@@ -148,7 +116,7 @@ export default function Inbox() {
                 </Text>
                 <View className="flex-row items-center mt-2">
                   <View className={`${t.brandSoft} px-2 py-0.5 rounded-md`}>
-                     <Text className={`text-[9px] font-black uppercase ${t.brand}`}>Supabase</Text>
+                    <Text className={`text-[9px] font-black uppercase ${t.brand}`}>Supabase</Text>
                   </View>
                 </View>
               </View>
@@ -165,10 +133,9 @@ export default function Inbox() {
             <AuthenticationForm
               mode="signIn"
               onSubmitted={async () => {
-                const { data } = await supabaseClient.auth.getUser();
-                setUserId(data.user?.id ?? null);
-                setAuthModalVisible(false);
-                fetchThreads();
+                const id = getCurrentUserId();
+                setUserId(id);
+                setAuthModalVisible(!id);
               }}
             />
             <TouchableOpacity onPress={() => setAuthModalVisible(false)} className="mt-3 items-center">
@@ -180,22 +147,3 @@ export default function Inbox() {
     </View>
   );
 }
-
-type Conversation = {
-  roomId: string;
-  lastMsg: string;
-  lastSenderId: string;
-  lastTime: string;
-};
-
-const formatTime = (iso: string) => {
-  const date = new Date(iso);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMin = Math.floor(diffMs / 60000);
-  if (diffMin < 1) return "just now";
-  if (diffMin < 60) return `${diffMin}m ago`;
-  const diffHr = Math.floor(diffMin / 60);
-  if (diffHr < 24) return `${diffHr}h ago`;
-  return date.toLocaleDateString();
-};

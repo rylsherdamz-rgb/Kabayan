@@ -4,21 +4,21 @@ import { Feather, Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useTheme } from '@/hooks/useTheme';
 import MarketModal from '@/components/MarketPlace/MarketModal';
-import { supabaseClient } from '@/utils/supabase';
+import { getListings, MarketListing } from "@/utils/localMarketplace";
 
 export default function MarketPlaceView() {
   const { t } = useTheme();
   const router = useRouter();
   const [showModal, setShowModal] = useState(false);
-  const [listings, setListings] = useState<any[]>([]);
+  const [listings, setListings] = useState<MarketListing[]>([]);
   const params = useLocalSearchParams<{ openModal?: string }>();
 
+  const loadListings = () => {
+    setListings(getListings());
+  };
+
   useEffect(() => {
-    supabaseClient
-      .from("marketplace_listings")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .then(({ data }) => data && setListings(data));
+    loadListings();
   }, []);
 
   useEffect(() => {
@@ -28,22 +28,18 @@ export default function MarketPlaceView() {
   }, [params.openModal]);
 
   const featured = useMemo(() => listings[0], [listings]);
-  const permitVerified = useMemo(
-    () => (featured?.description ?? "").toLowerCase().includes("permit: verified"),
-    [featured]
-  );
+  const permitVerified = featured?.permit_verified;
 
   return (
     <View className={`flex-1 ${t.bgPage}`}>
       <ScrollView showsVerticalScrollIndicator={false}>
-        
         <View className="h-72 w-full relative">
-          <Image 
-            source={{ uri: featured?.image_url ?? 'https://images.unsplash.com/photo-1555126634-323283e090fa?w=800' }} 
+          <Image
+            source={{ uri: featured?.image_url ?? 'https://images.unsplash.com/photo-1555126634-323283e090fa?w=800' }}
             className="w-full h-full"
           />
           <View className="absolute top-4 left-5 right-5 flex-row justify-between">
-            <TouchableOpacity 
+            <TouchableOpacity
               onPress={() => router.back()}
               className="bg-white/90 p-2.5 rounded-2xl shadow-sm"
             >
@@ -56,7 +52,6 @@ export default function MarketPlaceView() {
         </View>
 
         <View className={`-mt-10 px-6 pt-8 pb-32 rounded-t-[40px] ${t.bgCard} border-t ${t.border}`}>
-          
           <View className="flex-row justify-between items-start">
             <View className="flex-1">
               <View className="flex-row items-center">
@@ -78,8 +73,8 @@ export default function MarketPlaceView() {
               </View>
             </View>
             {featured?.image_url && (
-              <Image 
-                source={{ uri: featured.image_url }} 
+              <Image
+                source={{ uri: featured.image_url }}
                 className="w-16 h-16 rounded-2xl border-2 border-white shadow-lg"
               />
             )}
@@ -95,13 +90,13 @@ export default function MarketPlaceView() {
           <View className="mt-10">
             <Text className={`text-lg font-black tracking-tight mb-4 ${t.text}`}>Popular Dishes</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} className="-mx-6 px-6">
-              {(listings.length ? listings : [featured]).filter(Boolean).map((item) => (
+              {listings.filter(Boolean).map((item) => (
                 <MenuCard
                   key={item.id}
                   name={item.name}
                   price={`₱${Number(item.price || 0).toLocaleString()}`}
                   img={item.image_url ?? 'https://images.unsplash.com/photo-1512152272829-e3139592d56f?w=300'}
-                  verified={(item.description ?? "").toLowerCase().includes("permit: verified")}
+                  verified={item.permit_verified}
                   t={t}
                 />
               ))}
@@ -113,9 +108,9 @@ export default function MarketPlaceView() {
               <Text className={`text-lg font-black tracking-tight ${t.text}`}>Community Reviews</Text>
               <Text className={`text-xs font-bold ${t.brand}`}>Write a Review</Text>
             </View>
-            
-            <ReviewItem 
-              user="Maria C." 
+
+            <ReviewItem
+              user="Maria C."
               comment="The best Pares in Quiapo! Super lambot ng baka and the soup is very rich. Highly recommended!"
               rating={5}
               t={t}
@@ -137,14 +132,13 @@ export default function MarketPlaceView() {
 
       <MarketModal
         visible={showModal}
-        onClose={() => setShowModal(false)}
+        onClose={() => {
+          setShowModal(false);
+          loadListings();
+        }}
         onCreated={() => {
           setShowModal(false);
-          supabaseClient
-            .from("marketplace_listings")
-            .select("*")
-            .order("created_at", { ascending: false })
-            .then(({ data }) => data && setListings(data));
+          loadListings();
         }}
       />
     </View>
@@ -160,7 +154,7 @@ function InfoChip({ icon, label, t }: any) {
   );
 }
 
-function MenuCard({ name, price, img, verified, t } : any) {
+function MenuCard({ name, price, img, verified, t }: any) {
   return (
     <TouchableOpacity className={`mr-4 w-40 rounded-3xl overflow-hidden ${t.bgSurface} border ${t.border}`}>
       <Image source={{ uri: img }} className="h-28 w-full" />
@@ -177,7 +171,7 @@ function MenuCard({ name, price, img, verified, t } : any) {
   );
 }
 
-function ReviewItem({ user, comment, rating, t } : any) {
+function ReviewItem({ user, comment, rating, t }: any) {
   return (
     <View className={`p-5 rounded-3xl ${t.bgSurface} border ${t.border} mb-4`}>
       <View className="flex-row justify-between items-center mb-2">

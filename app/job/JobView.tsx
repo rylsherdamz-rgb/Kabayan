@@ -3,7 +3,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useTheme } from "@/hooks/useTheme";
 import { View, Text, ScrollView, TouchableOpacity, Image, ActivityIndicator } from "react-native";
 import { useEffect, useState } from "react";
-import { supabaseClient } from "@/utils/supabase";
+import { getJobById } from "@/utils/localJobs";
 
 type JobDetail = {
   id: string;
@@ -25,15 +25,14 @@ export default function JobView() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchJob = async () => {
-      if (!jobId) return;
+    const fetchJob = () => {
+      if (!jobId) {
+        setLoading(false);
+        return;
+      }
       setLoading(true);
-      const { data, error } = await supabaseClient
-        .from("jobs")
-        .select("id,title,description,location_label,budget_min,budget_max,is_urgent,status,created_at")
-        .eq("id", jobId)
-        .single();
-      if (!error && data) setJob(data);
+      const job = getJobById(jobId);
+      setJob(job ?? null);
       setLoading(false);
     };
     fetchJob();

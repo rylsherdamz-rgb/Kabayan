@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 import { Modal, SafeAreaView, View, Text, TextInput, TouchableOpacity, ScrollView } from "react-native";
-import { Feather, Ionicons, MaterialIcons } from "@expo/vector-icons";
+import { Feather, Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/hooks/useTheme";
-import { supabaseClient } from "@/utils/supabase";
+import { addJob, JobRow } from "@/utils/localJobs";
+import { getCurrentUserId } from "@/hooks/useAccountHooks";
 
 type JobModalProps = {
   visible: boolean;
@@ -34,26 +35,31 @@ export default function JobModal({ visible, onClose, onCreated }: JobModalProps)
     if (saving) return;
     setSaving(true);
     setError(null);
-    const { data, error } = await supabaseClient.from("jobs").insert({
+    const employer_id = getCurrentUserId();
+    if (!title || !location) {
+      setError("Title and location are required");
+      setSaving(false);
+      return;
+    }
+    const job: JobRow = {
+      id: Math.random().toString(36).slice(2),
       title,
       description,
       location_label: location,
+      latitude: 14.5995,
+      longitude: 120.9842,
       budget_min: Number(budgetMin) || 0,
       budget_max: Number(budgetMax) || 0,
       requirements: requirements ? requirements.split(",").map((r) => r.trim()) : [],
       status: "open",
       is_urgent: false,
-    }).select("*").single();
-
-    if (error) {
-      setError(error.message);
-      setSaving(false);
-      return;
-    }
-
+      created_at: new Date().toISOString(),
+      employer_id,
+    };
+    addJob(job);
     setSaving(false);
     clearForm();
-    onCreated?.(data);
+    onCreated?.(job);
     onClose();
   };
 

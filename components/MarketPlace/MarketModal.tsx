@@ -2,8 +2,8 @@ import React, { useState } from "react";
 import { Modal, SafeAreaView, View, Text, TextInput, TouchableOpacity, ScrollView, Image } from "react-native";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/hooks/useTheme";
-import { supabaseClient } from "@/utils/supabase";
 import { useImagePicker } from "@/context/ImagePicker";
+import { addListing } from "@/utils/localMarketplace";
 
 type MarketModalProps = {
   visible: boolean;
@@ -49,7 +49,7 @@ export default function MarketModal({ visible, onClose, onCreated }: MarketModal
     if (asset) setBackgroundUri(asset.uri);
   };
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (saving) return;
     setSaving(true);
     const composedDescription = [
@@ -61,16 +61,19 @@ export default function MarketModal({ visible, onClose, onCreated }: MarketModal
       .filter(Boolean)
       .join("\n");
 
-    await supabaseClient.from("marketplace_listings").insert({
+    addListing({
+      id: Math.random().toString(36).slice(2),
       name,
       description: composedDescription,
       category,
       price: Number(price) || 0,
       location_label: location,
-      latitude: null,
-      longitude: null,
+      latitude: 14.5995,
+      longitude: 120.9842,
       image_url: image?.uri ?? null,
       is_open: true,
+      created_at: new Date().toISOString(),
+      permit_verified: permitVerified,
     });
     setSaving(false);
     clearForm();

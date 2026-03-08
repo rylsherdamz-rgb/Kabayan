@@ -49,7 +49,7 @@ export default function RootLayout() {
           screenOptions={{ headerShown: false }}
         >
           <Drawer.Screen
-            name="(tabs)"
+            name="(tabs)/"
             options={{ drawerLabel: "Home" }}
           />
           <Drawer.Screen
