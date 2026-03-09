@@ -62,7 +62,7 @@ export default function CustomMapComponents({ markerCoordinate, markerLabel }: C
             heading={0}
           />
 
-          <PointAnnotation id="targetMarker" coordinate={activeCoordinate}>
+          <PointAnnotation id="targetMarker" key="targetMarker" coordinate={activeCoordinate}>
             {marker}
           </PointAnnotation>
         </MapView>

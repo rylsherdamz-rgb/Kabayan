@@ -212,7 +212,7 @@ export default function JobView() {
     <TouchableOpacity className="absolute top-0 right-2">
           <Feather name="x-circle" color="#000"  size={20}/>
       </TouchableOpacity>
-        <View className="bg-white">
+        <View className="bg-slate-100">
           <Image 
             source={{ uri: "https://images.unsplash.com/photo-1504150559640-a0ce165d472d?w=800" }}
             className="w-full h-40"
@@ -221,8 +221,7 @@ export default function JobView() {
           
           <View className="px-5 pb-6">
             <View className="relative -mt-12 mb-4">
-              <Image
-                source={{ uri: "https://images.unsplash.com/photo-1531427186611-ecfd6d936c79?w=400" }}
+              <View
                 className="w-24 h-24 rounded-2xl border-4 border-white shadow-sm"
               />
               <View className="absolute bottom-0 left-20 bg-white w-8 h-8 rounded-full items-center justify-center shadow-md border border-slate-100">
