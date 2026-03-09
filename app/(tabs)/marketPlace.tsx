@@ -52,6 +52,7 @@ export default function MarketPlace() {
   const { t } = useTheme();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('All');
+  const [search, setSearch] = useState("");
   const [listings, setListings] = useState<ListingFeedRow[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -67,15 +68,32 @@ export default function MarketPlace() {
   }, []);
 
   const filtered = useMemo(() => {
-    if (activeTab === "All") return listings;
-    return listings.filter((v) => (v.category ?? "").toLowerCase().includes(activeTab.toLowerCase()));
-  }, [listings, activeTab]);
+    const byCategory =
+      activeTab === "All"
+        ? listings
+        : listings.filter((v) => (v.category ?? "").toLowerCase().includes(activeTab.toLowerCase()));
+    const query = search.trim().toLowerCase();
+    if (!query) return byCategory;
+    return byCategory.filter((v) => {
+      return (
+        (v.name ?? "").toLowerCase().includes(query) ||
+        (v.description ?? "").toLowerCase().includes(query) ||
+        (v.category ?? "").toLowerCase().includes(query) ||
+        (v.location_label ?? "").toLowerCase().includes(query)
+      );
+    });
+  }, [listings, activeTab, search]);
 
   return (
     <View className={`flex-1 ${t.bgPage}`}>
       <View className={`pt-6 pb-4 px-5 flex flex-col gap-y-3 ${t.bgCard} border-b ${t.border}`}>
 
-        <CustomSearchBarComponent />
+        <CustomSearchBarComponent
+          value={search}
+          onSearch={setSearch}
+          placeholder="Search marketplace items and vendors"
+          onNavigateToMap={() => router.push("/map/mapView")}
+        />
        
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           {CATEGORIES.map((cat) => (
@@ -106,7 +124,9 @@ export default function MarketPlace() {
           refreshControl={<RefreshControl refreshing={loading} onRefresh={loadListings} />}
           ListEmptyComponent={
             <View className="py-16 items-center">
-              <Text className={`text-sm ${t.textMuted}`}>No vendors found</Text>
+              <Text className={`text-sm ${t.textMuted}`}>
+                {search.trim() ? "No marketplace results found" : "No vendors found"}
+              </Text>
             </View>
           }
           renderItem={({ item }) => (

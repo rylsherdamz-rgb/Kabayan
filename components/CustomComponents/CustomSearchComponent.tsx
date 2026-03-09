@@ -3,8 +3,21 @@ import { TextInput, View, Pressable, KeyboardAvoidingView, Platform } from 'reac
 import { Feather, FontAwesome5 } from "@expo/vector-icons";
 import { useTheme } from '@/hooks/useTheme';
 
-export default function CustomSearchComponent({ onNavigateToMap, onSearch }) {
+type Props = {
+  onNavigateToMap?: () => void;
+  onSearch?: (value: string) => void;
+  placeholder?: string;
+  value?: string;
+};
+
+export default function CustomSearchComponent({
+  onNavigateToMap,
+  onSearch,
+  placeholder = "Search for skills or food...",
+  value,
+}: Props) {
   const { t } = useTheme();
+  const showMapButton = typeof onNavigateToMap === "function";
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"}>
@@ -14,20 +27,23 @@ export default function CustomSearchComponent({ onNavigateToMap, onSearch }) {
         
         <TextInput 
           className={`flex-1 h-full ml-3 text-sm font-medium ${t.text}`}
-          placeholder="Search for skills or food..."
+          placeholder={placeholder}
           placeholderTextColor={t.isDarkMode ? "#64748B" : "#94A3B8"}
           onChangeText={onSearch}
+          value={value}
           selectionColor="#2563EB"
         />
-
-        <View className={`w-[1px] h-6 mx-3 ${t.border}`} />
-
-        <Pressable 
-          onPress={onNavigateToMap}
-          className="p-1 active:opacity-50"
-        >
-          <FontAwesome5 name="map-marked-alt" color={t.accent} size={18} />
-        </Pressable>
+        {showMapButton ? (
+          <>
+            <View className={`w-[1px] h-6 mx-3 ${t.border}`} />
+            <Pressable
+              onPress={onNavigateToMap}
+              className="p-1 active:opacity-50"
+            >
+              <FontAwesome5 name="map-marked-alt" color={t.accent} size={18} />
+            </Pressable>
+          </>
+        ) : null}
         
       </View>
     </KeyboardAvoidingView>

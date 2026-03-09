@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert, Image, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useTheme } from "@/hooks/useTheme";
 import { supabaseClient } from "@/utils/supabase";
 import humanizeError from "@/utils/humanizeError";
@@ -22,11 +22,18 @@ const isAuthSessionMissing = (message?: string | null) =>
 export default function PeopleConnect() {
   const { t } = useTheme();
   const router = useRouter();
-  const [query, setQuery] = useState("");
+  const params = useLocalSearchParams<{ q?: string }>();
+  const [query, setQuery] = useState(() => (typeof params.q === "string" ? params.q : ""));
   const [people, setPeople] = useState<PersonRow[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [connectingTo, setConnectingTo] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof params.q === "string") {
+      setQuery(params.q);
+    }
+  }, [params.q]);
 
   useEffect(() => {
     let active = true;

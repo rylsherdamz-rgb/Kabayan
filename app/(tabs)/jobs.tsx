@@ -6,6 +6,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { useTheme } from "@/hooks/useTheme";
 import { supabaseClient } from "@/utils/supabase";
 import JobModal from "@/components/JobComponents/JobModal";
+import CustomSearchComponent from "@/components/CustomComponents/CustomSearchComponent";
 
 type JobRow = {
   id: string;
@@ -21,9 +22,11 @@ type JobRow = {
 
 export default function Jobs() {
   const { t } = useTheme();
+  const router = useRouter();
   const [jobs, setJobs] = useState<JobRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [search, setSearch] = useState("");
 
   const loadJobs = async () => {
     setLoading(true);
@@ -49,8 +52,28 @@ export default function Jobs() {
     [jobs]
   );
 
+  const filteredJobs = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return mappedJobs;
+    return mappedJobs.filter((job) => {
+      return (
+        (job.title ?? "").toLowerCase().includes(q) ||
+        (job.location_label ?? "").toLowerCase().includes(q) ||
+        (job.description ?? "").toLowerCase().includes(q)
+      );
+    });
+  }, [mappedJobs, search]);
+
   return (
     <View className={`flex-1 ${t.bgPage}`}>
+      <View className="px-4 pt-5 pb-3">
+        <CustomSearchComponent
+          value={search}
+          onSearch={setSearch}
+          placeholder="Search jobs by title, location, or description"
+          onNavigateToMap={() => router.push("/map/mapView")}
+        />
+      </View>
       {loading ? (
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator />
@@ -59,14 +82,16 @@ export default function Jobs() {
       ) : (
         <>
           <LegendList
-            data={mappedJobs}
+            data={filteredJobs}
             keyExtractor={(item) => item.id}
             estimatedItemSize={120}
-            contentContainerStyle={{ padding: 16, paddingBottom: 140 }}
+            contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 140 }}
             refreshControl={<RefreshControl refreshing={loading} onRefresh={loadJobs} />}
             ListEmptyComponent={
               <View className="py-16 items-center">
-                <Text className={`text-sm ${t.textMuted}`}>No jobs available</Text>
+                <Text className={`text-sm ${t.textMuted}`}>
+                  {search.trim() ? "No jobs match your search" : "No jobs available"}
+                </Text>
               </View>
             }
             renderItem={({ item }) => <JobCard job={item} t={t} />}

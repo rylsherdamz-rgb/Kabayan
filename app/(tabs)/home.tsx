@@ -1,8 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { View, Text, ScrollView, TouchableOpacity, Pressable, ActivityIndicator } from "react-native";
 import { useRouter } from "expo-router";
-import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
-import CustomSearchComponent from "@/components/CustomComponents/CustomSearchComponent";
+import { Feather, FontAwesome5, MaterialCommunityIcons } from "@expo/vector-icons";
 import CustomMapComponents from "@/components/CustomComponents/CustomMapComponents";
 import { useTheme } from "@/hooks/useTheme";
 import { supabaseClient } from "@/utils/supabase";
@@ -22,7 +21,6 @@ type JobRow = {
 export default function Home() {
   const router = useRouter();
   const { t } = useTheme();
-  const [search, setSearch] = useState("");
   const [jobs, setJobs] = useState<JobRow[]>([]);
   const [loadingJobs, setLoadingJobs] = useState(true);
 
@@ -39,35 +37,32 @@ export default function Home() {
     loadLatestJobs();
   }, []);
 
-  const filteredJobs = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    const source = jobs.filter((job) => job.status === "open");
-    if (!q) return source.slice(0, 6);
-    return source
-      .filter((job) => {
-        return (
-          job.title.toLowerCase().includes(q) ||
-          (job.location_label ?? "").toLowerCase().includes(q) ||
-          (job.description ?? "").toLowerCase().includes(q)
-        );
-      })
-      .slice(0, 6);
-  }, [jobs, search]);
+  const latestJobs = useMemo(() => {
+    return jobs.filter((job) => job.status === "open").slice(0, 6);
+  }, [jobs]);
 
   return (
     <View className={`flex-1 ${t.bgPage}`}>
       <View className="pt-6 px-[5%]">
-        <CustomSearchComponent
-          onSearch={setSearch}
-          onNavigateToMap={() => router.push("/map/mapView")}
-        />
+        <View className={`flex-row items-center h-12 px-4 rounded-2xl border ${t.border} ${t.bgSurface}`}>
+          <Pressable onPress={() => router.push("/search/search")} className="flex-1 h-full flex-row items-center">
+            <Feather name="search" color={t.icon} size={18} />
+            <Text className={`ml-3 text-sm font-medium ${t.textMuted}`}>Search people, jobs, or marketplace</Text>
+          </Pressable>
+
+          <View className={`w-[1px] h-6 mx-3 ${t.border}`} />
+
+          <Pressable onPress={() => router.push("/map/mapView")} className="p-1 active:opacity-50">
+            <FontAwesome5 name="map-marked-alt" color={t.accent} size={18} />
+          </Pressable>
+        </View>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} className="flex-1 px-[5%] mt-6">
         <View className="mb-6">
           <View className="flex-row justify-between items-end mb-4">
             <Text className={`text-lg font-black tracking-tight ${t.text}`}>Nearby Opportunities</Text>
-            <TouchableOpacity onPress={() => router.push("/jobs")}> 
+            <TouchableOpacity onPress={() => router.push("/jobs") }>
               <Text className={`text-xs font-bold ${t.brand}`}>See All</Text>
             </TouchableOpacity>
           </View>
@@ -93,13 +88,13 @@ export default function Home() {
               <ActivityIndicator />
               <Text className={`mt-2 text-xs ${t.textMuted}`}>Loading jobs…</Text>
             </View>
-          ) : filteredJobs.length === 0 ? (
+          ) : latestJobs.length === 0 ? (
             <View className={`p-6 rounded-[28px] ${t.bgCard} border ${t.border}`}>
               <Text className={`text-sm font-semibold ${t.text}`}>No jobs found</Text>
-              <Text className={`mt-2 text-xs ${t.textMuted}`}>Try another search or check back later.</Text>
+              <Text className={`mt-2 text-xs ${t.textMuted}`}>Try again later.</Text>
             </View>
           ) : (
-            filteredJobs.map((job) => (
+            latestJobs.map((job) => (
               <TouchableOpacity
                 key={job.id}
                 onPress={() => router.push({ pathname: "/job/JobView", params: { jobId: job.id } })}
