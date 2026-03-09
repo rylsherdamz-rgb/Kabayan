@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, Image, ActivityIndicator, TouchableOpacity } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Feather, Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/hooks/useTheme";
 import { supabaseClient } from "@/utils/supabase";
 import { useRouter } from "expo-router";
@@ -73,7 +73,11 @@ export default function ProfileView() {
 
   return (
     <View style={{paddingTop : inset.top}} className={`flex-1 ${t.bgPage} p-6`}>
-      <View className={`p-5 rounded-3xl ${t.bgCard} border ${t.border} shadow-sm`}>
+      
+      <View  className={`p-5 relative rounded-3xl ${t.bgCard} border ${t.border} shadow-sm`}>
+    <TouchableOpacity>
+          <Feather name="x-circle" color="#000" className="absolute top-0 right-2" size={20}/>
+      </TouchableOpacity>
         <View className="flex-row items-center">
           <Image
             source={{

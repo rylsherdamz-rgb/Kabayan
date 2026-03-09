@@ -207,8 +207,11 @@ export default function JobView() {
   };
 
   return (
-    <View className={`flex-1 ${t.bgPage}`}>
+    <View className={`flex-1 relative ${t.bgPage}`}>
       <ScrollView showsVerticalScrollIndicator={false}>
+    <TouchableOpacity className="absolute top-0 right-2">
+          <Feather name="x-circle" color="#000"  size={20}/>
+      </TouchableOpacity>
         <View className="bg-white">
           <Image 
             source={{ uri: "https://images.unsplash.com/photo-1504150559640-a0ce165d472d?w=800" }}

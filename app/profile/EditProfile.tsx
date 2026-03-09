@@ -225,20 +225,17 @@ export default function EditProfile() {
       className={`flex-1 ${t.bgPage}`}
     >
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 28 }}>
-        <View className="h-28 bg-blue-600 w-full relative">
+        <View className="h-28 flex flex-row  gap-x-5 bg-blue-600 w-full relative">
           <TouchableOpacity
             onPress={() => router.back()}
             className="absolute top-12 left-5 z-10 bg-white/20 p-2 rounded-full"
           >
             <Feather name="chevron-left" size={24} color="white" />
           </TouchableOpacity>
-          <View className="absolute bottom-4 left-5">
-            <Text className="text-white text-xl font-black">Edit Profile</Text>
-            <Text className="text-blue-100 text-xs font-semibold">Keep your public profile accurate and trusted.</Text>
-          </View>
+          
         </View>
 
-        <View className="px-5 -mt-10">
+        <View style={{paddingTop : inset.top, paddingBottom : inset.bottom}} className="px-5 -mt-10">
           <AppFlashMessage message={flashMessage} onClose={hideFlashMessage} />
 
           <View className={`rounded-3xl p-5 border ${t.border} ${t.bgCard}`}>
