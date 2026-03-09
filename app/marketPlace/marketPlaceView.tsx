@@ -9,6 +9,7 @@ import { supabaseClient } from '@/utils/supabase';
 import AppFlashMessage from '@/components/CustomComponents/AppFlashMessage';
 import useFlashMessage from '@/hooks/useFlashMessage';
 import humanizeError from '@/utils/humanizeError';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type ListingFeedRow = {
   id: string;
@@ -74,6 +75,7 @@ const normalizeReview = (row: any): ReviewRow => ({
 export default function MarketPlaceView() {
   const { t } = useTheme();
   const router = useRouter();
+  const insets = useSafeAreaInsets()
   const { flashMessage, showFlashMessage, hideFlashMessage } = useFlashMessage();
   const [showModal, setShowModal] = useState(false);
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
@@ -290,7 +292,7 @@ export default function MarketPlaceView() {
   }
 
   return (
-    <View className={`flex-1 ${t.bgPage}`}>
+    <View style={{paddingBottom: insets.bottom, paddingTop : insets.top}} className={`flex-1 ${t.bgPage}`}>
       <AppFlashMessage message={flashMessage} onClose={hideFlashMessage} />
       <ScrollView showsVerticalScrollIndicator={false}>
         <View className="h-72 w-full relative">
