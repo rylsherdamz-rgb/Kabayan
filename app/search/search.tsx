@@ -5,6 +5,7 @@ import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import CustomSearchComponent from "@/components/CustomComponents/CustomSearchComponent";
 import { useTheme } from "@/hooks/useTheme";
 import { supabaseClient } from "@/utils/supabase";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type SearchCategory = "All" | "People" | "Jobs" | "Marketplace";
 
@@ -63,6 +64,7 @@ const normalizeListing = (row: any): ListingRow => ({
 export default function SearchScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ q?: string }>();
+  const insets = useSafeAreaInsets()
   const { t } = useTheme();
 
   const [search, setSearch] = useState(() => (typeof params.q === "string" ? params.q : ""));
@@ -181,7 +183,8 @@ export default function SearchScreen() {
   }, [people, query]);
 
   return (
-    <View className={`flex-1 ${t.bgPage}`}>
+    <View style={{paddingTop : insets.top, paddingBottom : insets.bottom }} className={`flex flex-1 flex-col  ${t.bgPage}`}>
+
       <View className="pt-6 px-[5%]">
         <CustomSearchComponent
           onSearch={setSearch}
@@ -193,7 +196,7 @@ export default function SearchScreen() {
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        className="mt-3 px-[5%]"
+        className="mt-3   px-[5%]"
         contentContainerStyle={{ paddingRight: 20 }}
       >
         {SEARCH_CATEGORIES.map((category) => {
@@ -214,7 +217,7 @@ export default function SearchScreen() {
         })}
       </ScrollView>
 
-      <ScrollView showsVerticalScrollIndicator={false} className="flex-1 px-[5%] mt-5">
+      <ScrollView showsVerticalScrollIndicator={false} className="  px-[5%] ">
         {showSearchResults ? (
           <View className="pb-8">
             <Text className={`text-lg font-black tracking-tight mb-4 ${t.text}`}>Search Results</Text>
