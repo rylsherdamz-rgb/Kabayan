@@ -1,21 +1,23 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, Pressable } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, Pressable, KeyboardAvoidingView, Platform } from "react-native";
 import {useRouter} from "expo-router"
 import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import useAccount from "@/hooks/useAccountHooks";
 import { useTheme } from "@/hooks/useTheme";
+import { supabaseClient } from "@/utils/supabase";
 
 type AuthMode = "signIn" | "signUp";
 
 interface AuthenticationFormProps {
   mode?: AuthMode;
   onModeChange?: (mode: AuthMode) => void;
+  onSubmitted?: () => void | Promise<void>;
 }
 
-export default function AuthenticationForm({ mode = "signIn", onModeChange }: AuthenticationFormProps) {
+export default function AuthenticationForm({ mode = "signIn", onModeChange, onSubmitted }: AuthenticationFormProps) {
   const { t } = useTheme();
   const router= useRouter()
-  const { SignUpWithEmailAndPassword, SignInWithPassword, error, data } = useAccount();
+  const { SignUpWithEmailAndPassword, SignInWithPassword, error } = useAccount();
 
   const [currentMode, setCurrentMode] = useState<AuthMode>(mode);
   const [email, setEmail] = useState("");
@@ -40,30 +42,40 @@ export default function AuthenticationForm({ mode = "signIn", onModeChange }: Au
     } else {
       await SignUpWithEmailAndPassword({ email, password });
     }
+    const { data: userData, error: userError } = await supabaseClient.auth.getUser();
+    if (userError || !userData.user) {
+      setSubmitting(false);
+      return;
+    }
+
+    if (onSubmitted) {
+      await onSubmitted();
+    } else {
+      router.replace("/home");
+    }
     setSubmitting(false);
-    if (!data || error) return
-    router.push("/home")
 
   };
 
   return (
-    <View className="w-full bg-white/95 rounded-[28px] p-6 border border-slate-200 shadow-xl shadow-slate-900/10">
-      <View className="flex-row justify-between items-center mb-4">
-        <Text className="text-xl font-black text-slate-900 tracking-tight">
-          {currentMode === "signIn" ? "Welcome Back" : "Join Kabayan"}
+    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"}>
+      <View className="w-full bg-white/95 rounded-[28px] p-6 border border-slate-200 shadow-xl shadow-slate-900/10">
+        <View className="flex-row justify-between items-center mb-4">
+          <Text className="text-xl font-black text-slate-900 tracking-tight">
+            {currentMode === "signIn" ? "Welcome Back" : "Join Kabayan"}
+          </Text>
+          <TouchableOpacity className="flex-row rounded-full p-1" onPress={() => router.push("/(tabs)/home")}>
+            <Feather name="x-circle" color="#0f172a" size={20} />
+          </TouchableOpacity>
+        </View>
+
+        <Text className="text-sm text-slate-500 mb-6">
+          {currentMode === "signIn"
+            ? "Sign in to access your community."
+            : "Create an account to start earning or hiring."}
         </Text>
-        <TouchableOpacity className="flex-row rounded-full p-1" onPress={() => router.push("/(tabs)/home")}>
-          <Feather name="x-circle" color="#0f172a" size={20} />
-        </TouchableOpacity>
-      </View>
 
-      <Text className="text-sm text-slate-500 mb-6">
-        {currentMode === "signIn"
-          ? "Sign in to access your community."
-          : "Create an account to start earning or hiring."}
-      </Text>
-
-      <View className="gap-y-5">
+        <View className="gap-y-5">
         <View>
           <Text className="text-[10px] font-black uppercase tracking-[2px] text-slate-400 mb-2">Email Address</Text>
           <View className="flex-row items-center px-4 h-14 rounded-2xl border border-slate-200 bg-slate-50">
@@ -142,7 +154,8 @@ export default function AuthenticationForm({ mode = "signIn", onModeChange }: Au
             <MaterialCommunityIcons name="apple" size={20} color={t.isDarkMode ? "white" : "#475569"} />
           </TouchableOpacity>
         </View>
+        </View>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }

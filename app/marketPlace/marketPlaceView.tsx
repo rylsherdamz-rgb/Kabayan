@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, ScrollView, Image, TouchableOpacity, Modal, TextInput, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, Image, TouchableOpacity, Modal, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import { Feather, Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useTheme } from '@/hooks/useTheme';
 import MarketModal from '@/components/MarketPlace/MarketModal';
+import MarketEditModal from '@/components/MarketPlace/MarketEditModal';
 import { supabaseClient } from '@/utils/supabase';
 import AppFlashMessage from '@/components/CustomComponents/AppFlashMessage';
 import useFlashMessage from '@/hooks/useFlashMessage';
@@ -80,6 +81,9 @@ export default function MarketPlaceView() {
   const [reviewComment, setReviewComment] = useState("");
   const [listings, setListings] = useState<ListingFeedRow[]>([]);
   const [reviews, setReviews] = useState<ReviewRow[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [updatingOpenState, setUpdatingOpenState] = useState(false);
   const [loadingListings, setLoadingListings] = useState(true);
   const [loadingReviews, setLoadingReviews] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -124,6 +128,19 @@ export default function MarketPlaceView() {
   }, [loadListings]);
 
   useEffect(() => {
+    supabaseClient.auth.getUser().then(({ data }) => {
+      setCurrentUserId(data.user?.id ?? null);
+    });
+    const { data: authListener } = supabaseClient.auth.onAuthStateChange((_event, session) => {
+      setCurrentUserId(session?.user?.id ?? null);
+    });
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
     if (params.openModal === "true") {
       setShowModal(true);
     }
@@ -158,6 +175,8 @@ export default function MarketPlaceView() {
     const sameVendor = listings.filter((item) => item.vendor_id === featured.vendor_id);
     return sameVendor.length > 0 ? sameVendor : [featured];
   }, [featured, listings]);
+
+  const isOwner = Boolean(currentUserId && featured && featured.vendor_id === currentUserId);
 
   const handleOpenReviewModal = async () => {
     const { data, error } = await supabaseClient.auth.getUser();
@@ -198,6 +217,44 @@ export default function MarketPlaceView() {
       showFlashMessage("Review Failed", message, "error");
     } finally {
       setSubmittingReview(false);
+    }
+  };
+
+  const handleToggleListingOpen = async () => {
+    if (!featured || !isOwner || updatingOpenState) return;
+
+    const nextIsOpen = !featured.is_open;
+    setUpdatingOpenState(true);
+    try {
+      const { data, error } = await supabaseClient
+        .rpc("rpc_set_marketplace_listing_open_state", {
+          p_listing_id: featured.id,
+          p_is_open: nextIsOpen,
+        })
+        .maybeSingle();
+
+      if (error) throw new Error(error.message);
+      const resolvedOpen = typeof data?.is_open === "boolean" ? data.is_open : nextIsOpen;
+      setListings((prev) =>
+        prev.map((item) =>
+          item.id === featured.id
+            ? {
+                ...item,
+                is_open: resolvedOpen,
+              }
+            : item
+        )
+      );
+      showFlashMessage(
+        resolvedOpen ? "Listing reopened" : "Listing closed",
+        resolvedOpen ? "Customers can now place orders for this item." : "This listing is now closed to new orders.",
+        "success"
+      );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unable to update listing state.";
+      showFlashMessage("Update failed", message, "error");
+    } finally {
+      setUpdatingOpenState(false);
     }
   };
 
@@ -302,6 +359,29 @@ export default function MarketPlaceView() {
             <InfoChip icon="tag" label={featured.category} t={t} />
           </View>
 
+          {isOwner ? (
+            <View className="mt-6">
+              <Text className={`text-[10px] font-black uppercase tracking-widest ${t.textMuted} mb-3`}>Owner Controls</Text>
+              <View className="flex-row gap-3">
+                <TouchableOpacity
+                  onPress={() => setEditModalVisible(true)}
+                  className="flex-1 h-12 rounded-2xl bg-blue-600 items-center justify-center"
+                >
+                  <Text className="text-white text-xs font-black uppercase tracking-widest">Edit Listing</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={handleToggleListingOpen}
+                  disabled={updatingOpenState}
+                  className={`flex-1 h-12 rounded-2xl items-center justify-center ${featured.is_open ? "bg-rose-600" : "bg-emerald-600"}`}
+                >
+                  <Text className="text-white text-xs font-black uppercase tracking-widest">
+                    {updatingOpenState ? "Updating..." : featured.is_open ? "Close Listing" : "Reopen Listing"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : null}
+
           <View className="mt-10">
             <Text className={`text-lg font-black tracking-tight mb-4 ${t.text}`}>More from this vendor</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} className="-mx-6 px-6">
@@ -323,9 +403,11 @@ export default function MarketPlaceView() {
           <View className="mt-10">
             <View className="flex-row justify-between items-center mb-6">
               <Text className={`text-lg font-black tracking-tight ${t.text}`}>Community Reviews</Text>
-              <TouchableOpacity onPress={handleOpenReviewModal}>
-                <Text className={`text-xs font-bold ${t.brand}`}>Write a Review</Text>
-              </TouchableOpacity>
+              {!isOwner ? (
+                <TouchableOpacity onPress={handleOpenReviewModal}>
+                  <Text className={`text-xs font-bold ${t.brand}`}>Write a Review</Text>
+                </TouchableOpacity>
+              ) : null}
             </View>
 
             {loadingReviews ? (
@@ -372,53 +454,65 @@ export default function MarketPlaceView() {
         animationType="slide"
         onRequestClose={() => setReviewModalVisible(false)}
       >
-        <View className="flex-1 bg-black/50 justify-end">
-          <View className={`rounded-t-[28px] px-6 pt-6 pb-8 ${t.bgCard}`}>
-            <View className="flex-row items-center justify-between mb-5">
-              <Text className={`text-xl font-black ${t.text}`}>Write a Review</Text>
-              <TouchableOpacity onPress={() => setReviewModalVisible(false)}>
-                <Ionicons name="close" size={22} color={t.icon} />
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} className="flex-1 justify-end">
+          <View className="flex-1 bg-black/50 justify-end">
+            <View className={`rounded-t-[28px] px-6 pt-6 pb-8 ${t.bgCard}`}>
+              <View className="flex-row items-center justify-between mb-5">
+                <Text className={`text-xl font-black ${t.text}`}>Write a Review</Text>
+                <TouchableOpacity onPress={() => setReviewModalVisible(false)}>
+                  <Ionicons name="close" size={22} color={t.icon} />
+                </TouchableOpacity>
+              </View>
+
+              <Text className={`text-xs font-black uppercase tracking-widest ${t.textMuted}`}>Rating</Text>
+              <View className="flex-row mt-2 mb-4">
+                {[1, 2, 3, 4, 5].map((value) => (
+                  <TouchableOpacity key={value} onPress={() => setReviewRating(value)} className="mr-2">
+                    <Ionicons
+                      name={value <= reviewRating ? "star" : "star-outline"}
+                      size={26}
+                      color={value <= reviewRating ? "#F59E0B" : "#94A3B8"}
+                    />
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text className={`text-xs font-black uppercase tracking-widest ${t.textMuted}`}>Comment</Text>
+              <View className={`mt-2 border ${t.border} rounded-2xl ${t.bgSurface} px-4 py-3`}>
+                <TextInput
+                  value={reviewComment}
+                  onChangeText={setReviewComment}
+                  placeholder="Share your experience"
+                  placeholderTextColor={t.icon}
+                  multiline
+                  className={`${t.text}`}
+                  style={{ minHeight: 90, textAlignVertical: "top" }}
+                />
+              </View>
+
+              <TouchableOpacity
+                onPress={handleSubmitReview}
+                disabled={submittingReview}
+                className="mt-6 bg-blue-600 h-12 rounded-2xl items-center justify-center"
+              >
+                <Text className="text-white font-black uppercase text-xs tracking-widest">
+                  {submittingReview ? "Submitting..." : "Submit Review"}
+                </Text>
               </TouchableOpacity>
             </View>
-
-            <Text className={`text-xs font-black uppercase tracking-widest ${t.textMuted}`}>Rating</Text>
-            <View className="flex-row mt-2 mb-4">
-              {[1, 2, 3, 4, 5].map((value) => (
-                <TouchableOpacity key={value} onPress={() => setReviewRating(value)} className="mr-2">
-                  <Ionicons
-                    name={value <= reviewRating ? "star" : "star-outline"}
-                    size={26}
-                    color={value <= reviewRating ? "#F59E0B" : "#94A3B8"}
-                  />
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <Text className={`text-xs font-black uppercase tracking-widest ${t.textMuted}`}>Comment</Text>
-            <View className={`mt-2 border ${t.border} rounded-2xl ${t.bgSurface} px-4 py-3`}>
-              <TextInput
-                value={reviewComment}
-                onChangeText={setReviewComment}
-                placeholder="Share your experience"
-                placeholderTextColor={t.icon}
-                multiline
-                className={`${t.text}`}
-                style={{ minHeight: 90, textAlignVertical: "top" }}
-              />
-            </View>
-
-            <TouchableOpacity
-              onPress={handleSubmitReview}
-              disabled={submittingReview}
-              className="mt-6 bg-blue-600 h-12 rounded-2xl items-center justify-center"
-            >
-              <Text className="text-white font-black uppercase text-xs tracking-widest">
-                {submittingReview ? "Submitting..." : "Submit Review"}
-              </Text>
-            </TouchableOpacity>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
+
+      <MarketEditModal
+        visible={editModalVisible}
+        listing={featured}
+        onClose={() => setEditModalVisible(false)}
+        onSaved={(updated) => {
+          setListings((prev) => prev.map((item) => (item.id === updated.id ? { ...item, ...updated } : item)));
+          showFlashMessage("Listing updated", "Your listing changes are now live.", "success");
+        }}
+      />
     </View>
   );
 }

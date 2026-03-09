@@ -6,12 +6,14 @@ import { useEffect, useState } from "react";
 import { supabaseClient } from "@/utils/supabase";
 import AppFlashMessage from "@/components/CustomComponents/AppFlashMessage";
 import useFlashMessage from "@/hooks/useFlashMessage";
+import JobEditModal from "@/components/JobComponents/JobEditModal";
 
 type JobDetail = {
   id: string;
   employer_id?: string;
   title: string;
   description: string;
+  requirements?: string[] | null;
   location_label: string;
   budget_min: number;
   budget_max: number;
@@ -28,6 +30,9 @@ export default function JobView() {
   const [loading, setLoading] = useState(true);
   const [applying, setApplying] = useState(false);
   const [messaging, setMessaging] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
   const { flashMessage, showFlashMessage, hideFlashMessage } = useFlashMessage();
 
   useEffect(() => {
@@ -42,6 +47,19 @@ export default function JobView() {
     };
     fetchJob();
   }, [jobId]);
+
+  useEffect(() => {
+    supabaseClient.auth.getUser().then(({ data }) => {
+      setCurrentUserId(data.user?.id ?? null);
+    });
+    const { data: authListener } = supabaseClient.auth.onAuthStateChange((_event, session) => {
+      setCurrentUserId(session?.user?.id ?? null);
+    });
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
 
   if (loading) {
     return (
@@ -65,6 +83,7 @@ export default function JobView() {
 
   const salary = formatBudget(job.budget_min, job.budget_max);
   const isClosed = job.status !== "open";
+  const isOwner = Boolean(currentUserId && job.employer_id && currentUserId === job.employer_id);
 
   const handleApply = async () => {
     if (!job || applying) return;
@@ -155,6 +174,37 @@ export default function JobView() {
     }
   };
 
+  const handleToggleJobStatus = async () => {
+    if (!job || !isOwner || updatingStatus) return;
+
+    const nextStatus = job.status === "open" ? "closed" : "open";
+    setUpdatingStatus(true);
+    try {
+      const { data, error } = await supabaseClient
+        .rpc("rpc_set_job_status", {
+          p_job_id: job.id,
+          p_status: nextStatus,
+        })
+        .maybeSingle();
+
+      if (error) throw new Error(error.message);
+      const resolvedStatus = data?.status ?? nextStatus;
+      setJob((prev) => (prev ? { ...prev, status: resolvedStatus } : prev));
+      showFlashMessage(
+        resolvedStatus === "closed" ? "Job closed" : "Job reopened",
+        resolvedStatus === "closed"
+          ? "This job is now closed to new applicants."
+          : "This job is open for new applicants again.",
+        "success"
+      );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unable to update job status.";
+      showFlashMessage("Status update failed", message, "error");
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
+
   return (
     <View className={`flex-1 ${t.bgPage}`}>
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -215,26 +265,63 @@ export default function JobView() {
             </TouchableOpacity>
           </View>
 
-          <View className="flex-row gap-3 mt-6">
-            <TouchableOpacity
-              onPress={handleApply}
-              disabled={applying || isClosed}
-              className={`flex-1 py-4 rounded-2xl items-center shadow-sm ${isClosed ? "bg-slate-400" : "bg-blue-600"}`}
-            >
-              <Text className="text-white font-black">{applying ? "Applying..." : "Apply Now"}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={handleMessageEmployer}
-              disabled={messaging}
-              className={`flex-1 ${t.bgCard} border ${t.border} py-4 rounded-2xl items-center`}
-            >
-              <Text className={`${t.text} font-black`}>{messaging ? "Opening..." : "Message Employer"}</Text>
-            </TouchableOpacity>
-          </View>
+          {isOwner ? (
+            <View className="mt-6">
+              <Text className={`text-[10px] font-black uppercase tracking-widest ${t.textMuted} mb-3`}>Owner Controls</Text>
+              <View className="flex-row gap-3">
+                <TouchableOpacity
+                  onPress={() => setEditModalVisible(true)}
+                  className="flex-1 bg-blue-600 py-4 rounded-2xl items-center shadow-sm"
+                >
+                  <Text className="text-white font-black">Edit Job</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={handleToggleJobStatus}
+                  disabled={updatingStatus}
+                  className={`flex-1 ${job.status === "open" ? "bg-rose-600" : "bg-emerald-600"} py-4 rounded-2xl items-center shadow-sm`}
+                >
+                  <Text className="text-white font-black">
+                    {updatingStatus
+                      ? "Updating..."
+                      : job.status === "open"
+                      ? "Close Job"
+                      : "Reopen Job"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
+            <View className="flex-row gap-3 mt-6">
+              <TouchableOpacity
+                onPress={handleApply}
+                disabled={applying || isClosed}
+                className={`flex-1 py-4 rounded-2xl items-center shadow-sm ${isClosed ? "bg-slate-400" : "bg-blue-600"}`}
+              >
+                <Text className="text-white font-black">{applying ? "Applying..." : "Apply Now"}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleMessageEmployer}
+                disabled={messaging}
+                className={`flex-1 ${t.bgCard} border ${t.border} py-4 rounded-2xl items-center`}
+              >
+                <Text className={`${t.text} font-black`}>{messaging ? "Opening..." : "Message Employer"}</Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
           <View className="h-10" />
         </View>
       </ScrollView>
+
+      <JobEditModal
+        visible={editModalVisible}
+        job={job}
+        onClose={() => setEditModalVisible(false)}
+        onSaved={(updated) => {
+          setJob((prev) => (prev ? { ...prev, ...updated } : prev));
+          showFlashMessage("Job updated", "Your job changes are now live.", "success");
+        }}
+      />
     </View>
   );
 }

@@ -1,4 +1,4 @@
-import {Modal, View, Text, Pressable, TextInput } from "react-native"
+import {Modal, View, Pressable } from "react-native"
 
 
 interface CustomModalComponentProp {

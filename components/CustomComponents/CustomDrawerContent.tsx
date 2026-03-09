@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, Image, ActivityIndicator, Alert } from 'react-native';
 import { DrawerContentScrollView } from '@react-navigation/drawer';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/hooks/useTheme';
 import { supabaseClient } from '@/utils/supabase';
@@ -105,22 +105,10 @@ export default function CustomDrawerContent(props: any) {
     };
   }, []);
 
-  const handleSignOut = async () => {
-    const { error } = await supabaseClient.auth.signOut();
-    if (error) {
-      Alert.alert('Sign Out Failed', error.message);
-      return;
-    }
-    router.replace('/AuthenticationPage');
-  };
-
-  const displayName = profile?.display_name ?? (email ? email.split('@')[0] : 'Guest User');
+  const displayName = profile?.display_name?.trim() || 'Guest User';
   const verificationStatus = profile?.id_verification_status ?? 'unverified';
   const verificationLabel = titleCase(verificationStatus);
   const isVerified = verificationStatus === 'verified';
-  const roleLabel = profile
-    ? `${titleCase(profile.job_role)} • ${titleCase(profile.market_role)}`
-    : 'No profile role';
   const locationLabel = profile?.location_label ?? 'Location unknown';
 
   const verificationColor = isVerified ? '#3B82F6' : '#94A3B8';
@@ -175,28 +163,6 @@ export default function CustomDrawerContent(props: any) {
           </View>
         ) : null}
       </DrawerContentScrollView>
-
-      <View 
-        style={{ paddingBottom: inset.bottom + 20 }} 
-        className={`px-6 pt-6 border-t ${t.border} flex-row items-center justify-between`}
-      >
-        <View className="flex-row items-center">
-          <View className="bg-emerald-100 p-2 rounded-xl mr-3">
-             <Feather name="shield" size={16} color="#059669" />
-          </View>
-          <View>
-            <Text className={`text-[10px] font-black uppercase tracking-widest ${t.textMuted}`}>Status</Text>
-            <Text className={`text-xs font-black ${t.text}`}>{roleLabel}</Text>
-          </View>
-        </View>
-        
-        <TouchableOpacity
-          onPress={handleSignOut}
-          className={`w-12 h-12 ${t.bgSurface} border ${t.border} rounded-2xl items-center justify-center active:bg-rose-50`}
-        >
-          <Feather name="log-out" size={20} color="#EF4444" /> 
-        </TouchableOpacity>
-      </View>
-    </View>
+   </View>
   );
 }

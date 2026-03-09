@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useCallback } from "react";
-import { View, Text, TouchableOpacity, Image, TextInput, Modal, SafeAreaView, ActivityIndicator } from "react-native";
+import { View, Text, TouchableOpacity, Image, TextInput, Modal, SafeAreaView, ActivityIndicator, KeyboardAvoidingView, Platform } from "react-native";
 import { LegendList } from "@legendapp/list";
 import { Feather } from "@expo/vector-icons";
 import { useRouter, useFocusEffect } from "expo-router";
@@ -112,7 +112,7 @@ export default function Inbox() {
   }, [threads, search]);
 
   return (
-    <View className={`flex-1 ${t.bgPage}`}>
+    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} className={`flex-1 ${t.bgPage}`}>
       <View className={`pt-3 pb-6 px-6 ${t.bgCard} border-b ${t.border}`}>
         <View className={`flex-row items-center mt-4 px-4 h-12 rounded-2xl ${t.bgSurface} border ${t.border}`}>
           <Feather name="search" size={16} color={t.icon} />
@@ -191,26 +191,28 @@ export default function Inbox() {
       )}
 
       <Modal visible={authModalVisible} transparent animationType="slide" onRequestClose={() => setAuthModalVisible(false)}>
-        <SafeAreaView className="flex-1 bg-black/50 justify-center px-4">
-          <View className="bg-white rounded-3xl p-6">
-            <Text className="text-xl font-black text-slate-900 mb-3">Create an account</Text>
-            <Text className="text-slate-500 mb-4">Sign in to access your messages.</Text>
-            <AuthenticationForm
-              mode="signIn"
-              onSubmitted={async () => {
-                const { data } = await supabaseClient.auth.getUser();
-                setUserId(data.user?.id ?? null);
-                setAuthModalVisible(false);
-                fetchThreads();
-              }}
-            />
-            <TouchableOpacity onPress={() => setAuthModalVisible(false)} className="mt-3 items-center">
-              <Text className="text-slate-500 text-sm">Maybe later</Text>
-            </TouchableOpacity>
-          </View>
-        </SafeAreaView>
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} className="flex-1 justify-center">
+          <SafeAreaView className="flex-1 bg-black/50 justify-center px-4">
+            <View className="bg-white rounded-3xl p-6">
+              <Text className="text-xl font-black text-slate-900 mb-3">Create an account</Text>
+              <Text className="text-slate-500 mb-4">Sign in to access your messages.</Text>
+              <AuthenticationForm
+                mode="signIn"
+                onSubmitted={async () => {
+                  const { data } = await supabaseClient.auth.getUser();
+                  setUserId(data.user?.id ?? null);
+                  setAuthModalVisible(false);
+                  fetchThreads();
+                }}
+              />
+              <TouchableOpacity onPress={() => setAuthModalVisible(false)} className="mt-3 items-center">
+                <Text className="text-slate-500 text-sm">Maybe later</Text>
+              </TouchableOpacity>
+            </View>
+          </SafeAreaView>
+        </KeyboardAvoidingView>
       </Modal>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

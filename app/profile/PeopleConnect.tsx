@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert, Image, ScrollView } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert, Image, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useTheme } from "@/hooks/useTheme";
@@ -142,7 +142,7 @@ export default function PeopleConnect() {
   }
 
   return (
-    <View className={`flex-1 ${t.bgPage}`}>
+    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} className={`flex-1 ${t.bgPage}`}>
       <View className={`px-6 pt-12 pb-4 border-b ${t.border} ${t.bgCard}`}>
         <View className="flex-row items-center">
           <TouchableOpacity onPress={() => router.back()} className="mr-3 p-2 rounded-xl">
@@ -214,6 +214,6 @@ export default function PeopleConnect() {
           ))}
         </ScrollView>
       )}
-    </View>
+    </KeyboardAvoidingView>
   );
 }

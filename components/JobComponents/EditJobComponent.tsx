@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, TextInput, ScrollView, Switch } from 'react-native';
+import { View, Text, TouchableOpacity, Switch } from 'react-native';
 import { LegendList } from '@legendapp/list';
-import { Feather, MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import { useTheme } from '@/hooks/useTheme';
 
 const EDIT_SECTIONS = [
