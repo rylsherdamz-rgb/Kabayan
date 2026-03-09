@@ -59,7 +59,7 @@ export default function AuthenticationForm({ mode = "signIn", onModeChange, onSu
   };
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"}>
+    <KeyboardAvoidingView className="flex flex-1" behavior={Platform.OS === "android" ? "padding" : "height"}>
       <View className="w-full bg-white/95 rounded-[28px] p-6 border border-slate-200 shadow-xl shadow-slate-900/10">
         <View className="flex-row justify-between items-center mb-4">
           <Text className="text-xl font-black text-slate-900 tracking-tight">
