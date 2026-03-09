@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, Image, ActivityIndicator, Alert } from 'react-native';
+import { View, Pressable, Text, TouchableOpacity, Image, ActivityIndicator, Alert } from 'react-native';
 import { DrawerContentScrollView } from '@react-navigation/drawer';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -117,7 +117,7 @@ export default function CustomDrawerContent(props: any) {
   return (
     <View className={`flex-1 ${t.bgCard}`}>
       <DrawerContentScrollView {...props} scrollEnabled={true} contentContainerStyle={{ paddingTop: 0 }}>
-        <TouchableOpacity
+        <Pressable
           onPress={() => router.push('/profile')}
           style={{ paddingTop: inset.top + 20 }} 
           className={`px-6 pb-8 border-b ${t.border} ${t.brandSoft}`} 
@@ -155,7 +155,7 @@ export default function CustomDrawerContent(props: any) {
               <Text className={`text-base font-black ${t.text}`}>{listingsCount}</Text>
             </View>
           </View>
-        </TouchableOpacity>
+        </Pressable>
 
         {loading ? (
           <View className="py-6 items-center">
