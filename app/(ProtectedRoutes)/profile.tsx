@@ -7,6 +7,7 @@ import { supabaseClient } from '@/utils/supabase';
 import AppFlashMessage from "@/components/CustomComponents/AppFlashMessage";
 import useFlashMessage from "@/hooks/useFlashMessage";
 import humanizeError from "@/utils/humanizeError";
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type ProfileData = {
   user_id: string;
@@ -31,6 +32,7 @@ const toTitleCase = (value?: string | null) =>
 
 export default function Profile () {
   const { t, toggleTheme } = useTheme();
+  const insets =  useSafeAreaInsets()
   const router = useRouter();
   const { flashMessage, showFlashMessage, hideFlashMessage } = useFlashMessage();
   const [profile, setProfile] = useState<ProfileData | null>(null);
@@ -154,7 +156,7 @@ export default function Profile () {
   }, [profile]);
 
   return (
-    <View className={`flex-1 ${t.bgPage}`}>
+    <View style={{paddingTop : insets.top, paddingBottom : insets.bottom}} className={`flex-1 ${t.bgPage}`}>
       {loading ? (
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator />

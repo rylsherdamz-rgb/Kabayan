@@ -95,6 +95,8 @@ export default function CustomDrawerContent(props: any) {
       }
     };
 
+    
+
     loadDrawerData();
     const { data: authListener } = supabaseClient.auth.onAuthStateChange(() => {
       loadDrawerData();
@@ -115,12 +117,12 @@ export default function CustomDrawerContent(props: any) {
   const verificationColor = isVerified ? '#3B82F6' : '#94A3B8';
 
   return (
-    <View className={`flex-1 ${t.bgCard}`}>
+    <View style={{paddingTop : inset.top}} className={`flex-1  ${t.bgCard}`}>
       <DrawerContentScrollView {...props} scrollEnabled={true} contentContainerStyle={{ paddingTop: 0 }}>
         <Pressable
           onPress={() => router.push('/profile')}
           style={{ paddingTop: inset.top + 20 }} 
-          className={`px-6 pb-8 border-b ${t.border} ${t.brandSoft}`} 
+          className={`px-6 pb-8 border-b rounded-2xl ${t.border} ${t.brandSoft}`} 
         >
           <View className="relative w-20 h-20 mb-4">
             <Image

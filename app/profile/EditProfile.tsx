@@ -18,6 +18,7 @@ import { supabaseClient } from "@/utils/supabase";
 import AppFlashMessage from "@/components/CustomComponents/AppFlashMessage";
 import useFlashMessage from "@/hooks/useFlashMessage";
 import humanizeError from "@/utils/humanizeError";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type EditProfileRow = {
   user_id: string;
@@ -59,6 +60,7 @@ const isValidBirthDate = (value: string) => {
 
 export default function EditProfile() {
   const { t } = useTheme();
+  const inset = useSafeAreaInsets()
   const router = useRouter();
   const { flashMessage, showFlashMessage, hideFlashMessage } = useFlashMessage();
   const [form, setForm] = useState<FormState>(emptyForm);
@@ -210,7 +212,7 @@ export default function EditProfile() {
 
   if (loading) {
     return (
-      <View className={`flex-1 items-center justify-center ${t.bgPage}`}>
+      <View style={{paddingTop: inset.top}} className={`flex-1 items-center justify-center ${t.bgPage}`}>
         <ActivityIndicator />
         <Text className={`mt-2 ${t.textMuted}`}>Loading profile editor…</Text>
       </View>

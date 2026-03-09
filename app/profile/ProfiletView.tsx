@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/hooks/useTheme";
 import { supabaseClient } from "@/utils/supabase";
 import { useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type ProfileRow = {
   user_id: string;
@@ -18,6 +19,7 @@ type ProfileRow = {
 export default function ProfileView() {
   const { t } = useTheme();
   const router = useRouter();
+  const inset = useSafeAreaInsets()
   const [profile, setProfile] = useState<ProfileRow | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -62,14 +64,15 @@ export default function ProfileView() {
 
   if (!profile) {
     return (
-      <View className={`flex-1 items-center justify-center ${t.bgPage}`}>
+      <View style={{paddingTop : inset.top}} className={`flex-1 items-center justify-center ${t.bgPage}`}>
         <Text className={`text-base font-semibold ${t.text}`}>No profile found</Text>
       </View>
     );
   }
 
+
   return (
-    <View className={`flex-1 ${t.bgPage} p-6`}>
+    <View style={{paddingTop : inset.top}} className={`flex-1 ${t.bgPage} p-6`}>
       <View className={`p-5 rounded-3xl ${t.bgCard} border ${t.border} shadow-sm`}>
         <View className="flex-row items-center">
           <Image
