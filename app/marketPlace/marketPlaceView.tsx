@@ -1,10 +1,12 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, ScrollView, Image, TouchableOpacity, Modal, TextInput, Alert, ActivityIndicator } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { View, Text, ScrollView, Image, TouchableOpacity, Modal, TextInput, ActivityIndicator } from 'react-native';
 import { Feather, Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useTheme } from '@/hooks/useTheme';
 import MarketModal from '@/components/MarketPlace/MarketModal';
 import { supabaseClient } from '@/utils/supabase';
+import AppFlashMessage from '@/components/CustomComponents/AppFlashMessage';
+import useFlashMessage from '@/hooks/useFlashMessage';
 
 type ListingFeedRow = {
   id: string;
@@ -70,6 +72,7 @@ const normalizeReview = (row: any): ReviewRow => ({
 export default function MarketPlaceView() {
   const { t } = useTheme();
   const router = useRouter();
+  const { flashMessage, showFlashMessage, hideFlashMessage } = useFlashMessage();
   const [showModal, setShowModal] = useState(false);
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
   const [submittingReview, setSubmittingReview] = useState(false);
@@ -82,11 +85,11 @@ export default function MarketPlaceView() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const params = useLocalSearchParams<{ openModal?: string; id?: string }>();
 
-  const loadListings = async () => {
+  const loadListings = useCallback(async () => {
     setLoadingListings(true);
     const { data, error } = await supabaseClient.rpc("rpc_get_marketplace_listings_feed");
     if (error) {
-      Alert.alert("Marketplace Error", error.message);
+      showFlashMessage("Marketplace Error", error.message, "error");
       setLoadingListings(false);
       return;
     }
@@ -100,26 +103,25 @@ export default function MarketPlaceView() {
       return normalized[0]?.id ?? null;
     });
     setLoadingListings(false);
-  };
+  }, [params.id, showFlashMessage]);
 
-  const loadReviews = async (listingId: string) => {
+  const loadReviews = useCallback(async (listingId: string) => {
     setLoadingReviews(true);
     const { data, error } = await supabaseClient.rpc("rpc_get_marketplace_reviews", {
       p_listing_id: listingId,
     });
     if (error) {
-      Alert.alert("Reviews Error", error.message);
+      showFlashMessage("Reviews Error", error.message, "error");
       setLoadingReviews(false);
       return;
     }
     setReviews((data ?? []).map(normalizeReview));
     setLoadingReviews(false);
-  };
+  }, [showFlashMessage]);
 
   useEffect(() => {
     loadListings();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [loadListings]);
 
   useEffect(() => {
     if (params.openModal === "true") {
@@ -144,7 +146,7 @@ export default function MarketPlaceView() {
       return;
     }
     loadReviews(featured.id);
-  }, [featured?.id]);
+  }, [featured?.id, loadReviews]);
 
   const permitVerified = useMemo(
     () => (featured?.description ?? "").toLowerCase().includes("permit: verified"),
@@ -160,11 +162,11 @@ export default function MarketPlaceView() {
   const handleOpenReviewModal = async () => {
     const { data, error } = await supabaseClient.auth.getUser();
     if (error) {
-      Alert.alert("Auth Error", error.message);
+      showFlashMessage("Auth Error", error.message, "error");
       return;
     }
     if (!data.user) {
-      Alert.alert("Sign in required", "Please sign in before writing a review.");
+      showFlashMessage("Sign in required", "Please sign in before writing a review.", "warning");
       return;
     }
     if (!featured) return;
@@ -190,10 +192,10 @@ export default function MarketPlaceView() {
       setReviewRating(5);
       setReviewComment("");
       await Promise.all([loadListings(), loadReviews(featured.id)]);
-      Alert.alert("Review posted", "Thanks for sharing your feedback.");
+      showFlashMessage("Review posted", "Thanks for sharing your feedback.", "success");
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unable to submit review.";
-      Alert.alert("Review Failed", message);
+      showFlashMessage("Review Failed", message, "error");
     } finally {
       setSubmittingReview(false);
     }
@@ -211,6 +213,7 @@ export default function MarketPlaceView() {
   if (!featured) {
     return (
       <View className={`flex-1 items-center justify-center px-6 ${t.bgPage}`}>
+        <AppFlashMessage message={flashMessage} onClose={hideFlashMessage} />
         <Text className={`text-base font-semibold ${t.text}`}>No listings found</Text>
         <TouchableOpacity onPress={() => setShowModal(true)} className="mt-4 bg-blue-600 px-6 py-3 rounded-2xl">
           <Text className="text-white font-black text-xs uppercase tracking-widest">Add Item</Text>
@@ -230,6 +233,7 @@ export default function MarketPlaceView() {
 
   return (
     <View className={`flex-1 ${t.bgPage}`}>
+      <AppFlashMessage message={flashMessage} onClose={hideFlashMessage} />
       <ScrollView showsVerticalScrollIndicator={false}>
         <View className="h-72 w-full relative">
           {featured.image_url ? (

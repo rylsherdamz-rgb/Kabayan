@@ -14,6 +14,8 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import {useSafeAreaInsets} from "react-native-safe-area-context"
 import { useTheme } from "@/hooks/useTheme";
 import { supabaseClient } from "@/utils/supabase";
+import AppFlashMessage from "@/components/CustomComponents/AppFlashMessage";
+import useFlashMessage from "@/hooks/useFlashMessage";
 
 export default function ChatRoomLayout() {
   const { t } = useTheme();
@@ -31,6 +33,7 @@ export default function ChatRoomLayout() {
   const [userId, setUserId] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const flatListRef = useRef<FlatList>(null);
+  const { flashMessage, showFlashMessage, hideFlashMessage } = useFlashMessage();
 
   useEffect(() => {
     supabaseClient.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
@@ -53,7 +56,11 @@ export default function ChatRoomLayout() {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "messages", filter: `room_id=eq.${roomId}` },
         (payload) => {
-          setMessages((prev) => [...prev, mapMessage(payload.new as any)]);
+          const incoming = mapMessage(payload.new as any);
+          setMessages((prev) => {
+            if (prev.some((msg) => msg.id === incoming.id)) return prev;
+            return [...prev, incoming];
+          });
         }
       )
       .subscribe();
@@ -72,10 +79,14 @@ export default function ChatRoomLayout() {
 
   const handleSend = async () => {
     const text = message.trim();
-    if (!text || !userId || sending) return;
+    if (!text || sending) return;
+    if (!userId) {
+      showFlashMessage("Sign in required", "Please sign in before sending a message.", "warning");
+      return;
+    }
     setSending(true);
     setMessage("");
-    const { error } = await supabaseClient.rpc("rpc_send_message", {
+    const { data: newMessageId, error } = await supabaseClient.rpc("rpc_send_message", {
       p_room_id: roomId,
       p_sender_id: userId,
       p_content: text,
@@ -83,6 +94,20 @@ export default function ChatRoomLayout() {
     if (error) {
       // roll back local clear if needed
       setMessage(text);
+      showFlashMessage("Send failed", error.message, "error");
+    } else if (newMessageId) {
+      setMessages((prev) => {
+        if (prev.some((msg) => msg.id === newMessageId)) return prev;
+        return [
+          ...prev,
+          {
+            id: newMessageId,
+            text,
+            senderId: userId,
+            createdAt: new Date().toISOString(),
+          },
+        ];
+      });
     }
     setSending(false);
   };
@@ -142,6 +167,8 @@ export default function ChatRoomLayout() {
         showsVerticalScrollIndicator={false}
         renderItem={({ item }) => <ChatBubble item={item} t={t} userId={userId} otherName={headerName} />}
       />
+
+      <AppFlashMessage message={flashMessage} onClose={hideFlashMessage} />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}

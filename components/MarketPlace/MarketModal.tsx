@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Modal, SafeAreaView, View, Text, TextInput, TouchableOpacity, ScrollView, Image, Alert } from "react-native";
+import { Modal, SafeAreaView, View, Text, TextInput, TouchableOpacity, ScrollView, Image } from "react-native";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/hooks/useTheme";
 import { supabaseClient } from "@/utils/supabase";
@@ -126,11 +126,9 @@ export default function MarketModal({ visible, onClose, onCreated }: MarketModal
       clearForm();
       onCreated?.();
       onClose();
-      Alert.alert("Item published", "Your marketplace listing is now live.");
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to publish item.";
       setError(message);
-      Alert.alert("Unable to publish item", message);
     } finally {
       setSaving(false);
     }

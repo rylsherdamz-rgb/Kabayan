@@ -46,6 +46,7 @@ export default function CustomDrawerContent(props: any) {
     let active = true;
 
     const loadDrawerData = async () => {
+      if (active) setLoading(true);
       try {
         const { data: userData, error: userError } = await supabaseClient.auth.getUser();
         if (userError && !isAuthSessionMissing(userError.message)) {
@@ -55,7 +56,12 @@ export default function CustomDrawerContent(props: any) {
         const user = userData?.user;
         setEmail(user?.email ?? null);
         if (!user) {
-          if (active) setLoading(false);
+          if (active) {
+            setProfile(null);
+            setJobsCount(0);
+            setListingsCount(0);
+            setLoading(false);
+          }
           return;
         }
 
@@ -89,8 +95,13 @@ export default function CustomDrawerContent(props: any) {
     };
 
     loadDrawerData();
+    const { data: authListener } = supabaseClient.auth.onAuthStateChange(() => {
+      loadDrawerData();
+    });
+
     return () => {
       active = false;
+      authListener.subscription.unsubscribe();
     };
   }, []);
 

@@ -1,110 +1,385 @@
-import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, TextInput, Image, KeyboardAvoidingView, Platform } from 'react-native';
-import { Feather, MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import { useTheme } from '@/hooks/useTheme';
+import React, { useCallback, useEffect, useState } from "react";
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  TextInput,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  ActivityIndicator,
+} from "react-native";
+import { Feather, Ionicons } from "@expo/vector-icons";
+import { useFocusEffect, useRouter } from "expo-router";
+import * as ImagePicker from "expo-image-picker";
+import { useTheme } from "@/hooks/useTheme";
+import { supabaseClient } from "@/utils/supabase";
+import AppFlashMessage from "@/components/CustomComponents/AppFlashMessage";
+import useFlashMessage from "@/hooks/useFlashMessage";
+
+type EditProfileRow = {
+  user_id: string;
+  display_name: string | null;
+  bio: string | null;
+  location_label: string | null;
+  avatar_url: string | null;
+  job_role: "worker" | "employer";
+  market_role: "buyer" | "vendor";
+  birth_date: string | null;
+};
+
+type FormState = {
+  displayName: string;
+  bio: string;
+  location: string;
+  birthDate: string;
+  jobRole: "worker" | "employer";
+  marketRole: "buyer" | "vendor";
+};
+
+const emptyForm: FormState = {
+  displayName: "",
+  bio: "",
+  location: "",
+  birthDate: "",
+  jobRole: "worker",
+  marketRole: "buyer",
+};
+
+const isAuthSessionMissing = (message?: string | null) =>
+  (message ?? "").toLowerCase().includes("auth session missing");
+
+const isValidBirthDate = (value: string) => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(parsed.getTime());
+};
 
 export default function EditProfile() {
   const { t } = useTheme();
   const router = useRouter();
+  const { flashMessage, showFlashMessage, hideFlashMessage } = useFlashMessage();
+  const [form, setForm] = useState<FormState>(emptyForm);
+  const [avatarUri, setAvatarUri] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-  const [form, setForm] = useState({
-    name: 'Kuya Jojo',
-    bio: 'Licensed Master Plumber with 10 years of experience in residential and commercial piping.',
-    location: 'Manila, Philippines',
-    phone: '+63 912 345 6789'
-  });
+  const loadProfile = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data: authData, error: authError } = await supabaseClient.auth.getUser();
+      if (authError) {
+        if (!isAuthSessionMissing(authError.message)) {
+          throw new Error(authError.message);
+        }
+        setUserId(null);
+        setForm(emptyForm);
+        setAvatarUri(null);
+        return;
+      }
+
+      const uid = authData.user?.id ?? null;
+      setUserId(uid);
+
+      if (!uid) {
+        setForm(emptyForm);
+        setAvatarUri(null);
+        return;
+      }
+
+      const { data, error } = await supabaseClient
+        .rpc("rpc_get_profile_for_edit", { p_user_id: uid })
+        .maybeSingle();
+
+      if (error) throw new Error(error.message);
+
+      const row = (data ?? null) as EditProfileRow | null;
+      setForm({
+        displayName: row?.display_name ?? "",
+        bio: row?.bio ?? "",
+        location: row?.location_label ?? "",
+        birthDate: row?.birth_date ?? "",
+        jobRole: row?.job_role ?? "worker",
+        marketRole: row?.market_role ?? "buyer",
+      });
+      setAvatarUri(row?.avatar_url ?? null);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to load profile.";
+      showFlashMessage("Profile Load Failed", message, "error");
+    } finally {
+      setLoading(false);
+    }
+  }, [showFlashMessage]);
+
+  useEffect(() => {
+    loadProfile();
+    const { data: authListener } = supabaseClient.auth.onAuthStateChange(() => {
+      loadProfile();
+    });
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, [loadProfile]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadProfile();
+    }, [loadProfile])
+  );
+
+  const handlePickAvatar = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      showFlashMessage("Permission Required", "Allow photo library access to change your avatar.", "warning");
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 0.8,
+    });
+
+    if (!result.canceled) {
+      setAvatarUri(result.assets[0].uri);
+    }
+  };
+
+  const handleSave = async () => {
+    if (saving) return;
+    if (!userId) {
+      showFlashMessage("Sign in required", "Please sign in before editing your profile.", "warning");
+      return;
+    }
+
+    const trimmedName = form.displayName.trim();
+    const trimmedBirthDate = form.birthDate.trim();
+
+    if (!trimmedName) {
+      showFlashMessage("Missing name", "Display name is required.", "warning");
+      return;
+    }
+
+    if (trimmedBirthDate && !isValidBirthDate(trimmedBirthDate)) {
+      showFlashMessage("Invalid birth date", "Use YYYY-MM-DD format.", "warning");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const { data, error } = await supabaseClient
+        .rpc("rpc_update_profile", {
+          p_user_id: userId,
+          p_display_name: trimmedName,
+          p_bio: form.bio.trim() || null,
+          p_location_label: form.location.trim() || null,
+          p_avatar_url: avatarUri,
+          p_job_role: form.jobRole,
+          p_market_role: form.marketRole,
+          p_birth_date: trimmedBirthDate || null,
+        })
+        .maybeSingle();
+
+      if (error) throw new Error(error.message);
+
+      const row = (data ?? null) as EditProfileRow | null;
+      if (row) {
+        setForm({
+          displayName: row.display_name ?? "",
+          bio: row.bio ?? "",
+          location: row.location_label ?? "",
+          birthDate: row.birth_date ?? "",
+          jobRole: row.job_role ?? "worker",
+          marketRole: row.market_role ?? "buyer",
+        });
+        setAvatarUri(row.avatar_url ?? avatarUri);
+      }
+
+      showFlashMessage("Profile Updated", "Your changes were saved successfully.", "success");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to save profile.";
+      showFlashMessage("Save Failed", message, "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <View className={`flex-1 items-center justify-center ${t.bgPage}`}>
+        <ActivityIndicator />
+        <Text className={`mt-2 ${t.textMuted}`}>Loading profile editor…</Text>
+      </View>
+    );
+  }
 
   return (
-    <KeyboardAvoidingView 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
       className={`flex-1 ${t.bgPage}`}
     >
-      <ScrollView showsVerticalScrollIndicator={false}>
-        
-        <View className="h-32 bg-blue-600 w-full relative">
-          <TouchableOpacity 
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 28 }}>
+        <View className="h-28 bg-blue-600 w-full relative">
+          <TouchableOpacity
             onPress={() => router.back()}
             className="absolute top-12 left-5 z-10 bg-white/20 p-2 rounded-full"
           >
             <Feather name="chevron-left" size={24} color="white" />
           </TouchableOpacity>
+          <View className="absolute bottom-4 left-5">
+            <Text className="text-white text-xl font-black">Edit Profile</Text>
+            <Text className="text-blue-100 text-xs font-semibold">Keep your public profile accurate and trusted.</Text>
+          </View>
         </View>
 
-        <View className="px-5 -mt-12">
-          <View className="items-center">
-            <View className="relative">
-              <Image
-                source={{ uri: 'https://images.unsplash.com/photo-1531427186611-ecfd6d936c79?w=400' }}
-                className="w-24 h-24 rounded-3xl border-4 border-white shadow-xl"
+        <View className="px-5 -mt-10">
+          <AppFlashMessage message={flashMessage} onClose={hideFlashMessage} />
+
+          <View className={`rounded-3xl p-5 border ${t.border} ${t.bgCard}`}>
+            <View className="items-center">
+              <View className="relative">
+                {avatarUri ? (
+                  <Image source={{ uri: avatarUri }} className="w-24 h-24 rounded-3xl border-4 border-white" />
+                ) : (
+                  <View className="w-24 h-24 rounded-3xl border-4 border-white bg-slate-200 items-center justify-center">
+                    <Ionicons name="person" size={28} color="#64748B" />
+                  </View>
+                )}
+                <TouchableOpacity
+                  onPress={handlePickAvatar}
+                  className="absolute bottom-0 right-0 bg-blue-600 w-8 h-8 rounded-full items-center justify-center border-2 border-white"
+                >
+                  <Feather name="camera" size={14} color="white" />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <View className="mt-5">
+              <Field
+                label="Display Name"
+                value={form.displayName}
+                onChangeText={(displayName) => setForm((prev) => ({ ...prev, displayName }))}
+                placeholder="Your public name"
+                t={t}
               />
-              <TouchableOpacity className="absolute bottom-0 right-0 bg-blue-600 w-8 h-8 rounded-full items-center justify-center border-2 border-white">
-                <Feather name="camera" size={14} color="white" />
-              </TouchableOpacity>
+              <Field
+                label="Bio"
+                value={form.bio}
+                onChangeText={(bio) => setForm((prev) => ({ ...prev, bio }))}
+                placeholder="Short professional summary"
+                multiline
+                t={t}
+              />
+              <Field
+                label="Location"
+                value={form.location}
+                onChangeText={(location) => setForm((prev) => ({ ...prev, location }))}
+                placeholder="City / area"
+                t={t}
+              />
+              <Field
+                label="Birth Date (YYYY-MM-DD)"
+                value={form.birthDate}
+                onChangeText={(birthDate) => setForm((prev) => ({ ...prev, birthDate }))}
+                placeholder="1995-06-14"
+                t={t}
+              />
             </View>
-          </View>
 
-          <View className="mt-8">
-            <Text className={`text-[10px] font-black uppercase tracking-widest ml-1 mb-2 ${t.textMuted}`}>Personal Info</Text>
-            <View className={`rounded-3xl p-4 ${t.bgCard} border ${t.border}`}>
-              
-              <View className="mb-5">
-                <Text className={`text-[11px] font-bold mb-2 ${t.textMuted}`}>Full Name</Text>
-                <TextInput 
-                  value={form.name}
-                  onChangeText={(txt) => setForm({...form, name: txt})}
-                  className={`text-base font-semibold pb-2 border-b ${t.border} ${t.text}`}
-                />
-              </View>
-
-              <View className="mb-5">
-                <Text className={`text-[11px] font-bold mb-2 ${t.textMuted}`}>Bio / Headline</Text>
-                <TextInput 
-                  value={form.bio}
-                  multiline
-                  numberOfLines={3}
-                  onChangeText={(txt) => setForm({...form, bio: txt})}
-                  className={`text-sm font-medium pb-2 border-b ${t.border} ${t.text}`}
-                />
-              </View>
-
-              <View className="mb-2">
-                <Text className={`text-[11px] font-bold mb-2 ${t.textMuted}`}>Mobile Number</Text>
-                <View className="flex-row items-center">
-                   <Text className={`mr-2 font-bold ${t.text}`}>🇵🇭</Text>
-                   <TextInput 
-                    value={form.phone}
-                    keyboardType="phone-pad"
-                    className={`flex-1 text-base font-semibold pb-2 border-b ${t.border} ${t.text}`}
-                  />
-                </View>
-              </View>
-
+            <Text className={`text-[10px] font-black uppercase tracking-widest mt-2 ${t.textMuted}`}>Job Role</Text>
+            <View className="mt-2 flex-row gap-2">
+              <RoleChip
+                label="Worker"
+                active={form.jobRole === "worker"}
+                onPress={() => setForm((prev) => ({ ...prev, jobRole: "worker" }))}
+              />
+              <RoleChip
+                label="Employer"
+                active={form.jobRole === "employer"}
+                onPress={() => setForm((prev) => ({ ...prev, jobRole: "employer" }))}
+              />
             </View>
-          </View>
 
-          <View className="mt-8">
-            <Text className={`text-[10px] font-black uppercase tracking-widest ml-1 mb-2 ${t.textMuted}`}>Verification</Text>
-            <View className={`rounded-3xl p-5 ${t.bgCard} border ${t.border} flex-row items-center justify-between`}>
-              <View className="flex-row items-center">
-                <View className="bg-blue-100 p-2 rounded-xl mr-3">
-                  <MaterialCommunityIcons name="badge-account-horizontal" size={20} color="#2563EB" />
-                </View>
-                <View>
-                  <Text className={`font-black text-sm ${t.text}`}>Government ID</Text>
-                  <Text className="text-emerald-600 text-[10px] font-bold">Verified</Text>
-                </View>
-              </View>
-              <Ionicons name="checkmark-circle" size={24} color="#10B981" />
+            <Text className={`text-[10px] font-black uppercase tracking-widest mt-5 ${t.textMuted}`}>Market Role</Text>
+            <View className="mt-2 flex-row gap-2">
+              <RoleChip
+                label="Buyer"
+                active={form.marketRole === "buyer"}
+                onPress={() => setForm((prev) => ({ ...prev, marketRole: "buyer" }))}
+              />
+              <RoleChip
+                label="Vendor"
+                active={form.marketRole === "vendor"}
+                onPress={() => setForm((prev) => ({ ...prev, marketRole: "vendor" }))}
+              />
             </View>
+
+            <TouchableOpacity
+              onPress={handleSave}
+              disabled={saving}
+              className={`mt-6 h-12 rounded-2xl items-center justify-center ${saving ? "bg-blue-400" : "bg-blue-600"}`}
+            >
+              <Text className="text-white font-black uppercase tracking-widest">
+                {saving ? "Saving..." : "Save Changes"}
+              </Text>
+            </TouchableOpacity>
           </View>
-
-          <TouchableOpacity className="bg-blue-600 h-14 rounded-2xl items-center justify-center mt-10 mb-20 shadow-lg shadow-blue-500/40">
-            <Text className="text-white font-black text-base uppercase tracking-widest">Save Changes</Text>
-          </TouchableOpacity>
-
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
+  );
+}
+
+function Field({
+  label,
+  value,
+  onChangeText,
+  placeholder,
+  multiline = false,
+  t,
+}: {
+  label: string;
+  value: string;
+  onChangeText: (value: string) => void;
+  placeholder: string;
+  multiline?: boolean;
+  t: ReturnType<typeof useTheme>["t"];
+}) {
+  return (
+    <View className="mb-4">
+      <Text className={`text-[10px] font-black uppercase tracking-widest mb-2 ${t.textMuted}`}>{label}</Text>
+      <TextInput
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        placeholderTextColor={t.icon}
+        multiline={multiline}
+        className={`px-4 ${multiline ? "py-3 min-h-[90px]" : "h-12"} rounded-2xl border ${t.border} ${t.bgSurface} ${t.text}`}
+      />
+    </View>
+  );
+}
+
+function RoleChip({
+  label,
+  active,
+  onPress,
+}: {
+  label: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      className={`flex-1 h-10 rounded-xl items-center justify-center border ${active ? "bg-blue-600 border-blue-600" : "bg-white border-slate-300"}`}
+    >
+      <Text className={`text-xs font-black uppercase tracking-widest ${active ? "text-white" : "text-slate-700"}`}>
+        {label}
+      </Text>
+    </TouchableOpacity>
   );
 }

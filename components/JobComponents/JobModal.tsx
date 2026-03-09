@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView, Alert } from "react-native";
+import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView } from "react-native";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import {useSafeAreaInsets} from "react-native-safe-area-context"
 import { useTheme } from "@/hooks/useTheme";
@@ -126,11 +126,9 @@ export default function JobModal({ visible, onClose, onCreated }: JobModalProps)
       clearForm();
       onCreated?.(data);
       onClose();
-      Alert.alert("Job posted", "Your job listing is now live.");
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to post job.";
       setError(message);
-      Alert.alert("Unable to post job", message);
     } finally {
       setSaving(false);
     }

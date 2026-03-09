@@ -1,9 +1,11 @@
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useTheme } from "@/hooks/useTheme";
-import { View, Text, ScrollView, TouchableOpacity, Image, ActivityIndicator, Alert } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, Image, ActivityIndicator } from "react-native";
 import { useEffect, useState } from "react";
 import { supabaseClient } from "@/utils/supabase";
+import AppFlashMessage from "@/components/CustomComponents/AppFlashMessage";
+import useFlashMessage from "@/hooks/useFlashMessage";
 
 type JobDetail = {
   id: string;
@@ -26,6 +28,7 @@ export default function JobView() {
   const [loading, setLoading] = useState(true);
   const [applying, setApplying] = useState(false);
   const [messaging, setMessaging] = useState(false);
+  const { flashMessage, showFlashMessage, hideFlashMessage } = useFlashMessage();
 
   useEffect(() => {
     const fetchJob = async () => {
@@ -71,7 +74,7 @@ export default function JobView() {
       const { data: userData, error: userError } = await supabaseClient.auth.getUser();
       if (userError) throw new Error(userError.message);
       if (!userData.user) {
-        Alert.alert("Sign in required", "Please sign in before applying.");
+        showFlashMessage("Sign in required", "Please sign in before applying.", "warning");
         return;
       }
 
@@ -80,10 +83,10 @@ export default function JobView() {
       });
       if (error) throw new Error(error.message);
 
-      Alert.alert("Application sent", "Your application has been submitted.");
+      showFlashMessage("Application sent", "Your application has been submitted.", "success");
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unable to apply right now.";
-      Alert.alert("Apply failed", message);
+      showFlashMessage("Apply failed", message, "error");
     } finally {
       setApplying(false);
     }
@@ -97,7 +100,7 @@ export default function JobView() {
       const { data: userData, error: userError } = await supabaseClient.auth.getUser();
       if (userError) throw new Error(userError.message);
       if (!userData.user) {
-        Alert.alert("Sign in required", "Please sign in to message the employer.");
+        showFlashMessage("Sign in required", "Please sign in to message the employer.", "warning");
         return;
       }
 
@@ -146,7 +149,7 @@ export default function JobView() {
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unable to open chat right now.";
-      Alert.alert("Message failed", message);
+      showFlashMessage("Message failed", message, "error");
     } finally {
       setMessaging(false);
     }
@@ -192,6 +195,7 @@ export default function JobView() {
         </View>
 
         <View className="px-4 mt-6">
+          <AppFlashMessage message={flashMessage} onClose={hideFlashMessage} />
           <Text className={`text-xs font-bold ${t.textMuted} uppercase tracking-widest mb-3 ml-1`}>Description</Text>
           <View className={`p-4 rounded-2xl ${t.bgCard} border ${t.border}`}>
             <Text className={`${t.text} leading-6`}>{job.description || "No description provided."}</Text>

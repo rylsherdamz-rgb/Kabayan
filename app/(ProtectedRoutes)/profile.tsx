@@ -1,68 +1,110 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
-import { Ionicons, Feather } from '@expo/vector-icons';
-import { useRouter } from "expo-router";
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { View, Text, TouchableOpacity, ActivityIndicator, ScrollView, Image } from 'react-native';
+import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useFocusEffect, useRouter } from "expo-router";
 import { useTheme } from '@/hooks/useTheme';
 import { supabaseClient } from '@/utils/supabase';
+import AppFlashMessage from "@/components/CustomComponents/AppFlashMessage";
+import useFlashMessage from "@/hooks/useFlashMessage";
 
-type ProfileSummary = {
+type ProfileData = {
+  user_id: string;
   display_name: string | null;
+  avatar_url: string | null;
   id_verification_status: string;
+  job_role: string;
+  market_role: string;
   location_label: string | null;
 };
 
 const isAuthSessionMissing = (message?: string | null) =>
   (message ?? "").toLowerCase().includes("auth session missing");
 
+const toTitleCase = (value?: string | null) =>
+  (value ?? "")
+    .replace(/_/g, " ")
+    .split(" ")
+    .filter(Boolean)
+    .map((word) => word[0].toUpperCase() + word.slice(1))
+    .join(" ");
+
 export default function Profile () {
   const { t, toggleTheme } = useTheme();
   const router = useRouter();
-  const [profile, setProfile] = useState<ProfileSummary | null>(null);
+  const { flashMessage, showFlashMessage, hideFlashMessage } = useFlashMessage();
+  const [profile, setProfile] = useState<ProfileData | null>(null);
+  const [jobsCount, setJobsCount] = useState(0);
+  const [listingsCount, setListingsCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [signingOut, setSigningOut] = useState(false);
 
-  useEffect(() => {
-    let active = true;
-    const load = async () => {
-      try {
-        const { data: userData, error: userError } = await supabaseClient.auth.getUser();
-        if (userError) {
-          if (!isAuthSessionMissing(userError.message)) {
-            throw new Error(userError.message);
-          }
-          if (active) {
-            setProfile(null);
-            setLoading(false);
-          }
-          return;
+  const loadProfile = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data: userData, error: userError } = await supabaseClient.auth.getUser();
+      if (userError) {
+        if (!isAuthSessionMissing(userError.message)) {
+          throw new Error(userError.message);
         }
-
-        const uid = userData.user?.id;
-        if (!uid) {
-          if (active) setLoading(false);
-          return;
-        }
-
-        const { data, error } = await supabaseClient
-          .rpc("rpc_get_profile_summary", { p_user_id: uid })
-          .maybeSingle();
-
-        if (error) throw new Error(error.message);
-        if (active) setProfile(data);
-      } catch (err) {
-        if (active) {
-          const message = err instanceof Error ? err.message : "Failed to load profile.";
-          Alert.alert("Profile Error", message);
-        }
-      } finally {
-        if (active) setLoading(false);
+        setProfile(null);
+        setJobsCount(0);
+        setListingsCount(0);
+        return;
       }
+
+      const uid = userData.user?.id;
+      if (!uid) {
+        setProfile(null);
+        setJobsCount(0);
+        setListingsCount(0);
+        return;
+      }
+
+      const [profileRes, jobsRes, listingsRes] = await Promise.all([
+        supabaseClient.rpc("rpc_get_drawer_profile", { p_user_id: uid }).maybeSingle(),
+        supabaseClient.rpc("rpc_get_jobs_count_by_employer", { p_employer_id: uid }),
+        supabaseClient.rpc("rpc_get_listings_count_by_vendor", { p_vendor_id: uid }),
+      ]);
+
+      if (profileRes.error) throw new Error(profileRes.error.message);
+      if (jobsRes.error) throw new Error(jobsRes.error.message);
+      if (listingsRes.error) throw new Error(listingsRes.error.message);
+
+      setProfile(profileRes.data as ProfileData | null);
+      setJobsCount(Number(jobsRes.data ?? 0));
+      setListingsCount(Number(listingsRes.data ?? 0));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to load profile.";
+      showFlashMessage("Profile Error", message, "error");
+    } finally {
+      setLoading(false);
+    }
+  }, [showFlashMessage]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const run = async () => {
+      if (!mounted) return;
+      await loadProfile();
     };
-    load();
+
+    run();
+    const { data: authListener } = supabaseClient.auth.onAuthStateChange(() => {
+      run();
+    });
+
     return () => {
-      active = false;
+      mounted = false;
+      authListener.subscription.unsubscribe();
     };
-  }, []);
+  }, [loadProfile]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadProfile();
+    }, [loadProfile])
+  );
 
   const handleSignOut = async () => {
     if (signingOut) return;
@@ -73,115 +115,267 @@ export default function Profile () {
       router.replace("/AuthenticationPage");
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unable to sign out.";
-      Alert.alert("Sign Out Failed", message);
+      showFlashMessage("Sign Out Failed", message, "error");
     } finally {
       setSigningOut(false);
     }
   };
 
-  const badgeColor =
-    profile?.id_verification_status === "verified"
+  const verificationStatus = profile?.id_verification_status ?? "unverified";
+  const verificationColor =
+    verificationStatus === "verified"
       ? "#10b981"
-      : profile?.id_verification_status === "pending_review"
+      : verificationStatus === "pending_review"
       ? "#f59e0b"
       : "#94a3b8";
 
+  const displayName = profile?.display_name?.trim() || "Guest User";
+  const initials = displayName
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("") || "GU";
+  const roleHeadline = [toTitleCase(profile?.job_role), toTitleCase(profile?.market_role)]
+    .filter(Boolean)
+    .join(" • ");
+
+  const profileStrength = useMemo(() => {
+    const fields = [
+      Boolean(profile?.display_name),
+      Boolean(profile?.avatar_url),
+      Boolean(profile?.location_label),
+      Boolean(profile?.job_role),
+      Boolean(profile?.market_role),
+    ];
+    const score = Math.round((fields.filter(Boolean).length / fields.length) * 100);
+    return Math.max(20, score);
+  }, [profile]);
+
   return (
-    <View className={`flex-1 ${t.bgPage} p-6`}>
+    <View className={`flex-1 ${t.bgPage}`}>
       {loading ? (
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator />
           <Text className={`mt-2 ${t.textMuted}`}>Loading…</Text>
         </View>
       ) : (
-        <View>
-          <View className={`p-5 rounded-3xl ${t.bgCard} border ${t.border} shadow-sm`}>
-            <View className="flex-row items-center justify-between">
-              <View className="flex-1 pr-3">
-                <View className="flex-row items-center">
-                  <Text className={`text-xl font-black ${t.text}`}>
-                    {profile?.display_name ?? "Guest User"}
-                  </Text>
-                  <View className="flex-row items-center ml-2 px-2 py-1 rounded-lg" style={{ backgroundColor: `${badgeColor}1A` }}>
-                    <Ionicons
-                      name={profile?.id_verification_status === "verified" ? "shield-checkmark" : "shield-half"}
-                      size={16}
-                      color={badgeColor}
-                    />
-                    <Text className="ml-1 text-[11px] font-bold" style={{ color: badgeColor }}>
-                      {profile?.id_verification_status ?? "unverified"}
-                    </Text>
+        <ScrollView contentContainerStyle={{ paddingBottom: 28 }}>
+          <AppFlashMessage message={flashMessage} onClose={hideFlashMessage} />
+
+          <View className={`mx-4 mt-5 rounded-[30px] overflow-hidden border ${t.border} ${t.bgCard}`}>
+            <View className={`${t.brandBg} h-24`} />
+            <View className="px-5 pb-5">
+              <View className="-mt-11 flex-row items-end justify-between">
+                {profile?.avatar_url ? (
+                  <Image source={{ uri: profile.avatar_url }} className="w-24 h-24 rounded-3xl border-4 border-white" />
+                ) : (
+                  <View className="w-24 h-24 rounded-3xl border-4 border-white bg-slate-200 items-center justify-center">
+                    <Text className="text-slate-700 text-xl font-black">{initials}</Text>
                   </View>
-                </View>
-                <Text className={`text-sm ${t.textMuted}`}>{profile?.location_label ?? "Set your location"}</Text>
-              </View>
-              <View className="items-end gap-2">
-                <TouchableOpacity className="px-3 py-2 rounded-xl border border-slate-200" onPress={toggleTheme}>
-                  <Ionicons name={t.isDarkMode ? "moon" : "sunny"} size={18} color={t.icon} />
-                </TouchableOpacity>
+                )}
+
                 <TouchableOpacity
-                  onPress={() => router.push("/profile/ProfiletView")}
-                  className="px-3 py-2 rounded-xl border border-slate-200"
+                  onPress={toggleTheme}
+                  className={`mb-2 h-10 w-10 rounded-xl border ${t.border} ${t.bgSurface} items-center justify-center`}
                 >
-                  <Text className="text-xs font-bold text-slate-700">View</Text>
+                  <Ionicons name={t.isDarkMode ? "moon" : "sunny"} size={16} color={t.icon} />
                 </TouchableOpacity>
+              </View>
+
+              <Text className={`mt-3 text-[26px] font-black tracking-tight ${t.text}`}>{displayName}</Text>
+              <Text className={`mt-1 text-sm font-semibold ${t.textMuted}`}>
+                {roleHeadline || "Complete your profile role details"}
+              </Text>
+
+              <View className="mt-2 flex-row items-center">
+                <Ionicons name="location-outline" size={14} color={t.icon} />
+                <Text className={`ml-1 text-xs font-semibold ${t.textMuted}`}>
+                  {profile?.location_label ?? "Set your location"}
+                </Text>
+              </View>
+
+              <View className="mt-3 self-start px-3 py-1 rounded-full flex-row items-center" style={{ backgroundColor: `${verificationColor}1A` }}>
+                <MaterialCommunityIcons
+                  name={verificationStatus === "verified" ? "check-decagram" : "shield-half-full"}
+                  size={14}
+                  color={verificationColor}
+                />
+                <Text className="ml-1 text-[10px] font-black uppercase tracking-widest" style={{ color: verificationColor }}>
+                  {toTitleCase(verificationStatus)}
+                </Text>
+              </View>
+
+              <View className="mt-4 flex-row gap-2">
+                <QuickAction label="View Profile" icon="person-outline" onPress={() => router.push("/profile/ProfiletView")} />
+                <QuickAction label="Edit Profile" icon="create-outline" onPress={() => router.push("/profile/EditProfile")} />
               </View>
             </View>
           </View>
 
-          <View className="mt-4 gap-3">
-            <SettingButton
-              label="Edit profile"
-              icon="create-outline"
-              onPress={() => router.push("/profile/EditProfile")}
-            />
-            <SettingButton
-              label="Open your store"
-              icon="storefront-outline"
-              onPress={() => router.push("/marketPlace/marketPlaceView")}
-            />
-            <SettingButton
-              label="Add marketplace item"
-              icon="add-circle-outline"
-              onPress={() => router.push({ pathname: "/marketPlace/marketPlaceView", params: { openModal: "true" } })}
-            />
-            <SettingButton
-              label="Manage verification"
-              icon="shield-checkmark-outline"
-              onPress={() => router.push("/profile/ProfiletView")}
-            />
-            <SettingButton
+          <View className={`mx-4 mt-4 p-4 rounded-3xl border ${t.border} ${t.bgCard}`}>
+            <Text className={`text-sm font-black uppercase tracking-widest ${t.textMuted}`}>Dashboard</Text>
+            <View className="flex-row gap-2 mt-3">
+              <StatCard label="Profile Strength" value={`${profileStrength}%`} icon="analytics-outline" t={t} />
+              <StatCard label="Jobs Posted" value={`${jobsCount}`} icon="briefcase-outline" t={t} />
+              <StatCard label="Listings" value={`${listingsCount}`} icon="storefront-outline" t={t} />
+            </View>
+            <View className={`mt-3 h-2 rounded-full ${t.bgSurface}`}>
+              <View className="h-2 rounded-full bg-blue-600" style={{ width: `${profileStrength}%` }} />
+            </View>
+            <Text className={`mt-2 text-[11px] font-semibold ${t.textMuted}`}>
+              Keep your profile complete to build trust with employers and buyers.
+            </Text>
+          </View>
+
+          <SectionCard title="Career Network" t={t}>
+            <SectionAction
               label="Job applicants"
+              subtitle="Review applicants and message them directly"
               icon="people-outline"
               onPress={() => router.push("/profile/JobApplicants")}
+              t={t}
             />
-            <SettingButton
+            <SectionAction
               label="Connect with people"
+              subtitle="Find workers and employers in your community"
               icon="person-add-outline"
               onPress={() => router.push("/profile/PeopleConnect")}
+              t={t}
             />
-            <SettingButton
+            <SectionAction
+              label="Manage verification"
+              subtitle="Boost profile credibility with verified status"
+              icon="shield-checkmark-outline"
+              onPress={() => router.push("/Register")}
+              t={t}
+            />
+          </SectionCard>
+
+          <SectionCard title="Marketplace Tools" t={t}>
+            <SectionAction
+              label="Open your store"
+              subtitle="Manage your public marketplace listings"
+              icon="storefront-outline"
+              onPress={() => router.push("/marketPlace/marketPlaceView")}
+              t={t}
+            />
+            <SectionAction
+              label="Add marketplace item"
+              subtitle="Publish a new listing with complete details"
+              icon="add-circle-outline"
+              onPress={() => router.push({ pathname: "/marketPlace/marketPlaceView", params: { openModal: "true" } })}
+              t={t}
+            />
+          </SectionCard>
+
+          <SectionCard title="Account" t={t}>
+            <SectionAction
               label={signingOut ? "Signing out..." : "Sign out"}
+              subtitle="End this session on this device"
               icon="log-out-outline"
               onPress={handleSignOut}
+              t={t}
+              destructive
             />
-          </View>
-        </View>
+          </SectionCard>
+        </ScrollView>
       )}
     </View>
   );
 }
 
-function SettingButton({ label, icon, onPress }: { label: string; icon: keyof typeof Ionicons.glyphMap; onPress: () => void }) {
+function QuickAction({
+  label,
+  icon,
+  onPress,
+}: {
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  onPress: () => void;
+}) {
   return (
     <TouchableOpacity
       onPress={onPress}
-      className="flex-row items-center justify-between p-4 rounded-2xl bg-white border border-slate-200 shadow-sm"
-      activeOpacity={0.85}
+      className="flex-1 h-10 rounded-xl bg-blue-600 items-center justify-center"
+      activeOpacity={0.88}
     >
       <View className="flex-row items-center">
-        <Ionicons name={icon} size={20} color="#2563eb" />
-        <Text className="ml-3 text-base font-semibold text-slate-900">{label}</Text>
+        <Ionicons name={icon} size={14} color="white" />
+        <Text className="ml-1 text-[10px] font-black uppercase tracking-widest text-white">{label}</Text>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+function StatCard({
+  label,
+  value,
+  icon,
+  t,
+}: {
+  label: string;
+  value: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  t: ReturnType<typeof useTheme>["t"];
+}) {
+  return (
+    <View className={`flex-1 p-3 rounded-2xl border ${t.border} ${t.bgSurface}`}>
+      <Ionicons name={icon} size={14} color={t.icon} />
+      <Text className={`mt-2 text-lg font-black ${t.text}`}>{value}</Text>
+      <Text className={`text-[10px] font-bold uppercase tracking-widest ${t.textMuted}`}>{label}</Text>
+    </View>
+  );
+}
+
+function SectionCard({
+  title,
+  children,
+  t,
+}: {
+  title: string;
+  children: React.ReactNode;
+  t: ReturnType<typeof useTheme>["t"];
+}) {
+  return (
+    <View className={`mx-4 mt-4 p-4 rounded-3xl border ${t.border} ${t.bgCard}`}>
+      <Text className={`text-sm font-black uppercase tracking-widest ${t.textMuted}`}>{title}</Text>
+      <View className="mt-2">{children}</View>
+    </View>
+  );
+}
+
+function SectionAction({
+  label,
+  subtitle,
+  icon,
+  onPress,
+  t,
+  destructive = false,
+}: {
+  label: string;
+  subtitle: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  onPress: () => void;
+  t: ReturnType<typeof useTheme>["t"];
+  destructive?: boolean;
+}) {
+  const iconColor = destructive ? "#DC2626" : "#2563EB";
+
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      className={`mt-2 flex-row items-center justify-between p-4 rounded-2xl border ${t.border} ${t.bgSurface}`}
+      activeOpacity={0.85}
+    >
+      <View className="flex-row items-start flex-1 pr-3">
+        <View className="w-8 h-8 rounded-lg bg-blue-50 items-center justify-center">
+          <Ionicons name={icon} size={16} color={iconColor} />
+        </View>
+        <View className="ml-3 flex-1">
+          <Text className={`text-sm font-black ${destructive ? "text-red-600" : t.text}`}>{label}</Text>
+          <Text className={`mt-1 text-[11px] font-semibold ${t.textMuted}`}>{subtitle}</Text>
+        </View>
       </View>
       <Feather name="chevron-right" size={18} color="#94A3B8" />
     </TouchableOpacity>
