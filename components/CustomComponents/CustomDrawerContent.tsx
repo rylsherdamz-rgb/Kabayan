@@ -35,6 +35,7 @@ const isAuthSessionMissing = (message?: string | null) =>
 
 export default function CustomDrawerContent(props: any) {
   const { t } = useTheme();
+  const [showModal, setShowModal] = useState<boolean>()
   const inset = useSafeAreaInsets();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -42,6 +43,7 @@ export default function CustomDrawerContent(props: any) {
   const [email, setEmail] = useState<string | null>(null);
   const [jobsCount, setJobsCount] = useState(0);
   const [listingsCount, setListingsCount] = useState(0);
+  const [trigger, setTrigger] = useState<any>()
 
   useEffect(() => {
     let active = true;
@@ -52,6 +54,7 @@ export default function CustomDrawerContent(props: any) {
         const { data: userData, error: userError } = await supabaseClient.auth.getUser();
         if (userError && !isAuthSessionMissing(userError.message)) {
           throw new Error(userError.message);
+          setTrigger(userError?.message)
         }
 
         const user = userData?.user;
@@ -108,6 +111,14 @@ export default function CustomDrawerContent(props: any) {
     };
   }, []);
 
+  const handleNavigation = ( ) => {
+  if (isAuthSessionMissing(trigger) ) {
+    setShowModal(true)
+  }
+  router.push('/profile')
+
+  }
+
   const displayName = profile?.display_name?.trim() || 'Guest User';
   const verificationStatus = profile?.id_verification_status ?? 'unverified';
   const verificationLabel = titleCase(verificationStatus);
@@ -120,7 +131,7 @@ export default function CustomDrawerContent(props: any) {
     <View style={{paddingTop : inset.top}} className={`flex-1  ${t.bgCard}`}>
       <DrawerContentScrollView {...props} scrollEnabled={true} contentContainerStyle={{ paddingTop: 0 }}>
         <Pressable
-          onPress={() => router.push('/profile')}
+          onPress={handleNavigation }
           style={{ paddingTop: inset.top + 20 }} 
           className={`px-6 pb-8 border-b rounded-2xl ${t.border} ${t.brandSoft}`} 
         >

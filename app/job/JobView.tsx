@@ -237,7 +237,7 @@ export default function JobView() {
                 <Text className="text-emerald-600 font-black text-lg">{salary}</Text>
                 <View className="bg-red-50 px-2 py-1 rounded-md mt-2">
                   <Text className="text-red-600 font-black text-[10px] uppercase tracking-widest">
-                    {job.is_urgent ? "Urgent" : job.status}
+                    {isClosed === true ? "Closed" : (job.is_urgent ? "Urgent" : job.status)}
                   </Text>
                 </View>
               </View>
@@ -298,7 +298,7 @@ export default function JobView() {
                 disabled={applying || isClosed}
                 className={`flex-1 py-4 rounded-2xl items-center shadow-sm ${isClosed ? "bg-slate-400" : "bg-blue-600"}`}
               >
-                <Text className="text-white font-black">{applying ? "Applying..." : "Apply Now"}</Text>
+                <Text className="text-white font-black">{isClosed === true ? "Closed"  : (applying ? "Applying..." : "Apply Now")}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={handleMessageEmployer}

@@ -6,6 +6,7 @@ import { useRouter, useFocusEffect } from "expo-router";
 import { useTheme } from "@/hooks/useTheme";
 import { supabaseClient } from "@/utils/supabase";
 import AuthenticationForm from "@/components/Auth/AuthenticationForm";
+import CustomModal from "@/components/CustomComponents/CustomModalComponent";
 
 type Conversation = {
   roomId: string;
@@ -189,6 +190,8 @@ export default function Inbox() {
           }}
         />
       )}
+      
+      <CustomModal authModalVisible={authModalVisible} setAuthModalVisible={setAuthModalVisible} />
 
     </KeyboardAvoidingView>
   );

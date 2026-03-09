@@ -197,6 +197,7 @@ export default function SearchScreen() {
         horizontal
         showsHorizontalScrollIndicator={false}
         className="mt-3   px-[5%]"
+        style={{height : 20}}
         contentContainerStyle={{ paddingRight: 20 }}
       >
         {SEARCH_CATEGORIES.map((category) => {
