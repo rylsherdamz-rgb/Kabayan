@@ -272,7 +272,7 @@ export default function MarketPlaceView() {
 
   if (!featured) {
     return (
-      <View className={`flex-1 items-center justify-center px-6 ${t.bgPage}`}>
+      <View style={{paddingBottom: insets.bottom, paddingTop : insets.top}} className={`flex-1 items-center justify-center px-6 ${t.bgPage}`}>
         <AppFlashMessage message={flashMessage} onClose={hideFlashMessage} />
         <Text className={`text-base font-semibold ${t.text}`}>No listings found</Text>
         <TouchableOpacity onPress={() => setShowModal(true)} className="mt-4 bg-blue-600 px-6 py-3 rounded-2xl">
@@ -292,10 +292,10 @@ export default function MarketPlaceView() {
   }
 
   return (
-    <View style={{paddingBottom: insets.bottom, paddingTop : insets.top}} className={`flex-1 ${t.bgPage}`}>
+    <View  className={`flex-1 ${t.bgPage}`}>
       <AppFlashMessage message={flashMessage} onClose={hideFlashMessage} />
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <View className="h-72 w-full relative">
+      <ScrollView style={{paddingBottom: insets.bottom, paddingTop : insets.top}} showsVerticalScrollIndicator={false}>
+        <View style={{paddingBottom: insets.bottom, paddingTop : insets.top}} className="h-72 w-full relative">
           {featured.image_url ? (
             <Image source={{ uri: featured.image_url }} className="w-full h-full" />
           ) : (
@@ -432,7 +432,7 @@ export default function MarketPlaceView() {
         </View>
       </ScrollView>
 
-      <View className={`absolute bottom-0 left-0 right-0 p-6 ${t.bgCard} border-t ${t.border} flex-row items-center`}>
+            { isOwner ? (      <View style={{paddingBottom: 10 +  insets.bottom}} className={`absolute bottom-0 left-0 right-0 p-6 ${t.bgCard} border-t ${t.border} flex-row items-center`}>
         <View className="flex-1">
           <Text className={`text-[10px] font-black uppercase tracking-widest ${t.textMuted}`}>Current Item</Text>
           <Text className={`text-2xl font-black ${t.text}`}>₱{featured.price.toLocaleString()}</Text>
@@ -442,6 +442,9 @@ export default function MarketPlaceView() {
         </TouchableOpacity>
       </View>
 
+) : null
+
+            }
       <MarketModal
         visible={showModal}
         onClose={() => setShowModal(false)}
