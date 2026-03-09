@@ -294,8 +294,8 @@ export default function MarketPlaceView() {
   return (
     <View  className={`flex-1 ${t.bgPage}`}>
       <AppFlashMessage message={flashMessage} onClose={hideFlashMessage} />
-      <ScrollView style={{paddingBottom: insets.bottom, paddingTop : insets.top}} showsVerticalScrollIndicator={false}>
-        <View style={{paddingBottom: insets.bottom, paddingTop : insets.top}} className="h-72 w-full relative">
+      <ScrollView style={{marginBottom : insets.top}}  showsVerticalScrollIndicator={false}>
+        <View style={{ paddingTop : insets.top}} className="h-72 w-full relative">
           {featured.image_url ? (
             <Image source={{ uri: featured.image_url }} className="w-full h-full" />
           ) : (
@@ -414,7 +414,7 @@ export default function MarketPlaceView() {
             </View>
 
             {loadingReviews ? (
-              <View className="py-8 items-center">
+              <View style={{paddingBottom : 20  + insets.bottom}} className="py-8 items-center">
                 <ActivityIndicator />
                 <Text className={`mt-2 text-xs ${t.textMuted}`}>Loading reviews…</Text>
               </View>
@@ -433,10 +433,6 @@ export default function MarketPlaceView() {
       </ScrollView>
 
             { isOwner ? (      <View style={{paddingBottom: 10 +  insets.bottom}} className={`absolute bottom-0 left-0 right-0 p-6 ${t.bgCard} border-t ${t.border} flex-row items-center`}>
-        <View className="flex-1">
-          <Text className={`text-[10px] font-black uppercase tracking-widest ${t.textMuted}`}>Current Item</Text>
-          <Text className={`text-2xl font-black ${t.text}`}>₱{featured.price.toLocaleString()}</Text>
-        </View>
         <TouchableOpacity onPress={() => setShowModal(true)} className="bg-blue-600 px-10 h-14 rounded-2xl items-center justify-center shadow-lg shadow-blue-500/40">
           <Text className="text-white font-black uppercase text-sm tracking-widest">Add Item</Text>
         </TouchableOpacity>
@@ -460,8 +456,8 @@ export default function MarketPlaceView() {
         animationType="slide"
         onRequestClose={() => setReviewModalVisible(false)}
       >
-        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} className="flex-1 justify-end">
-          <View className="flex-1 bg-black/50 justify-end">
+        <KeyboardAvoidingView style={{paddingBottom :insets.bottom}} className="flex-1" behavior={Platform.OS === "ios" ? "padding" : "height"} className="flex-1 justify-end">
+          <View style={{paddingBottom : insets.bottom}} className="flex-1 bg-black/50 justify-end">
             <View className={`rounded-t-[28px] px-6 pt-6 pb-8 ${t.bgCard}`}>
               <View className="flex-row items-center justify-between mb-5">
                 <Text className={`text-xl font-black ${t.text}`}>Write a Review</Text>
