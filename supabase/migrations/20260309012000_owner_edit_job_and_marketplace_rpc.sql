@@ -4,14 +4,14 @@ create or replace function public.rpc_update_job(
   p_job_id uuid,
   p_title text,
   p_description text,
-  p_requirements text[] default '{}'::text[],
-  p_budget_min numeric default 0,
-  p_budget_max numeric default 0,
+  p_requirements text[],
+  p_budget_min numeric,
+  p_budget_max numeric,
   p_location_label text,
   p_latitude double precision,
   p_longitude double precision,
-  p_is_urgent boolean default false,
-  p_status text default null
+  p_is_urgent boolean,
+  p_status text
 )
 returns table (
   id uuid,
