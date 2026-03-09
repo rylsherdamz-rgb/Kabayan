@@ -5,6 +5,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { supabaseClient } from "@/utils/supabase";
 import { useImagePicker } from "@/context/ImagePicker";
 import * as Location from "expo-location";
+import humanizeError from "@/utils/humanizeError";
 
 const FALLBACK_COORDINATE = {
   latitude: 14.5995,
@@ -127,7 +128,7 @@ export default function MarketModal({ visible, onClose, onCreated }: MarketModal
       onCreated?.();
       onClose();
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to publish item.";
+      const message = humanizeError(err, "Failed to publish item.");
       setError(message);
     } finally {
       setSaving(false);

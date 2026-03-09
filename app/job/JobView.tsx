@@ -7,6 +7,7 @@ import { supabaseClient } from "@/utils/supabase";
 import AppFlashMessage from "@/components/CustomComponents/AppFlashMessage";
 import useFlashMessage from "@/hooks/useFlashMessage";
 import JobEditModal from "@/components/JobComponents/JobEditModal";
+import humanizeError from "@/utils/humanizeError";
 
 type JobDetail = {
   id: string;
@@ -104,7 +105,7 @@ export default function JobView() {
 
       showFlashMessage("Application sent", "Your application has been submitted.", "success");
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Unable to apply right now.";
+      const message = humanizeError(err, "Unable to apply right now.");
       showFlashMessage("Apply failed", message, "error");
     } finally {
       setApplying(false);
@@ -167,7 +168,7 @@ export default function JobView() {
         },
       });
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Unable to open chat right now.";
+      const message = humanizeError(err, "Unable to open chat right now.");
       showFlashMessage("Message failed", message, "error");
     } finally {
       setMessaging(false);
@@ -198,7 +199,7 @@ export default function JobView() {
         "success"
       );
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Unable to update job status.";
+      const message = humanizeError(err, "Unable to update job status.");
       showFlashMessage("Status update failed", message, "error");
     } finally {
       setUpdatingStatus(false);

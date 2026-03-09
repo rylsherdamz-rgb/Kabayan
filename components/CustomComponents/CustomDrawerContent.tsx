@@ -6,6 +6,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/hooks/useTheme';
 import { supabaseClient } from '@/utils/supabase';
+import humanizeError from '@/utils/humanizeError';
 
 type DrawerProfile = {
   user_id: string;
@@ -86,7 +87,7 @@ export default function CustomDrawerContent(props: any) {
         setListingsCount(Number(listingsRes.data ?? 0));
       } catch (err) {
         if (active) {
-          const message = err instanceof Error ? err.message : 'Failed to load drawer data.';
+          const message = humanizeError(err, 'Failed to load drawer data.');
           Alert.alert('Drawer Error', message);
         }
       } finally {

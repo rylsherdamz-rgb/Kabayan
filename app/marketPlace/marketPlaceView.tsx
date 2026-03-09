@@ -8,6 +8,7 @@ import MarketEditModal from '@/components/MarketPlace/MarketEditModal';
 import { supabaseClient } from '@/utils/supabase';
 import AppFlashMessage from '@/components/CustomComponents/AppFlashMessage';
 import useFlashMessage from '@/hooks/useFlashMessage';
+import humanizeError from '@/utils/humanizeError';
 
 type ListingFeedRow = {
   id: string;
@@ -93,7 +94,7 @@ export default function MarketPlaceView() {
     setLoadingListings(true);
     const { data, error } = await supabaseClient.rpc("rpc_get_marketplace_listings_feed");
     if (error) {
-      showFlashMessage("Marketplace Error", error.message, "error");
+      showFlashMessage("Marketplace Error", humanizeError(error, "Unable to load marketplace listings."), "error");
       setLoadingListings(false);
       return;
     }
@@ -115,7 +116,7 @@ export default function MarketPlaceView() {
       p_listing_id: listingId,
     });
     if (error) {
-      showFlashMessage("Reviews Error", error.message, "error");
+      showFlashMessage("Reviews Error", humanizeError(error, "Unable to load reviews."), "error");
       setLoadingReviews(false);
       return;
     }
@@ -181,7 +182,7 @@ export default function MarketPlaceView() {
   const handleOpenReviewModal = async () => {
     const { data, error } = await supabaseClient.auth.getUser();
     if (error) {
-      showFlashMessage("Auth Error", error.message, "error");
+      showFlashMessage("Auth Error", humanizeError(error, "Unable to verify your session."), "error");
       return;
     }
     if (!data.user) {
@@ -213,7 +214,7 @@ export default function MarketPlaceView() {
       await Promise.all([loadListings(), loadReviews(featured.id)]);
       showFlashMessage("Review posted", "Thanks for sharing your feedback.", "success");
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Unable to submit review.";
+      const message = humanizeError(err, "Unable to submit review.");
       showFlashMessage("Review Failed", message, "error");
     } finally {
       setSubmittingReview(false);
@@ -251,7 +252,7 @@ export default function MarketPlaceView() {
         "success"
       );
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Unable to update listing state.";
+      const message = humanizeError(err, "Unable to update listing state.");
       showFlashMessage("Update failed", message, "error");
     } finally {
       setUpdatingOpenState(false);

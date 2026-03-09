@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Location from "expo-location";
 import { useTheme } from "@/hooks/useTheme";
 import { supabaseClient } from "@/utils/supabase";
+import humanizeError from "@/utils/humanizeError";
 
 const FALLBACK_COORDINATE = {
   latitude: 14.5995,
@@ -134,7 +135,7 @@ export default function MarketEditModal({ visible, listing, onClose, onSaved }: 
       });
       onClose();
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to update listing.";
+      const message = humanizeError(err, "Failed to update listing.");
       setError(message);
     } finally {
       setSaving(false);

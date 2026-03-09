@@ -1,44 +1,5 @@
--- Profile edit RPCs for real edit-profile screen behavior.
-
-create or replace function public.rpc_get_profile_for_edit(p_user_id uuid)
-returns table (
-  user_id uuid,
-  display_name text,
-  bio text,
-  location_label text,
-  avatar_url text,
-  job_role text,
-  market_role text,
-  birth_date date
-)
-language plpgsql
-security definer
-set search_path = public
-as $$
-begin
-  if auth.uid() is null then
-    raise exception 'Not authenticated';
-  end if;
-
-  if auth.uid() <> p_user_id then
-    raise exception 'Requested user does not match authenticated user';
-  end if;
-
-  return query
-  select
-    p.user_id,
-    p.display_name,
-    p.bio,
-    p.location_label,
-    p.avatar_url,
-    p.job_role,
-    p.market_role,
-    p.birth_date
-  from public.profiles p
-  where p.user_id = p_user_id
-  limit 1;
-end;
-$$;
+-- Fix ambiguous user_id in profile RPCs by avoiding ON CONFLICT(column)
+-- inside RETURNS TABLE functions that expose user_id.
 
 create or replace function public.rpc_update_profile(
   p_user_id uuid,
@@ -115,9 +76,6 @@ begin
 end;
 $$;
 
-grant execute on function public.rpc_get_profile_for_edit(uuid) to authenticated, service_role;
-grant execute on function public.rpc_update_profile(uuid, text, text, text, text, text, text, date) to authenticated, service_role;
-
 create or replace function public.rpc_submit_verification(
   p_first_name text,
   p_last_name text,
@@ -191,4 +149,5 @@ begin
 end;
 $$;
 
+grant execute on function public.rpc_update_profile(uuid, text, text, text, text, text, text, date) to authenticated, service_role;
 grant execute on function public.rpc_submit_verification(text, text, text, text, date) to authenticated, service_role;

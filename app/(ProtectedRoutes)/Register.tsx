@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
+import {useSafeAreaInsets} from "react-native-safe-area-context"
 import {
   View,
   Text,
@@ -16,9 +17,12 @@ import { useTheme } from "@/hooks/useTheme";
 import { supabaseClient } from "@/utils/supabase";
 import AppFlashMessage from "@/components/CustomComponents/AppFlashMessage";
 import useFlashMessage from "@/hooks/useFlashMessage";
+import humanizeError from "@/utils/humanizeError";
 
 const isAuthSessionMissing = (message?: string | null) =>
   (message ?? "").toLowerCase().includes("auth session missing");
+
+const insets = useSafeAreaInsets()
 
 const isValidBirthDate = (value: string) => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
@@ -59,7 +63,7 @@ export default function Register() {
 
       setUserId(data.user?.id ?? null);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Unable to load account.";
+      const message = humanizeError(err, "Unable to load account.");
       showFlashMessage("Verification Error", message, "error");
     } finally {
       setLoading(false);
@@ -139,7 +143,7 @@ export default function Register() {
         router.back();
       }, 500);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Unable to submit verification.";
+      const message = humanizeError(err, "Unable to submit verification.");
       showFlashMessage("Submit Failed", message, "error");
     } finally {
       setSubmitting(false);
@@ -157,7 +161,7 @@ export default function Register() {
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} className={`flex-1 ${t.bgPage}`}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 30 }}>
+      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom, paddingTop: insets.top  }}>
         <View className="h-28 bg-blue-600 w-full relative">
           <TouchableOpacity onPress={() => router.back()} className="absolute top-12 left-5 bg-white/20 p-2 rounded-full">
             <Feather name="chevron-left" size={22} color="white" />

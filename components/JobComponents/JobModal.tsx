@@ -5,6 +5,7 @@ import {useSafeAreaInsets} from "react-native-safe-area-context"
 import { useTheme } from "@/hooks/useTheme";
 import { supabaseClient } from "@/utils/supabase";
 import * as Location from "expo-location";
+import humanizeError from "@/utils/humanizeError";
 
 const FALLBACK_COORDINATE = {
   latitude: 14.5995,
@@ -127,7 +128,7 @@ export default function JobModal({ visible, onClose, onCreated }: JobModalProps)
       onCreated?.(data);
       onClose();
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to post job.";
+      const message = humanizeError(err, "Failed to post job.");
       setError(message);
     } finally {
       setSaving(false);

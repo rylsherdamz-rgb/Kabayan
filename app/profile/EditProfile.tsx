@@ -17,6 +17,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { supabaseClient } from "@/utils/supabase";
 import AppFlashMessage from "@/components/CustomComponents/AppFlashMessage";
 import useFlashMessage from "@/hooks/useFlashMessage";
+import humanizeError from "@/utils/humanizeError";
 
 type EditProfileRow = {
   user_id: string;
@@ -106,7 +107,7 @@ export default function EditProfile() {
       });
       setAvatarUri(row?.avatar_url ?? null);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to load profile.";
+      const message = humanizeError(err, "Failed to load profile.");
       showFlashMessage("Profile Load Failed", message, "error");
     } finally {
       setLoading(false);
@@ -200,7 +201,7 @@ export default function EditProfile() {
 
       showFlashMessage("Profile Updated", "Your changes were saved successfully.", "success");
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to save profile.";
+      const message = humanizeError(err, "Failed to save profile.");
       showFlashMessage("Save Failed", message, "error");
     } finally {
       setSaving(false);

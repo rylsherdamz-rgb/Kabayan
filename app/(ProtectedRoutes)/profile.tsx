@@ -6,6 +6,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { supabaseClient } from '@/utils/supabase';
 import AppFlashMessage from "@/components/CustomComponents/AppFlashMessage";
 import useFlashMessage from "@/hooks/useFlashMessage";
+import humanizeError from "@/utils/humanizeError";
 
 type ProfileData = {
   user_id: string;
@@ -74,7 +75,7 @@ export default function Profile () {
       setJobsCount(Number(jobsRes.data ?? 0));
       setListingsCount(Number(listingsRes.data ?? 0));
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to load profile.";
+      const message = humanizeError(err, "Failed to load profile.");
       showFlashMessage("Profile Error", message, "error");
     } finally {
       setLoading(false);
@@ -114,7 +115,7 @@ export default function Profile () {
       if (error) throw new Error(error.message);
       router.replace("/AuthenticationPage");
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Unable to sign out.";
+      const message = humanizeError(err, "Unable to sign out.");
       showFlashMessage("Sign Out Failed", message, "error");
     } finally {
       setSigningOut(false);

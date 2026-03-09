@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Location from "expo-location";
 import { useTheme } from "@/hooks/useTheme";
 import { supabaseClient } from "@/utils/supabase";
+import humanizeError from "@/utils/humanizeError";
 
 const FALLBACK_COORDINATE = {
   latitude: 14.5995,
@@ -142,7 +143,7 @@ export default function JobEditModal({ visible, job, onClose, onSaved }: JobEdit
       });
       onClose();
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to update job.";
+      const message = humanizeError(err, "Failed to update job.");
       setError(message);
     } finally {
       setSaving(false);

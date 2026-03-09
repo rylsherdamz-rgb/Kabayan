@@ -16,6 +16,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { supabaseClient } from "@/utils/supabase";
 import AppFlashMessage from "@/components/CustomComponents/AppFlashMessage";
 import useFlashMessage from "@/hooks/useFlashMessage";
+import humanizeError from "@/utils/humanizeError";
 
 export default function ChatRoomLayout() {
   const { t } = useTheme();
@@ -94,7 +95,7 @@ export default function ChatRoomLayout() {
     if (error) {
       // roll back local clear if needed
       setMessage(text);
-      showFlashMessage("Send failed", error.message, "error");
+      showFlashMessage("Send failed", humanizeError(error, "Unable to send message."), "error");
     } else if (newMessageId) {
       setMessages((prev) => {
         if (prev.some((msg) => msg.id === newMessageId)) return prev;

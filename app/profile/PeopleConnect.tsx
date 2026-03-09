@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useTheme } from "@/hooks/useTheme";
 import { supabaseClient } from "@/utils/supabase";
+import humanizeError from "@/utils/humanizeError";
 
 type PersonRow = {
   user_id: string;
@@ -36,7 +37,7 @@ export default function PeopleConnect() {
 
       if (error) {
         if (!isAuthSessionMissing(error.message)) {
-          Alert.alert("Auth Error", error.message);
+          Alert.alert("Auth Error", humanizeError(error, "Unable to verify your session."));
         }
         setUserId(null);
         setPeople([]);
@@ -58,7 +59,7 @@ export default function PeopleConnect() {
       });
 
       if (rowsError) {
-        Alert.alert("People Error", rowsError.message);
+        Alert.alert("People Error", humanizeError(rowsError, "Unable to load people right now."));
         setLoading(false);
         return;
       }
@@ -85,7 +86,7 @@ export default function PeopleConnect() {
 
       if (!active) return;
       if (error) {
-        Alert.alert("Search Error", error.message);
+        Alert.alert("Search Error", humanizeError(error, "Search is unavailable right now."));
         return;
       }
 
@@ -117,7 +118,7 @@ export default function PeopleConnect() {
         },
       });
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Unable to connect right now.";
+      const message = humanizeError(err, "Unable to connect right now.");
       Alert.alert("Connect Failed", message);
     } finally {
       setConnectingTo(null);

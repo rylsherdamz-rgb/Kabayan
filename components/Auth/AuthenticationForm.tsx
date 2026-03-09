@@ -5,6 +5,7 @@ import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import useAccount from "@/hooks/useAccountHooks";
 import { useTheme } from "@/hooks/useTheme";
 import { supabaseClient } from "@/utils/supabase";
+import humanizeError from "@/utils/humanizeError";
 
 type AuthMode = "signIn" | "signUp";
 
@@ -136,7 +137,7 @@ export default function AuthenticationForm({ mode = "signIn", onModeChange, onSu
 
         {error && (
           <Text className="mt-3 text-red-500 text-sm font-semibold">
-            {error.message ?? "Something went wrong"}
+            {humanizeError(error, "Something went wrong")}
           </Text>
         )}
 

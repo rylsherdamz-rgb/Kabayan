@@ -4,6 +4,7 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/hooks/useTheme";
 import { supabaseClient } from "@/utils/supabase";
+import humanizeError from "@/utils/humanizeError";
 
 type ApplicantRow = {
   job_id: string;
@@ -68,7 +69,7 @@ export default function JobApplicants() {
         }
       } catch (err) {
         if (active) {
-          const message = err instanceof Error ? err.message : "Failed to load applicants.";
+          const message = humanizeError(err, "Failed to load applicants.");
           Alert.alert("Applicants Error", message);
         }
       } finally {
@@ -118,7 +119,7 @@ export default function JobApplicants() {
         },
       });
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Unable to message applicant.";
+      const message = humanizeError(err, "Unable to message applicant.");
       Alert.alert("Message Failed", message);
     } finally {
       setOpeningChatFor(null);
