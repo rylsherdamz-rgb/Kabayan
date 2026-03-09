@@ -8,6 +8,7 @@ import AppFlashMessage from "@/components/CustomComponents/AppFlashMessage";
 import useFlashMessage from "@/hooks/useFlashMessage";
 import JobEditModal from "@/components/JobComponents/JobEditModal";
 import humanizeError from "@/utils/humanizeError";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type JobDetail = {
   id: string;
@@ -34,6 +35,7 @@ export default function JobView() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const inset =useSafeAreaInsets()
   const { flashMessage, showFlashMessage, hideFlashMessage } = useFlashMessage();
 
   useEffect(() => {
@@ -212,7 +214,10 @@ export default function JobView() {
     <TouchableOpacity className="absolute top-0 right-2">
           <Feather name="x-circle" color="#000"  size={20}/>
       </TouchableOpacity>
-        <View className="bg-slate-100">
+        <View style={{paddingTop :  inset.top}} className="bg-slate-100 relative ">
+<TouchableOpacity onPress={() => router.push("/jobs")}  className="px-5 pt-4">
+          <Feather name="x-circle" color="#000"  size={24}/>
+      </TouchableOpacity>
           <Image 
             source={{ uri: "https://images.unsplash.com/photo-1504150559640-a0ce165d472d?w=800" }}
             className="w-full h-40"
@@ -221,12 +226,8 @@ export default function JobView() {
           
           <View className="px-5 pb-6">
             <View className="relative -mt-12 mb-4">
-              <View
-                className="w-24 h-24 rounded-2xl border-4 border-white shadow-sm"
-              />
-              <View className="absolute bottom-0 left-20 bg-white w-8 h-8 rounded-full items-center justify-center shadow-md border border-slate-100">
-                <Feather name="briefcase" size={14} color="#475569" />
-              </View>
+          
+              
             </View>
 
             <View className="flex-row justify-between items-start">

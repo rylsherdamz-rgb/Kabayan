@@ -193,12 +193,9 @@ export default function SearchScreen() {
         />
       </View>
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        className="mt-3   px-[5%]"
+      <View
+        className="mt-3 mb-5 flex flex-row   px-[5%]"
         style={{height : 20}}
-        contentContainerStyle={{ paddingRight: 20 }}
       >
         {SEARCH_CATEGORIES.map((category) => {
           const isActive = searchCategory === category;
@@ -216,7 +213,7 @@ export default function SearchScreen() {
             </TouchableOpacity>
           );
         })}
-      </ScrollView>
+      </View>
 
       <ScrollView showsVerticalScrollIndicator={false} className="  px-[5%] ">
         {showSearchResults ? (
