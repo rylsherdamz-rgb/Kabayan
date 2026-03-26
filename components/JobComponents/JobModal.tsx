@@ -1,10 +1,10 @@
 import React, { useState } from "react";
 import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
 import { Feather, Ionicons } from "@expo/vector-icons";
-import {useSafeAreaInsets} from "react-native-safe-area-context"
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "@/hooks/useTheme";
 import { supabaseClient } from "@/utils/supabase";
-import * as Location from "expo-location";
+import { geocodeAddress } from "@/utils/googleGeocode";
 import humanizeError from "@/utils/humanizeError";
 
 const FALLBACK_COORDINATE = {
@@ -34,7 +34,7 @@ export default function JobModal({ visible, onClose, onCreated }: JobModalProps)
   const { t } = useTheme();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const insets = useSafeAreaInsets()
+  const insets = useSafeAreaInsets();
   const [location, setLocation] = useState("");
   const [budgetMin, setBudgetMin] = useState("");
   const [budgetMax, setBudgetMax] = useState("");
@@ -87,13 +87,14 @@ export default function JobModal({ visible, onClose, onCreated }: JobModalProps)
         throw new Error("You must be signed in to post a job.");
       }
 
+      // Use Google Geocoding API for consistent, accurate coordinates
       let latitude = FALLBACK_COORDINATE.latitude;
       let longitude = FALLBACK_COORDINATE.longitude;
       try {
-        const geo = await Location.geocodeAsync(trimmedLocation);
-        if (geo.length > 0) {
-          latitude = geo[0].latitude;
-          longitude = geo[0].longitude;
+        const geo = await geocodeAddress(trimmedLocation);
+        if (geo) {
+          latitude = geo.latitude;
+          longitude = geo.longitude;
         }
       } catch {
         // Keep fallback coordinates so the insert remains valid.
@@ -125,7 +126,7 @@ export default function JobModal({ visible, onClose, onCreated }: JobModalProps)
       if (insertError) throw new Error(insertError.message);
 
       clearForm();
-      onCreated?.(data);
+      onCreated?.(data as unknown as CreatedJob | undefined);
       onClose();
     } catch (err) {
       const message = humanizeError(err, "Failed to post job.");
@@ -136,9 +137,9 @@ export default function JobModal({ visible, onClose, onCreated }: JobModalProps)
   };
 
   return (
-    <Modal  visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} className="flex-1 justify-end">
-        <View  style={{paddingBottom : insets.bottom}} className="flex-1 bg-black/50 justify-end">
+        <View style={{ paddingBottom: insets.bottom }} className="flex-1 bg-black/50 justify-end">
           <View className={`max-h-[80%] bg-white rounded-t-[32px] p-6 ${t.bgCard}`}>
             <View className="flex-row items-center justify-between mb-4">
               <View className="flex-row items-center">
@@ -165,7 +166,7 @@ export default function JobModal({ visible, onClose, onCreated }: JobModalProps)
               />
               <Field
                 label="Location"
-                placeholder="City or exact address"
+                placeholder="e.g. Makati City, Philippines"
                 value={location}
                 onChangeText={setLocation}
                 icon="map-pin"
@@ -175,7 +176,7 @@ export default function JobModal({ visible, onClose, onCreated }: JobModalProps)
                 placeholder="Minimum"
                 value={budgetMin}
                 onChangeText={setBudgetMin}
-                icon="currency-php"
+                icon="dollar-sign"
                 inline
                 trailing={
                   <TextInput
@@ -190,7 +191,7 @@ export default function JobModal({ visible, onClose, onCreated }: JobModalProps)
                 }
               />
               <Field
-                label="What’s the work?"
+                label="What's the work?"
                 placeholder="Describe the job, tools needed, schedule, scope…"
                 value={description}
                 onChangeText={setDescription}
@@ -259,6 +260,7 @@ function Field({ label, value, onChangeText, placeholder, icon, multiline, inlin
           placeholder={placeholder}
           placeholderTextColor="#94A3B8"
           multiline={multiline}
+          keyboardType={icon === "dollar-sign" ? "numeric" : "default"}
           className="flex-1 ml-3 font-semibold text-slate-900"
           style={multiline ? { minHeight: 80 } : undefined}
         />

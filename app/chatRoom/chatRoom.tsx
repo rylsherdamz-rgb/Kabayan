@@ -6,8 +6,7 @@ import {
   TouchableOpacity, 
   KeyboardAvoidingView, 
   Platform, 
-  FlatList, 
-  Image,
+  FlatList,
 } from "react-native";
 import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -121,14 +120,15 @@ export default function ChatRoomLayout() {
       <View className={`pt-12 pb-4 px-4 ${t.bgCard} border-b ${t.border} flex-row items-center justify-between shadow-sm`}>
         <View className="flex-row items-center flex-1">
           <TouchableOpacity onPress={() => router.back()} className="p-2 mr-1">
-            <Feather name="chevron-left" size={26} color={t.text} />
+            <Feather name="chevron-left" size={26} color={t.icon} />
           </TouchableOpacity>
           
           <View className="relative">
-            <Image 
-              source={{ uri: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200' }} 
-              className="w-10 h-10 rounded-full" 
-            />
+            <View className="w-10 h-10 rounded-full bg-blue-600 items-center justify-center">
+              <Text className="text-white font-black text-base">
+                {headerName.slice(0, 1).toUpperCase()}
+              </Text>
+            </View>
             <View className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white" />
           </View>
 
@@ -138,14 +138,9 @@ export default function ChatRoomLayout() {
           </View>
         </View>
 
-        <View className="flex-row items-center gap-x-2">
-          <TouchableOpacity className={`${t.bgSurface} p-2.5 rounded-xl border ${t.border}`}>
-            <Feather name="phone" size={18} color={t.accent} />
-          </TouchableOpacity>
-          <TouchableOpacity className={`${t.bgSurface} p-2.5 rounded-xl border ${t.border}`}>
-            <Feather name="more-vertical" size={18} color={t.icon} />
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity className={`${t.bgSurface} p-2.5 rounded-xl border ${t.border}`}>
+          <Feather name="more-vertical" size={18} color={t.icon} />
+        </TouchableOpacity>
       </View>
 
       <View className={`${t.brandSoft} px-5 py-3 border-b ${t.border} flex-row justify-between items-center`}>

@@ -1,146 +1,136 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { Camera, MapView, PointAnnotation } from '@maplibre/maplibre-react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, StyleSheet } from 'react-native';
+import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
 
-const DEFAULT_COORDINATE: [number, number] = [120.9842, 14.5995]; // Manila
-const STREET_STYLE = 'https://tiles.openfreemap.org/styles/liberty';
+const DEFAULT_COORDINATE: [number, number] = [120.9842, 14.5995]; 
+const GOOGLE_MAPS_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAP_KEY ?? '';
 
 type CustomMapComponentsProps = {
   markerCoordinate?: [number, number] | null;
   markerLabel?: string | null;
+  onLocationSelected?: (coords: [number, number], address: string) => void;
 };
 
-export default function CustomMapComponents({ markerCoordinate, markerLabel }: CustomMapComponentsProps) {
-  const cameraRef = useRef<Camera>(null);
-  const [zoomLevel, setZoomLevel] = useState(13);
-  const [center, setCenter] = useState(DEFAULT_COORDINATE);
-  const activeCoordinate = markerCoordinate ?? DEFAULT_COORDINATE;
+export default function CustomMapComponents({ 
+  markerCoordinate, 
+  markerLabel, 
+  onLocationSelected 
+}: CustomMapComponentsProps) {
+  const mapRef = useRef<MapView>(null);
+  const [ready, setReady] = useState(false);
+
+  const [lng, lat] = markerCoordinate ?? DEFAULT_COORDINATE;
+
+  const region = {
+    latitude: lat,
+    longitude: lng,
+    latitudeDelta: 0.01,
+    longitudeDelta: 0.01,
+  };
 
   useEffect(() => {
-    if (!markerCoordinate) return;
-    setCenter(markerCoordinate);
-    setZoomLevel(15);
-    cameraRef.current?.setCamera({
-      centerCoordinate: markerCoordinate,
-      zoomLevel: 15,
-      animationDuration: 700,
-    });
-  }, [markerCoordinate]);
-
-  const marker = useMemo(() => (
-    <View style={styles.markerWrap}>
-      <View style={styles.markerPin} />
-      <View style={styles.markerDot} />
-    </View>
-  ), []);
+    if (!ready || !mapRef.current) return;
+    mapRef.current.animateToRegion(region, 700);
+  }, [markerCoordinate, ready]);
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        <MapView
-          style={StyleSheet.absoluteFill}
-          mapStyle={STREET_STYLE}
-          logoEnabled={false}
-          compassEnabled
-          attributionEnabled
-          attributionPosition={{ bottom: 10, right: 10 }}
-          rotateEnabled
-          pitchEnabled
-          zoomEnabled
-          onRegionDidChange={(feature) => {
-            const nextCenter = feature.geometry.coordinates as [number, number];
-            setCenter(nextCenter);
-            setZoomLevel(feature.properties.zoomLevel);
+    <View style={styles.container}>
+      <MapView
+        ref={mapRef}
+        provider={PROVIDER_GOOGLE}
+        style={StyleSheet.absoluteFill}
+        initialRegion={region}
+        onMapReady={() => setReady(true)}
+        showsUserLocation={false}
+        showsMyLocationButton={false}
+        showsCompass={true}
+        toolbarEnabled={false}
+        mapType="standard"
+      >
+        <Marker
+          coordinate={{ latitude: lat, longitude: lng }}
+          title={markerLabel?.trim() ? markerLabel : 'Pinned location'}
+          pinColor="#2563EB"
+        />
+      </MapView>
+
+      <View style={styles.searchWrapper}>
+        <GooglePlacesAutocomplete
+          placeholder={markerLabel?.trim() ? markerLabel : 'Search location...'}
+          fetchDetails={true}
+          onPress={(data, details = null) => {
+            if (details) {
+              const { lat: newLat, lng: newLng } = details.geometry.location;
+              
+              mapRef.current?.animateToRegion({
+                latitude: newLat,
+                longitude: newLng,
+                latitudeDelta: 0.01,
+                longitudeDelta: 0.01,
+              }, 700);
+
+              if (onLocationSelected) {
+                onLocationSelected([newLng, newLat], data.description);
+              }
+            }
           }}
-        >
-          <Camera
-            ref={cameraRef}
-            zoomLevel={zoomLevel}
-            centerCoordinate={center}
-            pitch={0}
-            heading={0}
-          />
-
-          <PointAnnotation id="targetMarker" key="targetMarker" coordinate={activeCoordinate}>
-            {marker}
-          </PointAnnotation>
-        </MapView>
-
-        <View style={styles.searchBar}>
-          <Ionicons name="search" size={18} color="#6b7280" />
-          <Text style={styles.searchText} numberOfLines={1}>
-            {markerLabel?.trim() ? markerLabel : 'Pinned location'}
-          </Text>
-        </View>
-
+          query={{
+            key: GOOGLE_MAPS_KEY,
+            language: 'en',
+          }}
+          styles={{
+            container: styles.autocompleteContainer,
+            textInput: styles.searchText,
+            listView: styles.listView,
+          }}
+          enablePoweredByContainer={false}
+        />
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#f8fafc',
-  },
   container: {
     flex: 1,
     borderRadius: 20,
     overflow: 'hidden',
     backgroundColor: '#f3f4f6',
   },
-  searchBar: {
+  searchWrapper: {
     position: 'absolute',
     top: 14,
     left: 14,
     right: 14,
+    zIndex: 1, 
+  },
+  autocompleteContainer: {
+    flex: 0,
+  },
+  searchText: {
     height: 44,
     borderRadius: 14,
     backgroundColor: 'rgba(255,255,255,0.96)',
     borderWidth: 1,
-    borderColor: 'rgba(15,23,42,0.04)',
+    borderColor: 'rgba(15,23,42,0.06)',
     paddingHorizontal: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    shadowColor: '#0f172a',
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
-  },
-  searchText: {
-    flex: 1,
     color: '#111827',
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
-  },
-  markerWrap: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  markerPin: {
-    width: 32,
-    height: 32,
-    backgroundColor: '#2563eb',
-    borderRadius: 16,
-    transform: [{ rotate: '45deg' }],
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#f8fafc',
     shadowColor: '#0f172a',
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 5,
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
   },
-  markerDot: {
-    position: 'absolute',
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+  listView: {
     backgroundColor: 'white',
+    borderRadius: 14,
+    marginTop: 5,
+    elevation: 7,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
   },
 });

@@ -35,7 +35,7 @@ const isAuthSessionMissing = (message?: string | null) =>
 
 export default function CustomDrawerContent(props: any) {
   const { t } = useTheme();
-  const [showModal, setShowModal] = useState<boolean>()
+  const [showModal, setShowModal] = useState<boolean>();
   const inset = useSafeAreaInsets();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -43,7 +43,6 @@ export default function CustomDrawerContent(props: any) {
   const [email, setEmail] = useState<string | null>(null);
   const [jobsCount, setJobsCount] = useState(0);
   const [listingsCount, setListingsCount] = useState(0);
-  const [trigger, setTrigger] = useState<any>()
 
   useEffect(() => {
     let active = true;
@@ -54,7 +53,6 @@ export default function CustomDrawerContent(props: any) {
         const { data: userData, error: userError } = await supabaseClient.auth.getUser();
         if (userError && !isAuthSessionMissing(userError.message)) {
           throw new Error(userError.message);
-          setTrigger(userError?.message)
         }
 
         const user = userData?.user;
@@ -85,7 +83,7 @@ export default function CustomDrawerContent(props: any) {
         if (jobsRes.error) throw new Error(jobsRes.error.message);
         if (listingsRes.error) throw new Error(listingsRes.error.message);
 
-        setProfile(profileRes.data ?? null);
+        setProfile((profileRes.data as DrawerProfile) ?? null);
         setJobsCount(Number(jobsRes.data ?? 0));
         setListingsCount(Number(listingsRes.data ?? 0));
       } catch (err) {
@@ -111,13 +109,9 @@ export default function CustomDrawerContent(props: any) {
     };
   }, []);
 
-  const handleNavigation = ( ) => {
-  if (isAuthSessionMissing(trigger) ) {
-    setShowModal(true)
-  }
-  router.push('/profile')
-
-  }
+  const handleNavigation = () => {
+    router.push('/profile');
+  };
 
   const displayName = profile?.display_name?.trim() || 'Guest User';
   const verificationStatus = profile?.id_verification_status ?? 'unverified';

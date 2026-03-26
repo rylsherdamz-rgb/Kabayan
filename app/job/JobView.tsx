@@ -35,7 +35,7 @@ export default function JobView() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
-  const inset =useSafeAreaInsets()
+  const inset = useSafeAreaInsets();
   const { flashMessage, showFlashMessage, hideFlashMessage } = useFlashMessage();
 
   useEffect(() => {
@@ -45,7 +45,7 @@ export default function JobView() {
       const { data, error } = await supabaseClient
         .rpc("rpc_get_job_by_id", { p_job_id: jobId })
         .maybeSingle();
-      if (!error && data) setJob(data);
+      if (!error && data) setJob(data as JobDetail);
       setLoading(false);
     };
     fetchJob();
@@ -67,7 +67,7 @@ export default function JobView() {
   if (loading) {
     return (
       <View className={`flex-1 items-center justify-center ${t.bgPage}`}>
-        <ActivityIndicator />
+        <ActivityIndicator color="#2563EB" />
         <Text className={`mt-2 ${t.textMuted}`}>Loading job…</Text>
       </View>
     );
@@ -147,7 +147,6 @@ export default function JobView() {
       }
 
       if (!roomId && job.employer_id) {
-        // Legacy fallback for older DBs.
         const legacy = await supabaseClient.rpc("rpc_open_job_conversation", {
           p_job_id: job.id,
           p_employer_id: job.employer_id,
@@ -191,7 +190,7 @@ export default function JobView() {
         .maybeSingle();
 
       if (error) throw new Error(error.message);
-      const resolvedStatus = data?.status ?? nextStatus;
+      const resolvedStatus = (data as { status?: string } | null)?.status ?? nextStatus;
       setJob((prev) => (prev ? { ...prev, status: resolvedStatus } : prev));
       showFlashMessage(
         resolvedStatus === "closed" ? "Job closed" : "Job reopened",
@@ -211,36 +210,35 @@ export default function JobView() {
   return (
     <View className={`flex-1 relative ${t.bgPage}`}>
       <ScrollView showsVerticalScrollIndicator={false}>
-    <TouchableOpacity className="absolute top-0 right-2">
-          <Feather name="x-circle" color="#000"  size={20}/>
-      </TouchableOpacity>
-        <View style={{paddingTop :  inset.top}} className="bg-slate-100 relative ">
-<TouchableOpacity onPress={() => router.push("/jobs")}  className="px-5 pt-4">
-          <Feather name="x-circle" color="#000"  size={24}/>
-      </TouchableOpacity>
-          <Image 
+        {/* Hero header */}
+        <View style={{ paddingTop: inset.top }} className="bg-slate-100 relative">
+          {/* Single back button */}
+          <TouchableOpacity
+            onPress={() => router.back()}
+            className="absolute z-10 top-0 left-4 bg-white/90 p-2 rounded-full shadow-sm"
+            style={{ top: inset.top + 12 }}
+          >
+            <Feather name="chevron-left" color="#0F172A" size={22} />
+          </TouchableOpacity>
+
+          <Image
             source={{ uri: "https://images.unsplash.com/photo-1504150559640-a0ce165d472d?w=800" }}
-            className="w-full h-40"
+            className="w-full h-44"
             resizeMode="cover"
           />
-          
-          <View className="px-5 pb-6">
-            <View className="relative -mt-12 mb-4">
-          
-              
-            </View>
 
-            <View className="flex-row justify-between items-start">
-              <View className="flex-1">
+          <View className="px-5 pb-6">
+            <View className="flex-row justify-between items-start mt-4">
+              <View className="flex-1 pr-3">
                 <Text className={`text-2xl font-bold tracking-tight ${t.text}`}>{job.title}</Text>
-                <Text className="text-blue-600 font-semibold text-sm">{job.location_label}</Text>
-                <Text className={`text-sm mt-1 ${t.textMuted}`}>{formatTime(job.created_at)}</Text>
+                <Text className="text-blue-600 font-semibold text-sm mt-1">{job.location_label}</Text>
+                <Text className={`text-xs mt-1 ${t.textMuted}`}>{formatTime(job.created_at)}</Text>
               </View>
               <View className="items-end">
                 <Text className="text-emerald-600 font-black text-lg">{salary}</Text>
-                <View className="bg-red-50 px-2 py-1 rounded-md mt-2">
-                  <Text className="text-red-600 font-black text-[10px] uppercase tracking-widest">
-                    {isClosed === true ? "Closed" : (job.is_urgent ? "Urgent" : job.status)}
+                <View className={`px-2 py-1 rounded-md mt-2 ${isClosed ? "bg-slate-100" : job.is_urgent ? "bg-red-50" : "bg-blue-50"}`}>
+                  <Text className={`font-black text-[10px] uppercase tracking-widest ${isClosed ? "text-slate-500" : job.is_urgent ? "text-red-600" : "text-blue-600"}`}>
+                    {isClosed ? "Closed" : job.is_urgent ? "Urgent" : job.status}
                   </Text>
                 </View>
               </View>
@@ -257,11 +255,11 @@ export default function JobView() {
 
           <Text className={`text-xs font-bold ${t.textMuted} uppercase tracking-widest mt-6 mb-3 ml-1`}>Location</Text>
           <View className={`p-4 rounded-2xl ${t.bgCard} border ${t.border} flex-row items-center`}>
-            <Ionicons name="location-sharp" size={18} color={t.icon} />
+            <Ionicons name="location-sharp" size={18} color="#2563EB" />
             <Text className={`ml-2 flex-1 ${t.text}`}>{job.location_label}</Text>
             <TouchableOpacity
               onPress={() => router.push({ pathname: "/map/mapView", params: { location: job.location_label } })}
-              className="ml-3 px-3 py-2 rounded-lg bg-blue-50 border border-blue-200 flex-row items-center"
+              className="ml-3 px-3 py-2 rounded-lg bg-blue-50 border border-blue-100 flex-row items-center"
               activeOpacity={0.85}
             >
               <Ionicons name="map" size={16} color="#2563eb" />
@@ -285,11 +283,7 @@ export default function JobView() {
                   className={`flex-1 ${job.status === "open" ? "bg-rose-600" : "bg-emerald-600"} py-4 rounded-2xl items-center shadow-sm`}
                 >
                   <Text className="text-white font-black">
-                    {updatingStatus
-                      ? "Updating..."
-                      : job.status === "open"
-                      ? "Close Job"
-                      : "Reopen Job"}
+                    {updatingStatus ? "Updating..." : job.status === "open" ? "Close Job" : "Reopen Job"}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -301,7 +295,9 @@ export default function JobView() {
                 disabled={applying || isClosed}
                 className={`flex-1 py-4 rounded-2xl items-center shadow-sm ${isClosed ? "bg-slate-400" : "bg-blue-600"}`}
               >
-                <Text className="text-white font-black">{isClosed === true ? "Closed"  : (applying ? "Applying..." : "Apply Now")}</Text>
+                <Text className="text-white font-black">
+                  {isClosed ? "Closed" : applying ? "Applying..." : "Apply Now"}
+                </Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={handleMessageEmployer}
@@ -333,10 +329,10 @@ export default function JobView() {
 const formatBudget = (min: number, max: number) => {
   if (!min && !max) return "N/A";
   if (min === max) return `₱${min.toLocaleString()}`;
-  return `₱${min.toLocaleString()} - ₱${max.toLocaleString()}`;
+  return `₱${min.toLocaleString()} – ₱${max.toLocaleString()}`;
 };
 
 const formatTime = (iso: string) => {
   const date = new Date(iso);
-  return date.toLocaleDateString();
+  return date.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
 };

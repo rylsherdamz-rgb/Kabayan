@@ -1,6 +1,6 @@
 import React from "react";
 import { Tabs, useNavigation } from "expo-router";
-import { Pressable } from "react-native";
+import { Alert, Pressable } from "react-native";
 import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import {useSafeAreaInsets} from "react-native-safe-area-context"
 import { useTheme } from "@/hooks/useTheme";
@@ -42,7 +42,10 @@ export default function TabsLayout() {
             letterSpacing: 0.5,
           },
           headerRight: () => (
-            <Pressable className="mr-5 p-2 rounded-xl ">
+            <Pressable
+              className="mr-5 p-2 rounded-xl"
+              onPress={() => Alert.alert("Notifications", "Push notifications coming soon!")}
+            >
               <Ionicons name="notifications-outline" size={20} color={t.icon} />
             </Pressable>
           ),
