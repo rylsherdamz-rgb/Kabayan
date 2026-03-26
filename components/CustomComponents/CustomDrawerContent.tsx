@@ -1,176 +1,180 @@
 import React, { useEffect, useState } from 'react';
-import { View, Pressable, Text, TouchableOpacity, Image, ActivityIndicator, Alert } from 'react-native';
+import { View, Pressable, Text, Image, ActivityIndicator, Alert, StyleSheet } from 'react-native';
 import { DrawerContentScrollView } from '@react-navigation/drawer';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/hooks/useTheme';
 import { supabaseClient } from '@/utils/supabase';
-import humanizeError from '@/utils/humanizeError';
-
-type DrawerProfile = {
-  user_id: string;
-  display_name: string | null;
-  avatar_url: string | null;
-  id_verification_status: string;
-  job_role: string;
-  market_role: string;
-  location_label: string | null;
-};
-
-const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400';
-
-const titleCase = (value?: string | null) => {
-  if (!value) return '';
-  return value
-    .replace(/_/g, ' ')
-    .split(' ')
-    .filter(Boolean)
-    .map((word) => word[0].toUpperCase() + word.slice(1))
-    .join(' ');
-};
-
-const isAuthSessionMissing = (message?: string | null) =>
-  (message ?? '').toLowerCase().includes('auth session missing');
 
 export default function CustomDrawerContent(props: any) {
   const { t } = useTheme();
-  const [showModal, setShowModal] = useState<boolean>();
   const inset = useSafeAreaInsets();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [profile, setProfile] = useState<DrawerProfile | null>(null);
+  const [profile, setProfile] = useState<any>(null);
   const [email, setEmail] = useState<string | null>(null);
-  const [jobsCount, setJobsCount] = useState(0);
-  const [listingsCount, setListingsCount] = useState(0);
 
   useEffect(() => {
     let active = true;
-
-    const loadDrawerData = async () => {
-      if (active) setLoading(true);
-      try {
-        const { data: userData, error: userError } = await supabaseClient.auth.getUser();
-        if (userError && !isAuthSessionMissing(userError.message)) {
-          throw new Error(userError.message);
-        }
-
-        const user = userData?.user;
-        setEmail(user?.email ?? null);
-        if (!user) {
-          if (active) {
-            setProfile(null);
-            setJobsCount(0);
-            setListingsCount(0);
-            setLoading(false);
-          }
-          return;
-        }
-
-        const uid = user.id;
-
-        const [profileRes, jobsRes, listingsRes] = await Promise.all([
-          supabaseClient
-            .rpc('rpc_get_drawer_profile', { p_user_id: uid })
-            .maybeSingle(),
-          supabaseClient.rpc('rpc_get_jobs_count_by_employer', { p_employer_id: uid }),
-          supabaseClient.rpc('rpc_get_listings_count_by_vendor', { p_vendor_id: uid }),
-        ]);
-
-        if (!active) return;
-
-        if (profileRes.error) throw new Error(profileRes.error.message);
-        if (jobsRes.error) throw new Error(jobsRes.error.message);
-        if (listingsRes.error) throw new Error(listingsRes.error.message);
-
-        setProfile((profileRes.data as DrawerProfile) ?? null);
-        setJobsCount(Number(jobsRes.data ?? 0));
-        setListingsCount(Number(listingsRes.data ?? 0));
-      } catch (err) {
-        if (active) {
-          const message = humanizeError(err, 'Failed to load drawer data.');
-          Alert.alert('Drawer Error', message);
-        }
-      } finally {
-        if (active) setLoading(false);
-      }
+    const loadData = async () => {
+      const { data: { user } } = await supabaseClient.auth.getUser();
+      if (!user) { setLoading(false); return; }
+      setEmail(user.email ?? null);
+      const { data } = await supabaseClient.rpc('rpc_get_drawer_profile', { p_user_id: user.id }).maybeSingle();
+      if (active) { setProfile(data); setLoading(false); }
     };
-
-    
-
-    loadDrawerData();
-    const { data: authListener } = supabaseClient.auth.onAuthStateChange(() => {
-      loadDrawerData();
-    });
-
-    return () => {
-      active = false;
-      authListener.subscription.unsubscribe();
-    };
+    loadData();
+    return () => { active = false; };
   }, []);
 
-  const handleNavigation = () => {
-    router.push('/profile');
-  };
-
-  const displayName = profile?.display_name?.trim() || 'Guest User';
-  const verificationStatus = profile?.id_verification_status ?? 'unverified';
-  const verificationLabel = titleCase(verificationStatus);
-  const isVerified = verificationStatus === 'verified';
-  const locationLabel = profile?.location_label ?? 'Location unknown';
-
-  const verificationColor = isVerified ? '#3B82F6' : '#94A3B8';
+  const DrawerItem = ({ icon, label, onPress, active = false }: any) => (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.drawerItem,
+        active && { backgroundColor: '#E1E7F0' }, // MD3 "Container" color
+        pressed && { backgroundColor: 'rgba(0,0,0,0.05)' }
+      ]}
+    >
+      <MaterialCommunityIcons 
+        name={icon} 
+        size={24} 
+        color={active ? '#1B1B1F' : '#44474E'} 
+      />
+      <Text style={[
+        styles.drawerLabel, 
+        { color: active ? '#1B1B1F' : '#44474E', fontWeight: active ? '700' : '500' }
+      ]}>
+        {label}
+      </Text>
+    </Pressable>
+  );
 
   return (
-    <View style={{paddingTop : inset.top}} className={`flex-1  ${t.bgCard}`}>
-      <DrawerContentScrollView {...props} scrollEnabled={true} contentContainerStyle={{ paddingTop: 0 }}>
-        <Pressable
-          onPress={handleNavigation }
-          style={{ paddingTop: inset.top + 20 }} 
-          className={`px-6 pb-8 border-b rounded-2xl ${t.border} ${t.brandSoft}`} 
-        >
-          <View className="relative w-20 h-20 mb-4">
-            <Image
-              source={{ uri: profile?.avatar_url ?? DEFAULT_AVATAR }}
-              className="w-full h-full rounded-[24px] border-4 border-white shadow-sm"
-            />
-            <View className="absolute -bottom-1 -right-1 bg-emerald-500 w-5 h-5 rounded-full border-2 border-white" />
-          </View>
-
-          <Text className={`text-2xl font-black tracking-tighter ${t.text}`}>
-            {displayName}
-          </Text>
-          <View className="flex-row items-center mt-1">
-            <MaterialCommunityIcons
-              name={isVerified ? 'check-decagram' : 'clock-outline'}
-              size={14}
-              color={verificationColor}
-            />
-            <Text className={`ml-1 text-[10px] font-bold uppercase tracking-widest ${t.textMuted}`}>
-              {verificationLabel}
+    <View style={{ flex: 1, backgroundColor: t.bgCard }}>
+      <DrawerContentScrollView {...props} contentContainerStyle={{ paddingTop: 0 }}>
+        {/* 1. ACCOUNT HEADER SECTION */}
+        <View style={[styles.header, { paddingTop: inset.top + 24 }]}>
+          <Image
+            source={{ uri: profile?.avatar_url || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400' }}
+            style={styles.avatar}
+          />
+          <View style={styles.userInfo}>
+            <Text style={[styles.userName, { color: t.text }]}>
+              {profile?.display_name || 'Guest User'}
+            </Text>
+            <Text style={[styles.userEmail, { color: t.textMuted }]}>
+              {email}
             </Text>
           </View>
-          <Text className={`mt-1 text-xs font-semibold ${t.textMuted}`}>{locationLabel}</Text>
-          {email ? <Text className={`mt-1 text-[11px] ${t.textMuted}`}>{email}</Text> : null}
-          <View className="mt-4 flex-row gap-2">
-            <View className={`flex-1 ${t.bgCard} border ${t.border} rounded-xl px-3 py-2`}>
-              <Text className={`text-[10px] font-black uppercase tracking-widest ${t.textMuted}`}>Jobs</Text>
-              <Text className={`text-base font-black ${t.text}`}>{jobsCount}</Text>
-            </View>
-            <View className={`flex-1 ${t.bgCard} border ${t.border} rounded-xl px-3 py-2`}>
-              <Text className={`text-[10px] font-black uppercase tracking-widest ${t.textMuted}`}>Listings</Text>
-              <Text className={`text-base font-black ${t.text}`}>{listingsCount}</Text>
-            </View>
-          </View>
-        </Pressable>
+        </View>
 
-        {loading ? (
-          <View className="py-6 items-center">
-            <ActivityIndicator />
-            <Text className={`mt-2 text-xs ${t.textMuted}`}>Loading drawer…</Text>
-          </View>
-        ) : null}
+        {/* 2. NAVIGATION SECTION */}
+        <View style={styles.menuSection}>
+          <Text style={[styles.sectionHeader, { color: t.textMuted }]}>Account</Text>
+          
+          <DrawerItem 
+            icon="account-circle-outline" 
+            label="Profile" 
+            onPress={() => router.push('/profile')} 
+            active={props.state.index === 0} // Example check
+          />
+          
+          <DrawerItem 
+            icon="map-marker-outline" 
+            label="Saved Locations" 
+            onPress={() => router.push('/locations')} 
+          />
+
+          <View style={styles.divider} />
+          
+          <Text style={[styles.sectionHeader, { color: t.textMuted }]}>Activity</Text>
+          
+          <DrawerItem 
+            icon="briefcase-outline" 
+            label={`Jobs (${profile?.jobs_count || 0})`} 
+            onPress={() => {}} 
+          />
+          
+          <DrawerItem 
+            icon="tag-outline" 
+            label={`Listings (${profile?.listings_count || 0})`} 
+            onPress={() => {}} 
+          />
+        </View>
       </DrawerContentScrollView>
-   </View>
+
+      {/* 3. FOOTER SECTION */}
+      <View style={[styles.footer, { paddingBottom: inset.bottom + 16 }]}>
+        <DrawerItem 
+          icon="logout" 
+          label="Sign Out" 
+          onPress={() => supabaseClient.auth.signOut()} 
+        />
+      </View>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  header: {
+    paddingHorizontal: 28,
+    paddingBottom: 20,
+  },
+  avatar: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    marginBottom: 12,
+  },
+  userInfo: {
+    gap: 2,
+  },
+  userName: {
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 0.1,
+  },
+  userEmail: {
+    fontSize: 14,
+    fontWeight: '400',
+  },
+  menuSection: {
+    paddingHorizontal: 12, // MD3 standard horizontal inset
+    marginTop: 8,
+  },
+  sectionHeader: {
+    fontSize: 12,
+    fontWeight: '700',
+    marginLeft: 16,
+    marginTop: 16,
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  drawerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 56, // MD3 standard height
+    paddingHorizontal: 16,
+    borderRadius: 28, // Full pill shape
+    marginBottom: 4,
+  },
+  drawerLabel: {
+    marginLeft: 12,
+    fontSize: 14,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: 'rgba(0,0,0,0.08)',
+    marginVertical: 12,
+    marginHorizontal: 16,
+  },
+  footer: {
+    paddingHorizontal: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(0,0,0,0.1)',
+    paddingTop: 8,
+  },
+});

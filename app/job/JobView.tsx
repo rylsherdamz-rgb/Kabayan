@@ -1,40 +1,25 @@
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useTheme } from "@/hooks/useTheme";
-import { View, Text, ScrollView, TouchableOpacity, Image, ActivityIndicator } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, Image, ActivityIndicator, Dimensions, StyleSheet } from "react-native";
 import { useEffect, useState } from "react";
 import { supabaseClient } from "@/utils/supabase";
 import AppFlashMessage from "@/components/CustomComponents/AppFlashMessage";
 import useFlashMessage from "@/hooks/useFlashMessage";
 import JobEditModal from "@/components/JobComponents/JobEditModal";
-import humanizeError from "@/utils/humanizeError";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-type JobDetail = {
-  id: string;
-  employer_id?: string;
-  title: string;
-  description: string;
-  requirements?: string[] | null;
-  location_label: string;
-  budget_min: number;
-  budget_max: number;
-  is_urgent: boolean;
-  status: string;
-  created_at: string;
-};
+const { width } = Dimensions.get('window');
 
 export default function JobView() {
   const { t } = useTheme();
   const router = useRouter();
   const { jobId } = useLocalSearchParams<{ jobId?: string }>();
-  const [job, setJob] = useState<JobDetail | null>(null);
+  const [job, setJob] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [applying, setApplying] = useState(false);
-  const [messaging, setMessaging] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [editModalVisible, setEditModalVisible] = useState(false);
-  const [updatingStatus, setUpdatingStatus] = useState(false);
   const inset = useSafeAreaInsets();
   const { flashMessage, showFlashMessage, hideFlashMessage } = useFlashMessage();
 
@@ -42,297 +27,198 @@ export default function JobView() {
     const fetchJob = async () => {
       if (!jobId) return;
       setLoading(true);
-      const { data, error } = await supabaseClient
-        .rpc("rpc_get_job_by_id", { p_job_id: jobId })
-        .maybeSingle();
-      if (!error && data) setJob(data as JobDetail);
+      const { data } = await supabaseClient.rpc("rpc_get_job_by_id", { p_job_id: jobId }).maybeSingle();
+      if (data) setJob(data);
       setLoading(false);
     };
     fetchJob();
+    supabaseClient.auth.getUser().then(({ data }) => setCurrentUserId(data.user?.id ?? null));
   }, [jobId]);
 
-  useEffect(() => {
-    supabaseClient.auth.getUser().then(({ data }) => {
-      setCurrentUserId(data.user?.id ?? null);
-    });
-    const { data: authListener } = supabaseClient.auth.onAuthStateChange((_event, session) => {
-      setCurrentUserId(session?.user?.id ?? null);
-    });
+  if (loading) return (
+    <View style={[styles.centered, { backgroundColor: t.bgPage }]}>
+      <ActivityIndicator color="#2563EB" size="large" />
+    </View>
+  );
 
-    return () => {
-      authListener.subscription.unsubscribe();
-    };
-  }, []);
+  if (!job) return null;
 
-  if (loading) {
-    return (
-      <View className={`flex-1 items-center justify-center ${t.bgPage}`}>
-        <ActivityIndicator color="#2563EB" />
-        <Text className={`mt-2 ${t.textMuted}`}>Loading job…</Text>
-      </View>
-    );
-  }
-
-  if (!job) {
-    return (
-      <View className={`flex-1 items-center justify-center ${t.bgPage}`}>
-        <Text className={`text-base font-semibold ${t.text}`}>Job not found</Text>
-        <TouchableOpacity onPress={() => router.back()} className="mt-3 px-4 py-2 bg-blue-600 rounded-full">
-          <Text className="text-white font-bold">Go back</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
-  const salary = formatBudget(job.budget_min, job.budget_max);
   const isClosed = job.status !== "open";
-  const isOwner = Boolean(currentUserId && job.employer_id && currentUserId === job.employer_id);
-
-  const handleApply = async () => {
-    if (!job || applying) return;
-
-    setApplying(true);
-    try {
-      const { data: userData, error: userError } = await supabaseClient.auth.getUser();
-      if (userError) throw new Error(userError.message);
-      if (!userData.user) {
-        showFlashMessage("Sign in required", "Please sign in before applying.", "warning");
-        return;
-      }
-
-      const { error } = await supabaseClient.rpc("rpc_apply_to_job", {
-        p_job_id: job.id,
-      });
-      if (error) throw new Error(error.message);
-
-      showFlashMessage("Application sent", "Your application has been submitted.", "success");
-    } catch (err) {
-      const message = humanizeError(err, "Unable to apply right now.");
-      showFlashMessage("Apply failed", message, "error");
-    } finally {
-      setApplying(false);
-    }
-  };
-
-  const handleMessageEmployer = async () => {
-    if (!job || messaging) return;
-
-    setMessaging(true);
-    try {
-      const { data: userData, error: userError } = await supabaseClient.auth.getUser();
-      if (userError) throw new Error(userError.message);
-      if (!userData.user) {
-        showFlashMessage("Sign in required", "Please sign in to message the employer.", "warning");
-        return;
-      }
-
-      let roomId: string | null = null;
-      if (job.employer_id) {
-        const unified = await supabaseClient.rpc("rpc_open_job_conversation_with_user", {
-          p_job_id: job.id,
-          p_other_user_id: job.employer_id,
-        });
-        if (!unified.error && unified.data) {
-          roomId = unified.data;
-        }
-      }
-
-      if (!roomId) {
-        const primary = await supabaseClient.rpc("rpc_open_job_conversation_for_job", {
-          p_job_id: job.id,
-        });
-        if (!primary.error && primary.data) {
-          roomId = primary.data;
-        }
-      }
-
-      if (!roomId && job.employer_id) {
-        const legacy = await supabaseClient.rpc("rpc_open_job_conversation", {
-          p_job_id: job.id,
-          p_employer_id: job.employer_id,
-        });
-        if (!legacy.error && legacy.data) {
-          roomId = legacy.data;
-        }
-      }
-
-      if (!roomId) {
-        throw new Error("Could not open conversation. Run `npx supabase db push` and restart the app.");
-      }
-
-      router.push({
-        pathname: "/chatRoom/chatRoom",
-        params: {
-          roomId,
-          name: "Employer",
-          jobTitle: job.title,
-        },
-      });
-    } catch (err) {
-      const message = humanizeError(err, "Unable to open chat right now.");
-      showFlashMessage("Message failed", message, "error");
-    } finally {
-      setMessaging(false);
-    }
-  };
-
-  const handleToggleJobStatus = async () => {
-    if (!job || !isOwner || updatingStatus) return;
-
-    const nextStatus = job.status === "open" ? "closed" : "open";
-    setUpdatingStatus(true);
-    try {
-      const { data, error } = await supabaseClient
-        .rpc("rpc_set_job_status", {
-          p_job_id: job.id,
-          p_status: nextStatus,
-        })
-        .maybeSingle();
-
-      if (error) throw new Error(error.message);
-      const resolvedStatus = (data as { status?: string } | null)?.status ?? nextStatus;
-      setJob((prev) => (prev ? { ...prev, status: resolvedStatus } : prev));
-      showFlashMessage(
-        resolvedStatus === "closed" ? "Job closed" : "Job reopened",
-        resolvedStatus === "closed"
-          ? "This job is now closed to new applicants."
-          : "This job is open for new applicants again.",
-        "success"
-      );
-    } catch (err) {
-      const message = humanizeError(err, "Unable to update job status.");
-      showFlashMessage("Status update failed", message, "error");
-    } finally {
-      setUpdatingStatus(false);
-    }
-  };
+  const isOwner = currentUserId === job.employer_id;
 
   return (
-    <View className={`flex-1 relative ${t.bgPage}`}>
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Hero header */}
-        <View style={{ paddingTop: inset.top }} className="bg-slate-100 relative">
-          {/* Single back button */}
+    <View style={{ flex: 1, backgroundColor: t.bgPage }}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 140 }}>
+        
+        <View style={styles.headerImageContainer}>
+          <Image
+            source={{ uri: "https://images.unsplash.com/photo-1521737711867-e3b97375f902?w=800" }}
+            style={styles.headerImage}
+          />
+          {/* Scrim overlay for readability */}
+          <View style={styles.headerScrim} />
+          
           <TouchableOpacity
             onPress={() => router.back()}
-            className="absolute z-10 top-0 left-4 bg-white/90 p-2 rounded-full shadow-sm"
-            style={{ top: inset.top + 12 }}
+            style={[styles.backButton, { top: inset.top + 10 }]}
           >
-            <Feather name="chevron-left" color="#0F172A" size={22} />
+            <Feather name="arrow-left" size={22} color="#0F172A" />
           </TouchableOpacity>
-
-          <Image
-            source={{ uri: "https://images.unsplash.com/photo-1504150559640-a0ce165d472d?w=800" }}
-            className="w-full h-44"
-            resizeMode="cover"
-          />
-
-          <View className="px-5 pb-6">
-            <View className="flex-row justify-between items-start mt-4">
-              <View className="flex-1 pr-3">
-                <Text className={`text-2xl font-bold tracking-tight ${t.text}`}>{job.title}</Text>
-                <Text className="text-blue-600 font-semibold text-sm mt-1">{job.location_label}</Text>
-                <Text className={`text-xs mt-1 ${t.textMuted}`}>{formatTime(job.created_at)}</Text>
-              </View>
-              <View className="items-end">
-                <Text className="text-emerald-600 font-black text-lg">{salary}</Text>
-                <View className={`px-2 py-1 rounded-md mt-2 ${isClosed ? "bg-slate-100" : job.is_urgent ? "bg-red-50" : "bg-blue-50"}`}>
-                  <Text className={`font-black text-[10px] uppercase tracking-widest ${isClosed ? "text-slate-500" : job.is_urgent ? "text-red-600" : "text-blue-600"}`}>
-                    {isClosed ? "Closed" : job.is_urgent ? "Urgent" : job.status}
-                  </Text>
-                </View>
-              </View>
-            </View>
-          </View>
         </View>
 
-        <View className="px-4 mt-6">
-          <AppFlashMessage message={flashMessage} onClose={hideFlashMessage} />
-          <Text className={`text-xs font-bold ${t.textMuted} uppercase tracking-widest mb-3 ml-1`}>Description</Text>
-          <View className={`p-4 rounded-2xl ${t.bgCard} border ${t.border}`}>
-            <Text className={`${t.text} leading-6`}>{job.description || "No description provided."}</Text>
+        <View style={[styles.contentCard, { backgroundColor: t.bgPage }]}>
+          <View style={styles.topRow}>
+            <View style={[styles.badge, { backgroundColor: isClosed ? '#64748B' : '#2563EB' }]}>
+              <Text style={styles.badgeText}>{isClosed ? 'Closed' : 'Active'}</Text>
+            </View>
+            <Text style={[styles.dateText, { color: t.textMuted }]}>
+              {new Date(job.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+            </Text>
           </View>
 
-          <Text className={`text-xs font-bold ${t.textMuted} uppercase tracking-widest mt-6 mb-3 ml-1`}>Location</Text>
-          <View className={`p-4 rounded-2xl ${t.bgCard} border ${t.border} flex-row items-center`}>
-            <Ionicons name="location-sharp" size={18} color="#2563EB" />
-            <Text className={`ml-2 flex-1 ${t.text}`}>{job.location_label}</Text>
-            <TouchableOpacity
+          <Text style={[styles.title, { color: t.text }]}>{job.title}</Text>
+          
+          <View style={styles.locationRow}>
+            <Ionicons name="location" size={16} color="#64748B" />
+            <Text style={styles.locationLabel}>{job.location_label}</Text>
+          </View>
+
+          <View style={styles.statsGrid}>
+            <View style={[styles.statBox, { backgroundColor: t.bgCard, borderColor: t.border }]}>
+              <Text style={[styles.statHeader, { color: t.textMuted }]}>Monthly Budget</Text>
+              <Text style={styles.statValue}>₱{job.budget_max.toLocaleString()}</Text>
+            </View>
+            
+            <TouchableOpacity 
               onPress={() => router.push({ pathname: "/map/mapView", params: { location: job.location_label } })}
-              className="ml-3 px-3 py-2 rounded-lg bg-blue-50 border border-blue-100 flex-row items-center"
-              activeOpacity={0.85}
+              style={[styles.statBox, { backgroundColor: t.bgCard, borderColor: t.border }]}
             >
-              <Ionicons name="map" size={16} color="#2563eb" />
-              <Text className="ml-1 text-blue-700 text-xs font-bold">View Map</Text>
+              <Text style={[styles.statHeader, { color: t.textMuted }]}>On Map</Text>
+              <View style={styles.flexRowCenter}>
+                <Text style={[styles.statValue, { color: t.text, fontSize: 14 }]}>View Route</Text>
+                <Feather name="map-pin" size={12} color="#2563EB" style={{ marginLeft: 6 }} />
+              </View>
             </TouchableOpacity>
           </View>
 
-          {isOwner ? (
-            <View className="mt-6">
-              <Text className={`text-[10px] font-black uppercase tracking-widest ${t.textMuted} mb-3`}>Owner Controls</Text>
-              <View className="flex-row gap-3">
-                <TouchableOpacity
-                  onPress={() => setEditModalVisible(true)}
-                  className="flex-1 bg-blue-600 py-4 rounded-2xl items-center shadow-sm"
-                >
-                  <Text className="text-white font-black">Edit Job</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={handleToggleJobStatus}
-                  disabled={updatingStatus}
-                  className={`flex-1 ${job.status === "open" ? "bg-rose-600" : "bg-emerald-600"} py-4 rounded-2xl items-center shadow-sm`}
-                >
-                  <Text className="text-white font-black">
-                    {updatingStatus ? "Updating..." : job.status === "open" ? "Close Job" : "Reopen Job"}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          ) : (
-            <View className="flex-row gap-3 mt-6">
-              <TouchableOpacity
-                onPress={handleApply}
-                disabled={applying || isClosed}
-                className={`flex-1 py-4 rounded-2xl items-center shadow-sm ${isClosed ? "bg-slate-400" : "bg-blue-600"}`}
-              >
-                <Text className="text-white font-black">
-                  {isClosed ? "Closed" : applying ? "Applying..." : "Apply Now"}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={handleMessageEmployer}
-                disabled={messaging}
-                className={`flex-1 ${t.bgCard} border ${t.border} py-4 rounded-2xl items-center`}
-              >
-                <Text className={`${t.text} font-black`}>{messaging ? "Opening..." : "Message Employer"}</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-
-          <View className="h-10" />
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: t.text }]}>The Role</Text>
+            <Text style={[styles.description, { color: t.textMuted }]}>{job.description}</Text>
+          </View>
         </View>
       </ScrollView>
+
+      {/* Floating Bottom Bar */}
+      <View style={[styles.bottomBar, { 
+        backgroundColor: t.bgCard, 
+        paddingBottom: inset.bottom + 12,
+        borderTopColor: t.border 
+      }]}>
+        <AppFlashMessage message={flashMessage} onClose={hideFlashMessage} />
+        
+        {isOwner ? (
+          <View style={styles.buttonGroup}>
+            <TouchableOpacity 
+              onPress={() => setEditModalVisible(true)}
+              style={[styles.secondaryButton, { backgroundColor: t.bgSoft, borderColor: t.border }]}
+            >
+              <Text style={[styles.buttonText, { color: t.text }]}>Edit Listing</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.primaryButton, { backgroundColor: job.status === 'open' ? '#EF4444' : '#10B981' }]}
+            >
+              <Text style={styles.primaryButtonText}>
+                {job.status === 'open' ? 'Stop Hiring' : 'Re-open'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={styles.buttonGroup}>
+            <TouchableOpacity 
+              style={[styles.iconButton, { backgroundColor: t.bgSoft, borderColor: t.border }]}
+            >
+              <Ionicons name="chatbubbles-outline" size={24} color={t.text} />
+            </TouchableOpacity>
+            <TouchableOpacity 
+              onPress={() => {}} 
+              disabled={isClosed}
+              style={[styles.primaryButton, { backgroundColor: isClosed ? '#94A3B8' : '#2563EB' }]}
+            >
+              <Text style={styles.primaryButtonText}>
+                {isClosed ? 'Listing Closed' : 'Quick Apply'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
 
       <JobEditModal
         visible={editModalVisible}
         job={job}
         onClose={() => setEditModalVisible(false)}
-        onSaved={(updated) => {
-          setJob((prev) => (prev ? { ...prev, ...updated } : prev));
-          showFlashMessage("Job updated", "Your job changes are now live.", "success");
-        }}
+        onSaved={(updated) => setJob({ ...job, ...updated })}
       />
     </View>
   );
 }
 
-const formatBudget = (min: number, max: number) => {
-  if (!min && !max) return "N/A";
-  if (min === max) return `₱${min.toLocaleString()}`;
-  return `₱${min.toLocaleString()} – ₱${max.toLocaleString()}`;
-};
-
-const formatTime = (iso: string) => {
-  const date = new Date(iso);
-  return date.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
-};
+const styles = StyleSheet.create({
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  headerImageContainer: { height: 280, width: '100%', position: 'relative' },
+  headerImage: { width: '100%', height: '100%' },
+  headerScrim: { 
+    ...StyleSheet.absoluteFillObject, 
+    backgroundColor: 'rgba(0,0,0,0.2)' 
+  },
+  backButton: { 
+    position: 'absolute', 
+    left: 16, 
+    backgroundColor: 'white', 
+    padding: 10, 
+    borderRadius: 16, 
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 8
+  },
+  contentCard: { 
+    marginTop: -30, 
+    borderTopLeftRadius: 32, 
+    borderTopRightRadius: 32, 
+    paddingHorizontal: 24,
+    paddingTop: 28 
+  },
+  topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+  badgeText: { color: 'white', fontSize: 10, fontWeight: '800', textTransform: 'uppercase' },
+  dateText: { fontSize: 12, fontWeight: '600' },
+  title: { fontSize: 26, fontWeight: '800', marginTop: 12, letterSpacing: -0.5 },
+  locationRow: { flexDirection: 'row', alignItems: 'center', marginTop: 6 },
+  locationLabel: { color: '#64748B', marginLeft: 4, fontWeight: '500', fontSize: 14 },
+  statsGrid: { flexDirection: 'row', gap: 12, marginTop: 24 },
+  statBox: { flex: 1, padding: 16, borderRadius: 20, borderWidth: 1 },
+  statHeader: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+  statValue: { color: '#059669', fontSize: 17, fontWeight: '800', marginTop: 4 },
+  flexRowCenter: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
+  section: { marginTop: 32 },
+  sectionTitle: { fontSize: 18, fontWeight: '700' },
+  description: { lineHeight: 24, marginTop: 10, fontSize: 15 },
+  bottomBar: { 
+    position: 'absolute', 
+    bottom: 0, 
+    width: '100%', 
+    paddingTop: 16, 
+    paddingHorizontal: 20,
+    borderTopWidth: 1,
+    elevation: 25,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 10
+  },
+  buttonGroup: { flexDirection: 'row', gap: 12 },
+  iconButton: { width: 56, height: 56, borderRadius: 16, justifyContent: 'center', alignItems: 'center', borderWidth: 1 },
+  primaryButton: { flex: 1, height: 56, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
+  primaryButtonText: { color: 'white', fontWeight: '800', fontSize: 16 },
+  secondaryButton: { flex: 1, height: 56, borderRadius: 16, justifyContent: 'center', alignItems: 'center', borderWidth: 1 },
+  buttonText: { fontWeight: '700' }
+});
