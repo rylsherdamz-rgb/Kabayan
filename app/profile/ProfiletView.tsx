@@ -143,6 +143,13 @@ export default function ProfileView() {
               t={t}
             />
             <ActionRow
+              label="My Applications"
+              subtitle="Track the status of jobs you applied for"
+              icon="document-text-outline"
+              onPress={() => router.push("/profile/MyApplications")}
+              t={t}
+            />
+            <ActionRow
               label="My Listings"
               subtitle="Open and manage your store listings"
               icon="storefront-outline"

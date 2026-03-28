@@ -222,6 +222,7 @@ export default function Profile () {
               <View className="mt-5 flex-row gap-3">
                 <QuickAction label="Edit Profile" subtitle="Update your public details" icon="create-outline" onPress={() => router.push("/profile/EditProfile")} />
                 <QuickAction label="Verification" subtitle="Submit or review status" icon="shield-checkmark-outline" onPress={() => router.push("/Register")} />
+                <QuickAction label="My Applications" subtitle="Track accepted, rejected, and pending jobs" icon="document-text-outline" onPress={() => router.push("/profile/MyApplications")} />
               </View>
             </View>
           </View>
@@ -259,6 +260,13 @@ export default function Profile () {
               subtitle="Find workers and employers in your local community."
               icon="person-add-outline"
               onPress={() => router.push("/profile/PeopleConnect")}
+              t={t}
+            />
+            <SectionAction
+              label="My Applications"
+              subtitle="See the current status of the jobs you applied for."
+              icon="document-text-outline"
+              onPress={() => router.push("/profile/MyApplications")}
               t={t}
             />
             <SectionAction

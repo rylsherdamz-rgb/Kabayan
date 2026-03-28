@@ -1,7 +1,7 @@
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useTheme } from "@/hooks/useTheme";
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, StyleSheet } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator } from "react-native";
 import { useEffect, useMemo, useState } from "react";
 import { supabaseClient } from "@/utils/supabase";
 import AppFlashMessage from "@/components/CustomComponents/AppFlashMessage";
@@ -201,7 +201,7 @@ export default function JobView() {
   };
 
   if (loading) return (
-    <View style={[styles.centered, { backgroundColor: t.bgPage }]}>
+    <View className={`flex-1 items-center justify-center ${t.bgPage}`}>
       <ActivityIndicator color="#2563EB" size="large" />
     </View>
   );
@@ -209,7 +209,7 @@ export default function JobView() {
   if (!job) return null;
 
   return (
-    <View style={{ flex: 1, backgroundColor: t.bgPage }}>
+    <View className={`flex-1 ${t.bgPage}`}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 140 }}>
         <EntityHeroBanner
           title={job.title}
@@ -222,84 +222,84 @@ export default function JobView() {
           onBack={() => router.back()}
         />
 
-        <View style={[styles.contentCard, { backgroundColor: t.bgPage }]}>
-          <View style={styles.headerCopy}>
-            <View style={styles.topRow}>
-              <View style={[styles.badge, { backgroundColor: isClosed ? "#64748B" : "#2563EB" }]}>
-                <Text style={styles.badgeText}>{isClosed ? "Closed" : "Active"}</Text>
+        <View className={`-mt-6 rounded-t-[32px] px-6 pt-7 ${t.bgPage}`}>
+          <View className="mb-4">
+            <View className="flex-row items-center justify-between">
+              <View className={`rounded-lg px-3 py-1 ${isClosed ? "bg-slate-500" : "bg-blue-600"}`}>
+                <Text className="text-white text-[10px] font-extrabold uppercase">{isClosed ? "Closed" : "Active"}</Text>
               </View>
-              <Text style={[styles.dateText, { color: t.textMuted }]}>
+              <Text className={`text-xs font-semibold ${t.textMuted}`}>
                 {isOwner ? "Your posting" : "Hiring now"}
               </Text>
             </View>
 
-            <Text style={[styles.title, { color: t.text }]}>{job.title}</Text>
+            <Text className={`mt-3 text-[26px] font-extrabold tracking-tight ${t.text}`}>{job.title}</Text>
 
-            <View style={styles.locationRow}>
+            <View className="mt-2 flex-row items-center">
               <Ionicons name="location" size={16} color="#64748B" />
-              <Text style={styles.locationLabel}>{job.location_label}</Text>
+              <Text className="ml-1 text-sm font-medium text-slate-500">{job.location_label}</Text>
             </View>
 
-            <Text style={[styles.summaryText, { color: t.textMuted }]}>
-              Shared job detail layout with a reusable color banner fallback. When job image support is added in the backend, this same screen can use it without another redesign.
+            <Text className={`mt-4 text-[13px] font-semibold leading-5 ${t.textMuted}`}>
+              Review the role, pay range, applicants, and next actions from one job detail screen.
             </Text>
           </View>
 
-          <View style={styles.statsGrid}>
-            <View style={[styles.statBox, { backgroundColor: t.bgCard, borderColor: t.border }]}>
-              <Text style={[styles.statHeader, { color: t.textMuted }]}>Budget</Text>
-              <Text style={styles.statValue}>{budgetLabel}</Text>
+          <View className="mt-6 flex-row gap-3">
+            <View className={`flex-1 rounded-[20px] border p-4 ${t.border} ${t.bgCard}`}>
+              <Text className={`text-[10px] font-bold uppercase tracking-wide ${t.textMuted}`}>Budget</Text>
+              <Text className="mt-1 text-[17px] font-extrabold text-emerald-600">{budgetLabel}</Text>
             </View>
 
-            <View style={[styles.statBox, { backgroundColor: t.bgCard, borderColor: t.border }]}>
-              <Text style={[styles.statHeader, { color: t.textMuted }]}>Status</Text>
-              <View style={styles.flexRowCenter}>
-                <Text style={[styles.statValue, { color: t.text, fontSize: 14 }]}>{isClosed ? "Paused" : "Accepting"}</Text>
+            <View className={`flex-1 rounded-[20px] border p-4 ${t.border} ${t.bgCard}`}>
+              <Text className={`text-[10px] font-bold uppercase tracking-wide ${t.textMuted}`}>Status</Text>
+              <View className="mt-1 flex-row items-center">
+                <Text className={`text-sm font-extrabold ${t.text}`}>{isClosed ? "Paused" : "Accepting"}</Text>
                 <Feather name={isClosed ? "pause-circle" : "check-circle"} size={12} color="#2563EB" style={{ marginLeft: 6 }} />
               </View>
             </View>
           </View>
 
-          <View style={styles.statsGrid}>
+          <View className="mt-6 flex-row gap-3">
             <TouchableOpacity 
               onPress={() => router.push({ pathname: "/map/mapView", params: { location: job.location_label } })}
-              style={[styles.statBox, { backgroundColor: t.bgCard, borderColor: t.border }]}
+              className={`flex-1 rounded-[20px] border p-4 ${t.border} ${t.bgCard}`}
             >
-              <Text style={[styles.statHeader, { color: t.textMuted }]}>On Map</Text>
-              <View style={styles.flexRowCenter}>
-                <Text style={[styles.statValue, { color: t.text, fontSize: 14 }]}>View Route</Text>
+              <Text className={`text-[10px] font-bold uppercase tracking-wide ${t.textMuted}`}>On Map</Text>
+              <View className="mt-1 flex-row items-center">
+                <Text className={`text-sm font-extrabold ${t.text}`}>View Route</Text>
                 <Feather name="map-pin" size={12} color="#2563EB" style={{ marginLeft: 6 }} />
               </View>
             </TouchableOpacity>
 
-            <View style={[styles.statBox, { backgroundColor: t.bgCard, borderColor: t.border }]}>
-              <Text style={[styles.statHeader, { color: t.textMuted }]}>Chat</Text>
-              <View style={styles.flexRowCenter}>
-                <Text style={[styles.statValue, { color: t.text, fontSize: 14 }]}>{isOwner ? "Applicants" : "Employer"}</Text>
+            <View className={`flex-1 rounded-[20px] border p-4 ${t.border} ${t.bgCard}`}>
+              <Text className={`text-[10px] font-bold uppercase tracking-wide ${t.textMuted}`}>Chat</Text>
+              <View className="mt-1 flex-row items-center">
+                <Text className={`text-sm font-extrabold ${t.text}`}>{isOwner ? "Applicants" : "Employer"}</Text>
                 <Feather name="message-circle" size={12} color="#2563EB" style={{ marginLeft: 6 }} />
               </View>
             </View>
           </View>
 
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: t.text }]}>The Role</Text>
-            <Text style={[styles.description, { color: t.textMuted }]}>{job.description}</Text>
+          <View className="mt-8">
+            <Text className={`text-lg font-bold ${t.text}`}>The Role</Text>
+            <Text className={`mt-3 text-[15px] leading-6 ${t.textMuted}`}>{job.description}</Text>
           </View>
 
           {isOwner ? (
-            <View style={styles.section}>
-              <View style={styles.sectionHeaderRow}>
+            <View className="mt-8">
+              <View className="flex-row items-start justify-between gap-3">
                 <View>
-                  <Text style={[styles.sectionTitle, { color: t.text }]}>Applicants</Text>
-                  <Text style={[styles.sectionHint, { color: t.textMuted }]}>
+                  <Text className={`text-lg font-bold ${t.text}`}>Applicants</Text>
+                  <Text className={`mt-1 text-xs font-semibold leading-[18px] ${t.textMuted}`}>
                     {applicants.length > 0 ? `${applicants.length} worker${applicants.length === 1 ? "" : "s"} applied to this job.` : "Applicants will appear here when workers apply."}
                   </Text>
                 </View>
                 <TouchableOpacity
                   onPress={() => router.push({ pathname: "/profile/JobApplicants", params: { jobId: job.id } })}
-                  style={[styles.inlineAction, { borderColor: t.border, backgroundColor: t.bgSoft }]}
+                  className={`h-9 rounded-xl border px-4 items-center justify-center ${t.border} ${t.bgSoft}`}
                 >
-                  <Text style={[styles.inlineActionText, { color: t.text }]}>Open All</Text>
+                  <Text className={`text-[11px] font-extrabold uppercase tracking-wide ${t.text}`}>Open All</Text>
                 </TouchableOpacity>
               </View>
 
@@ -308,27 +308,27 @@ export default function JobView() {
                   <TouchableOpacity
                     key={applicant.application_id}
                     onPress={() => router.push({ pathname: "/profile/JobApplicants", params: { jobId: job.id } })}
-                    style={[styles.applicantCard, { backgroundColor: t.bgCard, borderColor: t.border }]}
+                    className={`mt-4 rounded-[18px] border p-4 ${t.border} ${t.bgCard}`}
                   >
-                    <View style={styles.applicantRow}>
-                      <View style={styles.avatarFallback}>
-                        <Text style={styles.avatarInitial}>{applicant.applicant_name.slice(0, 1).toUpperCase()}</Text>
+                    <View className="flex-row items-center">
+                      <View className="h-[42px] w-[42px] rounded-[14px] bg-blue-100 items-center justify-center">
+                        <Text className="text-sm font-extrabold text-blue-700">{applicant.applicant_name.slice(0, 1).toUpperCase()}</Text>
                       </View>
-                      <View style={styles.applicantCopy}>
-                        <Text style={[styles.applicantName, { color: t.text }]}>{applicant.applicant_name}</Text>
-                        <Text style={[styles.applicantMeta, { color: t.textMuted }]}>
+                      <View className="ml-3 mr-3 flex-1">
+                        <Text className={`text-sm font-extrabold ${t.text}`}>{applicant.applicant_name}</Text>
+                        <Text className={`mt-0.5 text-[11px] font-semibold ${t.textMuted}`}>
                           Applied {new Date(applicant.applied_at).toLocaleDateString()}
                         </Text>
                       </View>
-                      <View style={styles.applicantStatusPill}>
-                        <Text style={styles.applicantStatusText}>{applicant.status}</Text>
+                      <View className="rounded-full bg-blue-50 px-3 py-1.5">
+                        <Text className="text-[10px] font-extrabold uppercase text-blue-700">{applicant.status}</Text>
                       </View>
                     </View>
                   </TouchableOpacity>
                 ))
               ) : (
-                <View style={[styles.emptyApplicantsBox, { backgroundColor: t.bgCard, borderColor: t.border }]}>
-                  <Text style={[styles.emptyApplicantsText, { color: t.textMuted }]}>No applications yet for this posting.</Text>
+                <View className={`mt-4 rounded-[18px] border p-4 ${t.border} ${t.bgCard}`}>
+                  <Text className={`text-[13px] font-semibold leading-[18px] ${t.textMuted}`}>No applications yet for this posting.</Text>
                 </View>
               )}
             </View>
@@ -336,38 +336,37 @@ export default function JobView() {
         </View>
       </ScrollView>
 
-      {/* Floating Bottom Bar */}
-      <View style={[styles.bottomBar, { 
-        backgroundColor: t.bgCard, 
-        paddingBottom: inset.bottom + 12,
-        borderTopColor: t.border 
-      }]}>
+      <View
+        className={`absolute bottom-0 w-full border-t px-5 pt-4 ${t.bgCard} ${t.border}`}
+        style={{ paddingBottom: inset.bottom + 12 }}
+      >
         <AppFlashMessage message={flashMessage} onClose={hideFlashMessage} />
         
         {isOwner ? (
-          <View style={styles.buttonGroup}>
+          <View className="flex-row gap-3">
             <TouchableOpacity 
               onPress={() => setEditModalVisible(true)}
-              style={[styles.secondaryButton, { backgroundColor: t.bgSoft, borderColor: t.border }]}
+              className={`flex-1 h-14 rounded-2xl border items-center justify-center ${t.bgSoft} ${t.border}`}
             >
-              <Text style={[styles.buttonText, { color: t.text }]}>Edit Job</Text>
+              <Text className={`font-bold ${t.text}`}>Edit Job</Text>
             </TouchableOpacity>
             <TouchableOpacity 
               onPress={handleSetStatus}
               disabled={updatingStatus}
-              style={[styles.primaryButton, { backgroundColor: job.status === 'open' ? '#EF4444' : '#10B981' }]}
+              className="flex-1 h-14 rounded-2xl items-center justify-center"
+              style={{ backgroundColor: job.status === 'open' ? '#EF4444' : '#10B981' }}
             >
-              <Text style={styles.primaryButtonText}>
+              <Text className="text-white font-extrabold text-base">
                 {updatingStatus ? 'Updating...' : job.status === 'open' ? 'Stop Hiring' : 'Re-open'}
               </Text>
             </TouchableOpacity>
           </View>
         ) : (
-          <View style={styles.buttonGroup}>
+          <View className="flex-row gap-3">
             <TouchableOpacity 
               onPress={handleOpenConversation}
               disabled={openingChat}
-              style={[styles.iconButton, { backgroundColor: t.bgSoft, borderColor: t.border }]}
+              className={`h-14 w-14 rounded-2xl border items-center justify-center ${t.bgSoft} ${t.border}`}
             >
               {openingChat ? (
                 <ActivityIndicator size="small" color={t.text} />
@@ -378,9 +377,10 @@ export default function JobView() {
             <TouchableOpacity 
               onPress={handleApply}
               disabled={isClosed || applying || hasApplied}
-              style={[styles.primaryButton, { backgroundColor: isClosed || hasApplied ? '#94A3B8' : '#2563EB' }]}
+              className="flex-1 h-14 rounded-2xl items-center justify-center"
+              style={{ backgroundColor: isClosed || hasApplied ? '#94A3B8' : '#2563EB' }}
             >
-              <Text style={styles.primaryButtonText}>
+              <Text className="text-white font-extrabold text-base">
                 {isClosed ? 'Listing Closed' : hasApplied ? 'Applied' : applying ? 'Applying...' : 'Quick Apply'}
               </Text>
             </TouchableOpacity>
@@ -397,66 +397,3 @@ export default function JobView() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  contentCard: { 
-    marginTop: -24, 
-    borderTopLeftRadius: 32, 
-    borderTopRightRadius: 32, 
-    paddingHorizontal: 24,
-    paddingTop: 28 
-  },
-  headerCopy: {
-    marginBottom: 16,
-  },
-  topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
-  badgeText: { color: 'white', fontSize: 10, fontWeight: '800', textTransform: 'uppercase' },
-  dateText: { fontSize: 12, fontWeight: '600' },
-  title: { fontSize: 26, fontWeight: '800', marginTop: 12, letterSpacing: -0.5 },
-  locationRow: { flexDirection: 'row', alignItems: 'center', marginTop: 6 },
-  locationLabel: { color: '#64748B', marginLeft: 4, fontWeight: '500', fontSize: 14 },
-  summaryText: { marginTop: 14, fontSize: 13, lineHeight: 20, fontWeight: '600' },
-  statsGrid: { flexDirection: 'row', gap: 12, marginTop: 24 },
-  statBox: { flex: 1, padding: 16, borderRadius: 20, borderWidth: 1 },
-  statHeader: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
-  statValue: { color: '#059669', fontSize: 17, fontWeight: '800', marginTop: 4 },
-  flexRowCenter: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
-  section: { marginTop: 32 },
-  sectionTitle: { fontSize: 18, fontWeight: '700' },
-  sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 },
-  sectionHint: { marginTop: 4, fontSize: 12, lineHeight: 18, fontWeight: '600' },
-  inlineAction: { height: 36, borderRadius: 12, borderWidth: 1, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center' },
-  inlineActionText: { fontSize: 11, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.6 },
-  description: { lineHeight: 24, marginTop: 10, fontSize: 15 },
-  applicantCard: { marginTop: 14, borderRadius: 18, borderWidth: 1, padding: 14 },
-  applicantRow: { flexDirection: 'row', alignItems: 'center' },
-  avatarFallback: { width: 42, height: 42, borderRadius: 14, backgroundColor: '#DBEAFE', alignItems: 'center', justifyContent: 'center' },
-  avatarInitial: { color: '#1D4ED8', fontSize: 14, fontWeight: '800' },
-  applicantCopy: { flex: 1, marginLeft: 12, marginRight: 12 },
-  applicantName: { fontSize: 14, fontWeight: '800' },
-  applicantMeta: { marginTop: 2, fontSize: 11, fontWeight: '600' },
-  applicantStatusPill: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: '#EFF6FF' },
-  applicantStatusText: { color: '#1D4ED8', fontSize: 10, fontWeight: '800', textTransform: 'uppercase' },
-  emptyApplicantsBox: { marginTop: 14, borderRadius: 18, borderWidth: 1, padding: 16 },
-  emptyApplicantsText: { fontSize: 13, lineHeight: 18, fontWeight: '600' },
-  bottomBar: { 
-    position: 'absolute', 
-    bottom: 0, 
-    width: '100%', 
-    paddingTop: 16, 
-    paddingHorizontal: 20,
-    borderTopWidth: 1,
-    elevation: 25,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 10
-  },
-  buttonGroup: { flexDirection: 'row', gap: 12 },
-  iconButton: { width: 56, height: 56, borderRadius: 16, justifyContent: 'center', alignItems: 'center', borderWidth: 1 },
-  primaryButton: { flex: 1, height: 56, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
-  primaryButtonText: { color: 'white', fontWeight: '800', fontSize: 16 },
-  secondaryButton: { flex: 1, height: 56, borderRadius: 16, justifyContent: 'center', alignItems: 'center', borderWidth: 1 },
-  buttonText: { fontWeight: '700' }
-});

@@ -179,6 +179,12 @@ export default function CustomDrawerContent(props: any) {
             activeMatch: ["/profile/JobApplicants"],
           },
           {
+            icon: "file-document-outline",
+            label: "My Applications",
+            href: "/profile/MyApplications",
+            activeMatch: ["/profile/MyApplications"],
+          },
+          {
             icon: "store-edit-outline",
             label: `My Listings (${listingsCount})`,
             href: "/marketPlace/marketPlaceView?scope=mine",

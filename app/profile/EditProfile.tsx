@@ -222,7 +222,8 @@ export default function EditProfile() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={Platform.OS === "ios" ? inset.top : 0}
+      keyboardVerticalOffset={Platform.OS === "ios" ? inset.top + 18 : 12}
+      style={{ flex: 1 }}
       className={`flex-1 ${t.bgPage}`}
     >
       <ScrollView

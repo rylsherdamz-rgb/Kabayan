@@ -31,6 +31,7 @@ export default function JobApplicants() {
   const [rows, setRows] = useState<ApplicantRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [openingChatFor, setOpeningChatFor] = useState<string | null>(null);
+  const [updatingApplicationId, setUpdatingApplicationId] = useState<string | null>(null);
 
   const loadApplicants = useCallback(async () => {
     let active = true;
@@ -130,6 +131,35 @@ export default function JobApplicants() {
     }
   };
 
+  const updateApplicationStatus = async (row: ApplicantRow, status: "accepted" | "rejected") => {
+    if (updatingApplicationId) return;
+
+    setUpdatingApplicationId(row.application_id);
+    try {
+      const { data, error } = await supabaseClient
+        .rpc("rpc_set_job_application_status", {
+          p_application_id: row.application_id,
+          p_status: status,
+        })
+        .maybeSingle();
+
+      if (error) throw new Error(error.message);
+
+      setRows((prev) =>
+        prev.map((item) =>
+          item.application_id === row.application_id
+            ? { ...item, status: data?.status ?? status }
+            : item
+        )
+      );
+    } catch (err) {
+      const message = humanizeError(err, "Unable to update application status.");
+      Alert.alert("Update Failed", message);
+    } finally {
+      setUpdatingApplicationId(null);
+    }
+  };
+
   if (loading) {
     return (
       <View className={`flex-1 items-center justify-center ${t.bgPage}`}>
@@ -193,8 +223,20 @@ export default function JobApplicants() {
                         </View>
                       </View>
 
-                      <View className="px-2 py-1 rounded-lg bg-blue-50 border border-blue-200">
-                        <Text className="text-[10px] font-black uppercase text-blue-700">{applicant.status}</Text>
+                      <View className={`px-2 py-1 rounded-lg border ${
+                        applicant.status === "accepted"
+                          ? "bg-emerald-50 border-emerald-200"
+                          : applicant.status === "rejected"
+                          ? "bg-rose-50 border-rose-200"
+                          : "bg-blue-50 border-blue-200"
+                      }`}>
+                        <Text className={`text-[10px] font-black uppercase ${
+                          applicant.status === "accepted"
+                            ? "text-emerald-700"
+                            : applicant.status === "rejected"
+                            ? "text-rose-700"
+                            : "text-blue-700"
+                        }`}>{applicant.status}</Text>
                       </View>
                     </View>
 
@@ -202,10 +244,40 @@ export default function JobApplicants() {
                       <Text className={`text-xs mt-3 leading-5 ${t.textMuted}`}>{applicant.cover_letter}</Text>
                     ) : null}
 
+                    <View className="mt-3 flex-row gap-2">
+                      <TouchableOpacity
+                        onPress={() => updateApplicationStatus(applicant, "accepted")}
+                        disabled={updatingApplicationId === applicant.application_id}
+                        className={`flex-1 h-10 rounded-xl items-center justify-center ${
+                          applicant.status === "accepted" ? "bg-emerald-600" : "bg-emerald-100"
+                        }`}
+                      >
+                        <Text className={`font-black text-xs uppercase tracking-widest ${
+                          applicant.status === "accepted" ? "text-white" : "text-emerald-700"
+                        }`}>
+                          {updatingApplicationId === applicant.application_id && applicant.status !== "accepted" ? "Updating..." : "Accept"}
+                        </Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        onPress={() => updateApplicationStatus(applicant, "rejected")}
+                        disabled={updatingApplicationId === applicant.application_id}
+                        className={`flex-1 h-10 rounded-xl items-center justify-center ${
+                          applicant.status === "rejected" ? "bg-rose-600" : "bg-rose-100"
+                        }`}
+                      >
+                        <Text className={`font-black text-xs uppercase tracking-widest ${
+                          applicant.status === "rejected" ? "text-white" : "text-rose-700"
+                        }`}>
+                          {updatingApplicationId === applicant.application_id && applicant.status !== "rejected" ? "Updating..." : "Reject"}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+
                     <TouchableOpacity
                       onPress={() => openApplicantChat(applicant)}
                       disabled={openingChatFor === applicant.application_id}
-                      className="mt-3 h-10 rounded-xl bg-blue-600 items-center justify-center"
+                      className="mt-2 h-10 rounded-xl bg-blue-600 items-center justify-center"
                     >
                       <View className="flex-row items-center">
                         <Ionicons name="chatbubble-ellipses-outline" size={14} color="white" />
