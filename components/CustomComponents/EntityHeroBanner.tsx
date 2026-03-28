@@ -54,7 +54,7 @@ export default function EntityHeroBanner({
             className="absolute rounded-full"
             style={{
               width: 132,
-              height: 132,
+              height: 140,
               right: -28,
               top: 8,
               opacity: 0.78,

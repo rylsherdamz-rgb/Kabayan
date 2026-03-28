@@ -150,17 +150,6 @@ export default function CustomDrawerContent(props: any) {
   const sections = useMemo(
     () => [
       {
-        title: "Browse",
-        items: [
-          { icon: "home-outline", label: "Home", href: "/home", activeMatch: ["/home"] },
-          { icon: "briefcase-outline", label: "Jobs", href: "/jobs", activeMatch: ["/jobs", "/job"] },
-          { icon: "storefront-outline", label: "Marketplace", href: "/marketPlace", activeMatch: ["/marketPlace"] },
-          { icon: "message-outline", label: "Messages", href: "/message", activeMatch: ["/message", "/chatRoom"] },
-          { icon: "magnify", label: "Search", href: "/search/search", activeMatch: ["/search"] },
-          { icon: "map-marker-outline", label: "Map", href: "/map/mapView", activeMatch: ["/map"] },
-        ] satisfies DrawerItemConfig[],
-      },
-      {
         title: "Manage",
         items: [
           {
