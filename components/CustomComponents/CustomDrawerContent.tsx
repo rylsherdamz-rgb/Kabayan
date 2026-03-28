@@ -161,15 +161,6 @@ export default function CustomDrawerContent(props: any) {
         ] satisfies DrawerItemConfig[],
       },
       {
-        title: "Account",
-        items: [
-          { icon: "account-circle-outline", label: "Dashboard", href: "/profile", activeMatch: ["/profile"] },
-          { icon: "account-edit-outline", label: "Edit Profile", href: "/profile/EditProfile", activeMatch: ["/profile/EditProfile"] },
-          { icon: "shield-check-outline", label: "Verification", href: "/Register", activeMatch: ["/Register"] },
-        ] satisfies DrawerItemConfig[],
-        hidden: !currentUserId,
-      },
-      {
         title: "Manage",
         items: [
           {
@@ -219,7 +210,6 @@ export default function CustomDrawerContent(props: any) {
             {label}
           </Text>
         </View>
-        <MaterialCommunityIcons name="chevron-right" size={18} color={isActive ? "#2563EB" : "#94A3B8"} />
       </Pressable>
     );
   };
@@ -251,7 +241,6 @@ export default function CustomDrawerContent(props: any) {
                 {profile?.display_name?.trim() || "Guest User"}
               </Text>
               <Text className="mt-1 text-sm font-medium text-slate-500">{email || "Browse jobs, listings, and people"}</Text>
-              {roleLine ? <Text className="mt-2 text-[11px] font-black uppercase tracking-widest text-slate-400">{roleLine}</Text> : null}
               {profile?.location_label ? (
                 <View className="mt-2 flex-row items-center">
                   <MaterialCommunityIcons name="map-marker-outline" size={14} color="#94A3B8" />
@@ -259,11 +248,6 @@ export default function CustomDrawerContent(props: any) {
                 </View>
               ) : null}
             </View>
-            {currentUserId ? (
-              <View className="ml-2 h-10 w-10 rounded-2xl bg-white items-center justify-center">
-                <MaterialCommunityIcons name="chevron-right" size={20} color="#94A3B8" />
-              </View>
-            ) : null}
           </View>
         </TouchableOpacity>
 

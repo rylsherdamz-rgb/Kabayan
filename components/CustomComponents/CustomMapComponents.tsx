@@ -75,27 +75,17 @@ export default function CustomMapComponents({
 
       {mode === "full" ? (
         <View pointerEvents="box-none" style={styles.searchWrapper}>
-          <View style={styles.topCard}>
-            <View style={styles.topCardHeader}>
-              <View style={styles.topCardTitleWrap}>
-                <Text style={styles.topCardEyebrow}>Map Search</Text>
-                <Text style={styles.topCardTitle} numberOfLines={1}>
-                  {resolvedLabel}
-                </Text>
-              </View>
-              <TouchableOpacity
-                style={styles.searchButton}
-                onPress={() => {
-                  setSearchError(null);
-                  autocompleteRef.current?.focus?.();
-                }}
-                activeOpacity={0.9}
-              >
-                <Feather name="search" size={16} color="#FFFFFF" />
-                <Text style={styles.searchButtonText}>Search</Text>
-              </TouchableOpacity>
-            </View>
-
+          <View style={styles.topBar}>
+            <TouchableOpacity
+              style={styles.leadingSearchIcon}
+              onPress={() => {
+                setSearchError(null);
+                autocompleteRef.current?.focus?.();
+              }}
+              activeOpacity={0.9}
+            >
+              <Feather name="search" size={18} color="#334155" />
+            </TouchableOpacity>
             {hasGoogleMapsKey ? (
               <GooglePlacesAutocomplete
                 ref={autocompleteRef}
@@ -169,19 +159,38 @@ export default function CustomMapComponents({
       )}
 
       {mode === "full" ? (
-        <View pointerEvents="box-none" style={styles.bottomSheetWrap}>
-          <View style={styles.bottomSheet}>
-            <View style={styles.bottomSheetIcon}>
-              <MaterialIcons name="place" size={18} color="#2563EB" />
-            </View>
-            <View style={styles.bottomSheetTextWrap}>
-              <Text style={styles.bottomSheetEyebrow}>Selected location</Text>
-              <Text style={styles.bottomSheetTitle} numberOfLines={2}>
-                {resolvedLabel}
-              </Text>
+        <>
+          <View pointerEvents="box-none" style={styles.actionsWrap}>
+            <TouchableOpacity
+              style={styles.actionButton}
+              activeOpacity={0.9}
+              onPress={() => {
+                mapRef.current?.animateToRegion(region, 700);
+                setSearchError(null);
+              }}
+            >
+              <Feather name="crosshair" size={18} color="#0F172A" />
+            </TouchableOpacity>
+          </View>
+
+          <View pointerEvents="box-none" style={styles.bottomSheetWrap}>
+            <View style={styles.bottomSheet}>
+              <View style={styles.bottomSheetHandle} />
+              <View style={styles.bottomSheetRow}>
+                <View style={styles.bottomSheetIcon}>
+                  <MaterialIcons name="place" size={18} color="#2563EB" />
+                </View>
+                <View style={styles.bottomSheetTextWrap}>
+                  <Text style={styles.bottomSheetEyebrow}>Selected location</Text>
+                  <Text style={styles.bottomSheetTitle} numberOfLines={2}>
+                    {resolvedLabel}
+                  </Text>
+                  <Text style={styles.bottomSheetCaption}>Search above to change the pin and map focus.</Text>
+                </View>
+              </View>
             </View>
           </View>
-        </View>
+        </>
       ) : null}
     </View>
   );
@@ -201,68 +210,38 @@ const styles = StyleSheet.create({
     right: 14,
     zIndex: 20, 
   },
-  topCard: {
-    borderRadius: 24,
+  topBar: {
+    borderRadius: 999,
     backgroundColor: 'rgba(255,255,255,0.98)',
-    paddingHorizontal: 14,
-    paddingTop: 14,
-    paddingBottom: 12,
+    minHeight: 56,
+    paddingLeft: 12,
+    paddingRight: 14,
+    justifyContent: 'center',
     shadowColor: '#0f172a',
     shadowOpacity: 0.12,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 8 },
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
     elevation: 10,
   },
-  topCardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  topCardTitleWrap: {
-    flex: 1,
-    paddingRight: 12,
-  },
-  topCardEyebrow: {
-    color: '#64748B',
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-  },
-  topCardTitle: {
-    color: '#0F172A',
-    fontSize: 17,
-    fontWeight: '900',
-    marginTop: 4,
-  },
-  searchButton: {
-    height: 40,
-    borderRadius: 999,
-    backgroundColor: '#2563EB',
-    paddingHorizontal: 14,
-    flexDirection: 'row',
+  leadingSearchIcon: {
+    position: 'absolute',
+    left: 16,
+    top: 0,
+    bottom: 0,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  searchButtonText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '900',
-    marginLeft: 6,
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
   },
   autocompleteContainer: {
     flex: 0,
     zIndex: 20,
   },
   searchText: {
-    height: 48,
-    borderRadius: 16,
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    paddingHorizontal: 14,
+    height: 56,
+    borderRadius: 999,
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    paddingLeft: 42,
+    paddingRight: 12,
     color: '#111827',
     fontSize: 14,
     fontWeight: '600',
@@ -302,7 +281,7 @@ const styles = StyleSheet.create({
   },
   errorBanner: {
     marginTop: 8,
-    borderRadius: 14,
+    borderRadius: 18,
     backgroundColor: 'rgba(255,255,255,0.96)',
     borderWidth: 1,
     borderColor: 'rgba(239,68,68,0.18)',
@@ -350,18 +329,49 @@ const styles = StyleSheet.create({
     bottom: 18,
     zIndex: 20,
   },
+  actionsWrap: {
+    position: 'absolute',
+    right: 14,
+    bottom: 160,
+    zIndex: 20,
+    gap: 10,
+  },
+  actionButton: {
+    width: 46,
+    height: 46,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.98)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#0f172a',
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 8,
+  },
   bottomSheet: {
-    borderRadius: 24,
+    borderRadius: 26,
     backgroundColor: 'rgba(255,255,255,0.98)',
     paddingHorizontal: 16,
-    paddingVertical: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
+    paddingTop: 10,
+    paddingBottom: 14,
     shadowColor: '#0f172a',
     shadowOpacity: 0.12,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 8 },
     elevation: 10,
+  },
+  bottomSheetHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 999,
+    backgroundColor: '#CBD5E1',
+    alignSelf: 'center',
+    marginBottom: 12,
+  },
+  bottomSheetRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
   },
   bottomSheetIcon: {
     width: 40,
@@ -387,5 +397,12 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '800',
     marginTop: 4,
+  },
+  bottomSheetCaption: {
+    marginTop: 4,
+    color: '#64748B',
+    fontSize: 12,
+    fontWeight: '600',
+    lineHeight: 17,
   },
 });
