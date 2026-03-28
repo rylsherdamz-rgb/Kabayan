@@ -1,5 +1,6 @@
 import { router } from "expo-router";
 import { Modal, Text, KeyboardAvoidingView, Platform, View, TouchableOpacity } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 
 interface CustomModalProps {
@@ -8,8 +9,13 @@ interface CustomModalProps {
 }
 
 export default function CustomModal({authModalVisible, setAuthModalVisible} : CustomModalProps) {
+    const insets = useSafeAreaInsets();
     return <Modal visible={authModalVisible} transparent animationType="slide" onRequestClose={() => setAuthModalVisible(false)}>
-        <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === "android" ? "padding" : "height"}>
+        <KeyboardAvoidingView
+          className="flex-1"
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? insets.top : 0}
+        >
           <View className="flex-1 bg-black/50 justify-center px-4">
             <View className="bg-white rounded-3xl p-6">
               <Text className="text-xl font-black text-slate-900 mb-3">Create an account</Text>

@@ -116,8 +116,15 @@ export default function ChatRoomLayout() {
   const headerJob = jobTitle ?? "Conversation";
 
   return (
-    <View style={{paddingBottom : insets.bottom}} className={`flex-1 ${t.bgPage}`}>
-      <View className={`pt-12 pb-4 px-4 ${t.bgCard} border-b ${t.border} flex-row items-center justify-between shadow-sm`}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? insets.top : 0}
+      className={`flex-1 ${t.bgPage}`}
+    >
+      <View
+        className={`${t.bgCard} border-b ${t.border} flex-row items-center justify-between shadow-sm`}
+        style={{ paddingTop: insets.top + 12, paddingBottom: 16, paddingHorizontal: 16 }}
+      >
         <View className="flex-row items-center flex-1">
           <TouchableOpacity onPress={() => router.back()} className="p-2 mr-1">
             <Feather name="chevron-left" size={26} color={t.icon} />
@@ -161,16 +168,17 @@ export default function ChatRoomLayout() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
         renderItem={({ item }) => <ChatBubble item={item} t={t} userId={userId} otherName={headerName} />}
       />
 
       <AppFlashMessage message={flashMessage} onClose={hideFlashMessage} />
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
+      <View
+        className={`${t.bgCard} border-t ${t.border} p-4 flex-row items-end gap-x-3`}
+        style={{ paddingBottom: insets.bottom + 12 }}
       >
-        <View className={`${t.bgCard} border-t ${t.border} p-4 flex-row items-end gap-x-3`}>
           <TouchableOpacity className={`${t.bgSurface} h-12 w-12 rounded-2xl items-center justify-center border ${t.border}`}>
             <Feather name="plus" size={20} color={t.icon} />
           </TouchableOpacity>
@@ -182,6 +190,7 @@ export default function ChatRoomLayout() {
               multiline
               value={message}
               onChangeText={setMessage}
+              textAlignVertical="top"
               className={`flex-1 py-3 text-sm font-medium ${t.text}`}
               style={{ maxHeight: 100 }}
             />
@@ -200,9 +209,8 @@ export default function ChatRoomLayout() {
               <MaterialCommunityIcons name="microphone-outline" size={24} color={t.icon} />
             </TouchableOpacity>
           )}
-        </View>
-      </KeyboardAvoidingView>
-    </View>
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 

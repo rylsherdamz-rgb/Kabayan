@@ -25,6 +25,7 @@ type JobRow = {
 
 type ListingRow = {
   id: string;
+  store_name: string;
   name: string;
   description: string | null;
   category: string;
@@ -53,6 +54,7 @@ const toNumber = (value: number | string | null | undefined, fallback = 0) => {
 
 const normalizeListing = (row: any): ListingRow => ({
   id: row.id,
+  store_name: row.store_name ?? "Unnamed Store",
   name: row.name,
   description: row.description ?? null,
   category: row.category,
@@ -163,6 +165,7 @@ export default function SearchScreen() {
       if (!query) return true;
       return (
         (listing.name ?? "").toLowerCase().includes(query) ||
+        (listing.store_name ?? "").toLowerCase().includes(query) ||
         (listing.description ?? "").toLowerCase().includes(query) ||
         (listing.category ?? "").toLowerCase().includes(query) ||
         (listing.location_label ?? "").toLowerCase().includes(query)
@@ -316,7 +319,7 @@ export default function SearchScreen() {
                 {loadingListings ? (
                   <LoadingCard text="Searching marketplace..." t={t} />
                 ) : filteredListings.length === 0 ? (
-                  <EmptyCard title="No marketplace items found" subtitle="Try another keyword for listings." t={t} />
+                  <EmptyCard title="No store items found" subtitle="Try another keyword for the store or item name." t={t} />
                 ) : (
                   filteredListings.slice(0, 6).map((listing) => (
                     <TouchableOpacity
@@ -332,6 +335,7 @@ export default function SearchScreen() {
                       <View className="flex-row items-center justify-between">
                         <View className="flex-1 pr-3">
                           <Text className={`text-sm font-black ${t.text}`}>{listing.name}</Text>
+                          <Text className={`text-[11px] mt-1 font-semibold ${t.textMuted}`}>{listing.store_name}</Text>
                           <Text className={`text-[11px] mt-1 ${t.textMuted}`}>
                             {listing.category} • {listing.location_label}
                           </Text>

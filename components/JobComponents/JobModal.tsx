@@ -138,7 +138,11 @@ export default function JobModal({ visible, onClose, onCreated }: JobModalProps)
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} className="flex-1 justify-end">
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? insets.bottom : 0}
+        className="flex-1 justify-end"
+      >
         <View style={{ paddingBottom: insets.bottom }} className="flex-1 bg-black/50 justify-end">
           <View className={`max-h-[80%] bg-white rounded-t-[32px] p-6 ${t.bgCard}`}>
             <View className="flex-row items-center justify-between mb-4">
@@ -156,7 +160,12 @@ export default function JobModal({ visible, onClose, onCreated }: JobModalProps)
               </TouchableOpacity>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+              contentContainerStyle={{ paddingBottom: 16 }}
+            >
               <Field
                 label="Job title"
                 placeholder="e.g. Master Plumber needed for leak repair"
@@ -261,6 +270,7 @@ function Field({ label, value, onChangeText, placeholder, icon, multiline, inlin
           placeholderTextColor="#94A3B8"
           multiline={multiline}
           keyboardType={icon === "dollar-sign" ? "numeric" : "default"}
+          textAlignVertical={multiline ? "top" : "center"}
           className="flex-1 ml-3 font-semibold text-slate-900"
           style={multiline ? { minHeight: 80 } : undefined}
         />

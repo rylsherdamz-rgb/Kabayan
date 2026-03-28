@@ -1,180 +1,297 @@
-import React, { useEffect, useState } from 'react';
-import { View, Pressable, Text, Image, ActivityIndicator, Alert, StyleSheet } from 'react-native';
-import { DrawerContentScrollView } from '@react-navigation/drawer';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { useTheme } from '@/hooks/useTheme';
-import { supabaseClient } from '@/utils/supabase';
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { View, Pressable, Text, Image, TouchableOpacity } from "react-native";
+import { DrawerContentScrollView } from "@react-navigation/drawer";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { usePathname, useRouter } from "expo-router";
+import { supabaseClient } from "@/utils/supabase";
+import humanizeError from "@/utils/humanizeError";
+
+type DrawerProfile = {
+  user_id: string;
+  display_name: string | null;
+  avatar_url: string | null;
+  id_verification_status: string | null;
+  job_role: string | null;
+  market_role: string | null;
+  location_label: string | null;
+};
+
+type DrawerItemConfig = {
+  icon: keyof typeof MaterialCommunityIcons.glyphMap;
+  label: string;
+  href?: string;
+  activeMatch?: string[];
+  onPress?: () => void;
+  color?: string;
+  hidden?: boolean;
+};
+
+const isAuthSessionMissing = (message?: string | null) =>
+  (message ?? "").toLowerCase().includes("auth session missing");
+
+const toTitleCase = (value?: string | null) =>
+  (value ?? "")
+    .replace(/_/g, " ")
+    .split(" ")
+    .filter(Boolean)
+    .map((word) => word[0]?.toUpperCase() + word.slice(1))
+    .join(" ");
 
 export default function CustomDrawerContent(props: any) {
-  const { t } = useTheme();
   const inset = useSafeAreaInsets();
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
-  const [profile, setProfile] = useState<any>(null);
+  const pathname = usePathname();
+  const [profile, setProfile] = useState<DrawerProfile | null>(null);
   const [email, setEmail] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [jobsCount, setJobsCount] = useState(0);
+  const [listingsCount, setListingsCount] = useState(0);
 
-  useEffect(() => {
-    let active = true;
-    const loadData = async () => {
-      const { data: { user } } = await supabaseClient.auth.getUser();
-      if (!user) { setLoading(false); return; }
-      setEmail(user.email ?? null);
-      const { data } = await supabaseClient.rpc('rpc_get_drawer_profile', { p_user_id: user.id }).maybeSingle();
-      if (active) { setProfile(data); setLoading(false); }
-    };
-    loadData();
-    return () => { active = false; };
+  const loadDrawerData = useCallback(async () => {
+    const { data: authData, error: authError } = await supabaseClient.auth.getUser();
+
+    if (authError) {
+      if (isAuthSessionMissing(authError.message)) {
+        setCurrentUserId(null);
+        setEmail(null);
+        setProfile(null);
+        setJobsCount(0);
+        setListingsCount(0);
+        return;
+      }
+      throw new Error(authError.message);
+    }
+
+    const user = authData.user;
+    if (!user) {
+      setCurrentUserId(null);
+      setEmail(null);
+      setProfile(null);
+      setJobsCount(0);
+      setListingsCount(0);
+      return;
+    }
+
+    setCurrentUserId(user.id);
+    setEmail(user.email ?? null);
+
+    const [profileRes, jobsRes, listingsRes] = await Promise.all([
+      supabaseClient.rpc("rpc_get_drawer_profile", { p_user_id: user.id }).maybeSingle(),
+      supabaseClient.rpc("rpc_get_jobs_count_by_employer", { p_employer_id: user.id }),
+      supabaseClient.rpc("rpc_get_listings_count_by_vendor", { p_vendor_id: user.id }),
+    ]);
+
+    if (profileRes.error) throw new Error(profileRes.error.message);
+    if (jobsRes.error) throw new Error(jobsRes.error.message);
+    if (listingsRes.error) throw new Error(listingsRes.error.message);
+
+    setProfile((profileRes.data as DrawerProfile | null) ?? null);
+    setJobsCount(Number(jobsRes.data ?? 0));
+    setListingsCount(Number(listingsRes.data ?? 0));
   }, []);
 
-  const DrawerItem = ({ icon, label, onPress, active = false }: any) => (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.drawerItem,
-        active && { backgroundColor: '#E1E7F0' }, // MD3 "Container" color
-        pressed && { backgroundColor: 'rgba(0,0,0,0.05)' }
-      ]}
-    >
-      <MaterialCommunityIcons 
-        name={icon} 
-        size={24} 
-        color={active ? '#1B1B1F' : '#44474E'} 
-      />
-      <Text style={[
-        styles.drawerLabel, 
-        { color: active ? '#1B1B1F' : '#44474E', fontWeight: active ? '700' : '500' }
-      ]}>
-        {label}
-      </Text>
-    </Pressable>
+  useEffect(() => {
+    loadDrawerData().catch(() => {
+      setCurrentUserId(null);
+      setEmail(null);
+      setProfile(null);
+      setJobsCount(0);
+      setListingsCount(0);
+    });
+
+    const { data: authListener } = supabaseClient.auth.onAuthStateChange(() => {
+      loadDrawerData().catch(() => {
+        setCurrentUserId(null);
+        setEmail(null);
+        setProfile(null);
+        setJobsCount(0);
+        setListingsCount(0);
+      });
+    });
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, [loadDrawerData]);
+
+  const closeAndNavigate = useCallback(
+    (href: string) => {
+      props.navigation.closeDrawer();
+      router.push(href as never);
+    },
+    [props.navigation, router]
   );
 
-  return (
-    <View style={{ flex: 1, backgroundColor: t.bgCard }}>
-      <DrawerContentScrollView {...props} contentContainerStyle={{ paddingTop: 0 }}>
-        {/* 1. ACCOUNT HEADER SECTION */}
-        <View style={[styles.header, { paddingTop: inset.top + 24 }]}>
-          <Image
-            source={{ uri: profile?.avatar_url || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400' }}
-            style={styles.avatar}
-          />
-          <View style={styles.userInfo}>
-            <Text style={[styles.userName, { color: t.text }]}>
-              {profile?.display_name || 'Guest User'}
-            </Text>
-            <Text style={[styles.userEmail, { color: t.textMuted }]}>
-              {email}
-            </Text>
-          </View>
+  const handleSignOut = useCallback(async () => {
+    const { error } = await supabaseClient.auth.signOut();
+    if (!error) {
+      props.navigation.closeDrawer();
+      router.replace("/AuthenticationPage");
+      return;
+    }
+
+    const fallbackMessage = humanizeError(error, "Unable to sign out.");
+    console.warn(fallbackMessage);
+  }, [props.navigation, router]);
+
+  const initials =
+    (profile?.display_name ?? "Guest User")
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase() ?? "")
+      .join("") || "GU";
+
+  const roleLine = [toTitleCase(profile?.job_role), toTitleCase(profile?.market_role)]
+    .filter(Boolean)
+    .join(" • ");
+
+  const sections = useMemo(
+    () => [
+      {
+        title: "Browse",
+        items: [
+          { icon: "home-outline", label: "Home", href: "/home", activeMatch: ["/home"] },
+          { icon: "briefcase-outline", label: "Jobs", href: "/jobs", activeMatch: ["/jobs", "/job"] },
+          { icon: "storefront-outline", label: "Marketplace", href: "/marketPlace", activeMatch: ["/marketPlace"] },
+          { icon: "message-outline", label: "Messages", href: "/message", activeMatch: ["/message", "/chatRoom"] },
+          { icon: "magnify", label: "Search", href: "/search/search", activeMatch: ["/search"] },
+          { icon: "map-marker-outline", label: "Map", href: "/map/mapView", activeMatch: ["/map"] },
+        ] satisfies DrawerItemConfig[],
+      },
+      {
+        title: "Account",
+        items: [
+          { icon: "account-circle-outline", label: "Dashboard", href: "/profile", activeMatch: ["/profile"] },
+          { icon: "account-edit-outline", label: "Edit Profile", href: "/profile/EditProfile", activeMatch: ["/profile/EditProfile"] },
+          { icon: "shield-check-outline", label: "Verification", href: "/Register", activeMatch: ["/Register"] },
+        ] satisfies DrawerItemConfig[],
+        hidden: !currentUserId,
+      },
+      {
+        title: "Manage",
+        items: [
+          {
+            icon: "account-group-outline",
+            label: `Job Applicants (${jobsCount})`,
+            href: "/profile/JobApplicants",
+            activeMatch: ["/profile/JobApplicants"],
+          },
+          {
+            icon: "store-edit-outline",
+            label: `My Listings (${listingsCount})`,
+            href: "/marketPlace/marketPlaceView?scope=mine",
+            activeMatch: ["/marketPlace/marketPlaceView"],
+          },
+          {
+            icon: "plus-circle-outline",
+            label: "Add Listing",
+            href: "/marketPlace/marketPlaceView?scope=mine&openModal=true",
+            activeMatch: ["/marketPlace/marketPlaceView"],
+          },
+          {
+            icon: "account-search-outline",
+            label: "People Connect",
+            href: "/profile/PeopleConnect",
+            activeMatch: ["/profile/PeopleConnect"],
+          },
+        ] satisfies DrawerItemConfig[],
+        hidden: !currentUserId,
+      },
+    ],
+    [currentUserId, jobsCount, listingsCount]
+  );
+
+  const DrawerItem = ({ icon, label, href, activeMatch = [], onPress, color = "#475569" }: DrawerItemConfig) => {
+    const isActive = activeMatch.some((match) => pathname === match || pathname.startsWith(`${match}/`));
+
+    return (
+      <Pressable
+        onPress={onPress ?? (href ? () => closeAndNavigate(href) : undefined)}
+        className={`flex-row items-center rounded-[20px] px-4 py-3.5 ${isActive ? "bg-blue-50" : "active:bg-slate-100"}`}
+      >
+        <View className="h-10 w-10 rounded-2xl items-center justify-center bg-slate-50">
+          <MaterialCommunityIcons name={icon} size={20} color={isActive ? "#2563EB" : color} />
         </View>
+        <View className="ml-3 flex-1">
+          <Text className={`text-[14px] ${isActive ? "text-blue-600 font-black" : "text-slate-700 font-semibold"}`}>
+            {label}
+          </Text>
+        </View>
+        <MaterialCommunityIcons name="chevron-right" size={18} color={isActive ? "#2563EB" : "#94A3B8"} />
+      </Pressable>
+    );
+  };
 
-        {/* 2. NAVIGATION SECTION */}
-        <View style={styles.menuSection}>
-          <Text style={[styles.sectionHeader, { color: t.textMuted }]}>Account</Text>
-          
-          <DrawerItem 
-            icon="account-circle-outline" 
-            label="Profile" 
-            onPress={() => router.push('/profile')} 
-            active={props.state.index === 0} // Example check
-          />
-          
-          <DrawerItem 
-            icon="map-marker-outline" 
-            label="Saved Locations" 
-            onPress={() => router.push('/locations')} 
-          />
+  return (
+    <View className="flex-1 bg-white">
+      <DrawerContentScrollView
+        {...props}
+        contentContainerStyle={{ paddingTop: 0, paddingBottom: 24 }}
+        showsVerticalScrollIndicator={false}
+      >
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={currentUserId ? () => closeAndNavigate("/profile") : undefined}
+          className="px-5 pb-7 bg-slate-50 border-b border-slate-100"
+          style={{ paddingTop: inset.top + 18 }}
+        >
+          <View className="flex-row items-start">
+            {profile?.avatar_url ? (
+              <Image source={{ uri: profile.avatar_url }} className="w-16 h-16 rounded-[22px] bg-slate-200" />
+            ) : (
+              <View className="w-16 h-16 rounded-[22px] bg-slate-200 items-center justify-center">
+                <Text className="text-slate-700 text-lg font-black">{initials}</Text>
+              </View>
+            )}
 
-          <View style={styles.divider} />
-          
-          <Text style={[styles.sectionHeader, { color: t.textMuted }]}>Activity</Text>
-          
-          <DrawerItem 
-            icon="briefcase-outline" 
-            label={`Jobs (${profile?.jobs_count || 0})`} 
-            onPress={() => {}} 
-          />
-          
-          <DrawerItem 
-            icon="tag-outline" 
-            label={`Listings (${profile?.listings_count || 0})`} 
-            onPress={() => {}} 
-          />
+            <View className="ml-4 flex-1 pt-1">
+              <Text className="text-xl font-black text-slate-900 tracking-tight">
+                {profile?.display_name?.trim() || "Guest User"}
+              </Text>
+              <Text className="mt-1 text-sm font-medium text-slate-500">{email || "Browse jobs, listings, and people"}</Text>
+              {roleLine ? <Text className="mt-2 text-[11px] font-black uppercase tracking-widest text-slate-400">{roleLine}</Text> : null}
+              {profile?.location_label ? (
+                <View className="mt-2 flex-row items-center">
+                  <MaterialCommunityIcons name="map-marker-outline" size={14} color="#94A3B8" />
+                  <Text className="ml-1 text-xs font-semibold text-slate-500">{profile.location_label}</Text>
+                </View>
+              ) : null}
+            </View>
+            {currentUserId ? (
+              <View className="ml-2 h-10 w-10 rounded-2xl bg-white items-center justify-center">
+                <MaterialCommunityIcons name="chevron-right" size={20} color="#94A3B8" />
+              </View>
+            ) : null}
+          </View>
+        </TouchableOpacity>
+
+        <View className="px-3 pt-4">
+          {sections
+            .filter((section) => !section.hidden)
+            .map((section) => (
+              <View key={section.title} className="mb-5">
+                <Text className="px-3 mb-2 text-[10px] font-black uppercase tracking-[2px] text-slate-400">{section.title}</Text>
+                <View className="gap-1.5">
+                  {section.items.map((item) => (
+                    <DrawerItem key={item.label} {...item} />
+                  ))}
+                </View>
+              </View>
+            ))}
         </View>
       </DrawerContentScrollView>
 
-      {/* 3. FOOTER SECTION */}
-      <View style={[styles.footer, { paddingBottom: inset.bottom + 16 }]}>
-        <DrawerItem 
-          icon="logout" 
-          label="Sign Out" 
-          onPress={() => supabaseClient.auth.signOut()} 
-        />
+      <View className="px-3 border-t border-slate-100" style={{ paddingBottom: inset.bottom + 12, paddingTop: 12 }}>
+        {currentUserId ? (
+          <DrawerItem icon="logout-variant" label="Sign Out" onPress={handleSignOut} color="#EF4444" />
+        ) : (
+          <View className="gap-2">
+            <DrawerItem icon="login-variant" label="Sign In" href="/AuthenticationPage" color="#2563EB" />
+          </View>
+        )}
       </View>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  header: {
-    paddingHorizontal: 28,
-    paddingBottom: 20,
-  },
-  avatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    marginBottom: 12,
-  },
-  userInfo: {
-    gap: 2,
-  },
-  userName: {
-    fontSize: 16,
-    fontWeight: '700',
-    letterSpacing: 0.1,
-  },
-  userEmail: {
-    fontSize: 14,
-    fontWeight: '400',
-  },
-  menuSection: {
-    paddingHorizontal: 12, // MD3 standard horizontal inset
-    marginTop: 8,
-  },
-  sectionHeader: {
-    fontSize: 12,
-    fontWeight: '700',
-    marginLeft: 16,
-    marginTop: 16,
-    marginBottom: 8,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  },
-  drawerItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    height: 56, // MD3 standard height
-    paddingHorizontal: 16,
-    borderRadius: 28, // Full pill shape
-    marginBottom: 4,
-  },
-  drawerLabel: {
-    marginLeft: 12,
-    fontSize: 14,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: 'rgba(0,0,0,0.08)',
-    marginVertical: 12,
-    marginHorizontal: 16,
-  },
-  footer: {
-    paddingHorizontal: 12,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(0,0,0,0.1)',
-    paddingTop: 8,
-  },
-});

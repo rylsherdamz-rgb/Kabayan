@@ -12,9 +12,9 @@ import {
 import { useRouter } from "expo-router";
 import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import useAccount from "@/hooks/useAccountHooks";
-import { useTheme } from "@/hooks/useTheme";
 import { supabaseClient } from "@/utils/supabase";
 import humanizeError from "@/utils/humanizeError";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type AuthMode = "signIn" | "signUp";
 
@@ -29,7 +29,7 @@ export default function AuthenticationForm({
   onModeChange,
   onSubmitted,
 }: AuthenticationFormProps) {
-  const { t } = useTheme();
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { SignUpWithEmailAndPassword, SignInWithPassword, error } = useAccount();
 
@@ -83,8 +83,17 @@ export default function AuthenticationForm({
     }`;
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"}>
-      <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? insets.top + 12 : 0}
+      className="flex-1"
+    >
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ flexGrow: 1, justifyContent: "center" }}
+      >
         <View className="w-full bg-white rounded-[28px] p-6 border border-slate-100 shadow-2xl shadow-slate-900/15">
           {/* Header */}
           <View className="flex-row justify-between items-center mb-1">
@@ -122,6 +131,7 @@ export default function AuthenticationForm({
                   autoCapitalize="none"
                   keyboardType="email-address"
                   autoComplete="email"
+                  returnKeyType="next"
                   onFocus={() => setFocusedField("email")}
                   onBlur={() => setFocusedField(null)}
                 />
@@ -143,6 +153,8 @@ export default function AuthenticationForm({
                   className="flex-1 ml-3 font-semibold text-slate-900 text-[15px]"
                   secureTextEntry={!showPassword}
                   autoComplete={currentMode === "signIn" ? "password" : "new-password"}
+                  returnKeyType="done"
+                  onSubmitEditing={handleSubmit}
                   onFocus={() => setFocusedField("password")}
                   onBlur={() => setFocusedField(null)}
                 />

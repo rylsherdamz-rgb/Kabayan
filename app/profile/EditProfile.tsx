@@ -222,9 +222,15 @@ export default function EditProfile() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? inset.top : 0}
       className={`flex-1 ${t.bgPage}`}
     >
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 28 }}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+        contentContainerStyle={{ paddingBottom: inset.bottom + 28 }}
+      >
         <View className="h-28 flex flex-row  gap-x-5 bg-blue-600 w-full relative">
           <TouchableOpacity
             onPress={() => router.back()}
@@ -357,6 +363,7 @@ function Field({
         placeholder={placeholder}
         placeholderTextColor={t.icon}
         multiline={multiline}
+        textAlignVertical={multiline ? "top" : "center"}
         className={`px-4 ${multiline ? "py-3 min-h-[90px]" : "h-12"} rounded-2xl border ${t.border} ${t.bgSurface} ${t.text}`}
       />
     </View>

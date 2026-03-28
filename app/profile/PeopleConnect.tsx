@@ -5,6 +5,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useTheme } from "@/hooks/useTheme";
 import { supabaseClient } from "@/utils/supabase";
 import humanizeError from "@/utils/humanizeError";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type PersonRow = {
   user_id: string;
@@ -21,6 +22,7 @@ const isAuthSessionMissing = (message?: string | null) =>
 
 export default function PeopleConnect() {
   const { t } = useTheme();
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const params = useLocalSearchParams<{ q?: string }>();
   const [query, setQuery] = useState(() => (typeof params.q === "string" ? params.q : ""));
@@ -150,8 +152,12 @@ export default function PeopleConnect() {
   }
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} className={`flex-1 ${t.bgPage}`}>
-      <View className={`px-6 pt-12 pb-4 border-b ${t.border} ${t.bgCard}`}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? insets.top : 0}
+      className={`flex-1 ${t.bgPage}`}
+    >
+      <View className={`px-6 pb-4 border-b ${t.border} ${t.bgCard}`} style={{ paddingTop: insets.top + 12 }}>
         <View className="flex-row items-center">
           <TouchableOpacity onPress={() => router.back()} className="mr-3 p-2 rounded-xl">
             <Ionicons name="chevron-back" size={22} color={t.text} />
@@ -181,7 +187,11 @@ export default function PeopleConnect() {
           <Text className={`text-xs mt-2 ${t.textMuted}`}>Try another keyword.</Text>
         </View>
       ) : (
-        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 28 }}>
+        <ScrollView
+          contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 28 }}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+        >
           {people.map((person) => (
             <View key={person.user_id} className={`mb-3 p-4 rounded-2xl border ${t.border} ${t.bgCard}`}>
               <View className="flex-row items-center">

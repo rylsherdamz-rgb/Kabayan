@@ -38,6 +38,11 @@ export default function CustomMapView() {
     setTargetCoordinate(coords);
     setCurrentLabel(label);
   }, []);
+
+  useEffect(() => {
+    setCurrentLabel(initialLocation);
+  }, [initialLocation, paramLatitude, paramLongitude]);
+
   useEffect(() => {
     let active = true;
 

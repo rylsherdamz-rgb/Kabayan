@@ -11,9 +11,9 @@ import {
 } from "react-native";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import * as Location from "expo-location";
 import { useTheme } from "@/hooks/useTheme";
 import { supabaseClient } from "@/utils/supabase";
+import { geocodeAddress } from "@/utils/googleGeocode";
 import humanizeError from "@/utils/humanizeError";
 
 const FALLBACK_COORDINATE = {
@@ -97,10 +97,10 @@ export default function JobEditModal({ visible, job, onClose, onSaved }: JobEdit
       let longitude = FALLBACK_COORDINATE.longitude;
 
       try {
-        const geocoded = await Location.geocodeAsync(trimmedLocation);
-        if (geocoded.length > 0) {
-          latitude = geocoded[0].latitude;
-          longitude = geocoded[0].longitude;
+        const geocoded = await geocodeAddress(trimmedLocation);
+        if (geocoded) {
+          latitude = geocoded.latitude;
+          longitude = geocoded.longitude;
         }
       } catch {
         // Keep fallback coordinates when geocoding fails.
@@ -154,6 +154,7 @@ export default function JobEditModal({ visible, job, onClose, onSaved }: JobEdit
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? insets.bottom : 0}
         style={{ flex: 1, justifyContent: "flex-end", paddingBottom: insets.bottom }}
       >
         <View className="flex-1 bg-black/50 justify-end">
@@ -165,7 +166,12 @@ export default function JobEditModal({ visible, job, onClose, onSaved }: JobEdit
               </TouchableOpacity>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+              contentContainerStyle={{ paddingBottom: 16 }}
+            >
               <Field
                 label="Job Title"
                 value={title}
@@ -279,6 +285,7 @@ function Field({
           placeholder={placeholder}
           placeholderTextColor="#94A3B8"
           multiline={multiline}
+          textAlignVertical={multiline ? "top" : "center"}
           className="ml-2 flex-1 text-slate-900 font-semibold"
           style={multiline ? { minHeight: 90, textAlignVertical: "top" } : { height: 48 }}
         />

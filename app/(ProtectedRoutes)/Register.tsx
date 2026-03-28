@@ -187,8 +187,16 @@ export default function Register() {
   }
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} className={`flex-1 ${t.bgPage}`}>
-      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom, paddingTop: insets.top  }}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? insets.top : 0}
+      className={`flex-1 ${t.bgPage}`}
+    >
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 32, paddingTop: insets.top }}
+      >
         <View className="h-28 bg-blue-600 w-full relative">
           <TouchableOpacity onPress={() => router.back()} className="absolute top-12 left-5 bg-white/20 p-2 rounded-full">
             <Feather name="chevron-left" size={22} color="white" />
@@ -325,6 +333,7 @@ function Field({
         placeholder={placeholder}
         placeholderTextColor={t.icon}
         className={`h-12 px-4 rounded-2xl border ${t.border} ${t.bgSurface} ${t.text}`}
+        returnKeyType="done"
       />
     </View>
   );

@@ -142,6 +142,12 @@ export default function Profile () {
   const roleHeadline = [toTitleCase(profile?.job_role), toTitleCase(profile?.market_role)]
     .filter(Boolean)
     .join(" • ");
+  const profileSummary =
+    verificationStatus === "verified"
+      ? "Your profile is verified and ready for hiring, selling, and community trust."
+      : verificationStatus === "pending_review"
+      ? "Your verification is under review. Keep your details complete while you wait."
+      : "Complete your details and submit verification to build trust faster.";
 
   const profileStrength = useMemo(() => {
     const fields = [
@@ -166,8 +172,8 @@ export default function Profile () {
         <ScrollView contentContainerStyle={{ paddingBottom: 28 }}>
           <AppFlashMessage message={flashMessage} onClose={hideFlashMessage} />
 
-          <View className={`mx-4 mt-5 rounded-[30px] overflow-hidden border ${t.border} ${t.bgCard}`}>
-            <View className={`${t.brandBg} h-24`} />
+          <View className={`mx-4 mt-5 rounded-[32px] overflow-hidden border ${t.border} ${t.bgCard}`}>
+            <View className={`${t.brandBg} h-28`} />
             <View className="px-5 pb-5">
               <View className="-mt-11 flex-row items-end justify-between">
                 {profile?.avatar_url ? (
@@ -186,10 +192,12 @@ export default function Profile () {
                 </TouchableOpacity>
               </View>
 
-              <Text className={`mt-3 text-[26px] font-black tracking-tight ${t.text}`}>{displayName}</Text>
-              <Text className={`mt-1 text-sm font-semibold ${t.textMuted}`}>
-                {roleHeadline || "Complete your profile role details"}
-              </Text>
+              <TouchableOpacity activeOpacity={0.88} onPress={() => router.push("/profile/ProfiletView")}>
+                <Text className={`mt-3 text-[28px] font-black tracking-tight ${t.text}`}>{displayName}</Text>
+                <Text className={`mt-1 text-sm font-semibold ${t.textMuted}`}>
+                  {roleHeadline || "Complete your role and identity details"}
+                </Text>
+              </TouchableOpacity>
 
               <View className="mt-2 flex-row items-center">
                 <Ionicons name="location-outline" size={14} color={t.icon} />
@@ -209,16 +217,30 @@ export default function Profile () {
                 </Text>
               </View>
 
-              <View className="mt-4 flex-row gap-2">
-                <QuickAction label="View Profile" icon="person-outline" onPress={() => router.push("/profile/ProfiletView")} />
-                <QuickAction label="Edit Profile" icon="create-outline" onPress={() => router.push("/profile/EditProfile")} />
+              <Text className={`mt-4 text-[13px] leading-5 ${t.textMuted}`}>{profileSummary}</Text>
+
+              <View className="mt-5 flex-row gap-3">
+                <QuickAction label="Edit Profile" subtitle="Update your public details" icon="create-outline" onPress={() => router.push("/profile/EditProfile")} />
+                <QuickAction label="Verification" subtitle="Submit or review status" icon="shield-checkmark-outline" onPress={() => router.push("/Register")} />
+                <QuickAction label="Add Listing" subtitle="Create a marketplace item" icon="add-circle-outline" onPress={() => router.push({ pathname: "/marketPlace/marketPlaceView", params: { scope: "mine", openModal: "true" } })} />
               </View>
             </View>
           </View>
 
-          <View className={`mx-4 mt-4 p-4 rounded-3xl border ${t.border} ${t.bgCard}`}>
-            <Text className={`text-sm font-black uppercase tracking-widest ${t.textMuted}`}>Dashboard</Text>
-            <View className="flex-row gap-2 mt-3">
+          <View className={`mx-4 mt-4 p-5 rounded-3xl border ${t.border} ${t.bgCard}`}>
+            <View className="flex-row items-center justify-between">
+              <View>
+                <Text className={`text-sm font-black uppercase tracking-widest ${t.textMuted}`}>Dashboard</Text>
+                <Text className={`mt-1 text-[13px] ${t.textMuted}`}>Track profile strength, jobs, and listings at a glance.</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => router.push("/profile/ProfiletView")}
+                className={`h-10 px-4 rounded-2xl border ${t.border} ${t.bgSurface} items-center justify-center`}
+              >
+                <Text className={`text-[11px] font-black uppercase tracking-widest ${t.text}`}>Open Profile</Text>
+              </TouchableOpacity>
+            </View>
+            <View className="flex-row gap-3 mt-4">
               <StatCard label="Profile Strength" value={`${profileStrength}%`} icon="analytics-outline" t={t} />
               <StatCard label="Jobs Posted" value={`${jobsCount}`} icon="briefcase-outline" t={t} />
               <StatCard label="Listings" value={`${listingsCount}`} icon="storefront-outline" t={t} />
@@ -233,22 +255,22 @@ export default function Profile () {
 
           <SectionCard title="Career Network" t={t}>
             <SectionAction
-              label="Job applicants"
-              subtitle="Review applicants and message them directly"
+              label="Job Applicants"
+              subtitle="Review incoming applications and start employer chats."
               icon="people-outline"
               onPress={() => router.push("/profile/JobApplicants")}
               t={t}
             />
             <SectionAction
-              label="Connect with people"
-              subtitle="Find workers and employers in your community"
+              label="People Connect"
+              subtitle="Find workers and employers in your local community."
               icon="person-add-outline"
               onPress={() => router.push("/profile/PeopleConnect")}
               t={t}
             />
             <SectionAction
-              label="Manage verification"
-              subtitle="Boost profile credibility with verified status"
+              label="Verification Center"
+              subtitle="Submit documents or check your current review status."
               icon="shield-checkmark-outline"
               onPress={() => router.push("/Register")}
               t={t}
@@ -257,17 +279,17 @@ export default function Profile () {
 
           <SectionCard title="Marketplace Tools" t={t}>
             <SectionAction
-              label="Open your store"
-              subtitle="Manage your public marketplace listings"
+              label="My Listings"
+              subtitle="Manage your active marketplace listings in one place."
               icon="storefront-outline"
-              onPress={() => router.push("/marketPlace/marketPlaceView")}
+              onPress={() => router.push({ pathname: "/marketPlace/marketPlaceView", params: { scope: "mine" } })}
               t={t}
             />
             <SectionAction
-              label="Add marketplace item"
-              subtitle="Publish a new listing with complete details"
+              label="Add Marketplace Item"
+              subtitle="Create a new product listing with price and location."
               icon="add-circle-outline"
-              onPress={() => router.push({ pathname: "/marketPlace/marketPlaceView", params: { openModal: "true" } })}
+              onPress={() => router.push({ pathname: "/marketPlace/marketPlaceView", params: { scope: "mine", openModal: "true" } })}
               t={t}
             />
           </SectionCard>
@@ -290,23 +312,26 @@ export default function Profile () {
 
 function QuickAction({
   label,
+  subtitle,
   icon,
   onPress,
 }: {
   label: string;
+  subtitle: string;
   icon: keyof typeof Ionicons.glyphMap;
   onPress: () => void;
 }) {
   return (
     <TouchableOpacity
       onPress={onPress}
-      className="flex-1 h-10 rounded-xl bg-blue-600 items-center justify-center"
+      className="flex-1 min-h-[110px] rounded-[24px] border border-slate-200 bg-slate-50 px-4 py-4"
       activeOpacity={0.88}
     >
-      <View className="flex-row items-center">
-        <Ionicons name={icon} size={14} color="white" />
-        <Text className="ml-1 text-[10px] font-black uppercase tracking-widest text-white">{label}</Text>
+      <View className="w-10 h-10 rounded-2xl bg-blue-50 items-center justify-center">
+        <Ionicons name={icon} size={18} color="#2563EB" />
       </View>
+      <Text className="mt-4 text-[12px] font-black uppercase tracking-[1.5px] text-slate-900">{label}</Text>
+      <Text className="mt-2 text-[11px] leading-4 text-slate-500">{subtitle}</Text>
     </TouchableOpacity>
   );
 }
@@ -323,10 +348,12 @@ function StatCard({
   t: ReturnType<typeof useTheme>["t"];
 }) {
   return (
-    <View className={`flex-1 p-3 rounded-2xl border ${t.border} ${t.bgSurface}`}>
-      <Ionicons name={icon} size={14} color={t.icon} />
-      <Text className={`mt-2 text-lg font-black ${t.text}`}>{value}</Text>
-      <Text className={`text-[10px] font-bold uppercase tracking-widest ${t.textMuted}`}>{label}</Text>
+    <View className={`flex-1 p-4 rounded-[24px] border ${t.border} ${t.bgSurface}`}>
+      <View className="w-9 h-9 rounded-2xl bg-blue-50 items-center justify-center">
+        <Ionicons name={icon} size={16} color="#2563EB" />
+      </View>
+      <Text className={`mt-4 text-xl font-black ${t.text}`}>{value}</Text>
+      <Text className={`mt-1 text-[10px] font-bold uppercase tracking-widest ${t.textMuted}`}>{label}</Text>
     </View>
   );
 }

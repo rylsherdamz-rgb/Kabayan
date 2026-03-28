@@ -11,9 +11,9 @@ import {
 } from "react-native";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import * as Location from "expo-location";
 import { useTheme } from "@/hooks/useTheme";
 import { supabaseClient } from "@/utils/supabase";
+import { geocodeAddress } from "@/utils/googleGeocode";
 import humanizeError from "@/utils/humanizeError";
 
 const FALLBACK_COORDINATE = {
@@ -77,7 +77,7 @@ export default function MarketEditModal({ visible, listing, onClose, onSaved }: 
     const numericPrice = Number(price);
 
     if (!trimmedName || !trimmedCategory || !trimmedLocation) {
-      setError("Name, category, and location are required.");
+      setError("Store item name, category, and location are required.");
       return;
     }
 
@@ -92,10 +92,10 @@ export default function MarketEditModal({ visible, listing, onClose, onSaved }: 
       let latitude = FALLBACK_COORDINATE.latitude;
       let longitude = FALLBACK_COORDINATE.longitude;
       try {
-        const geocoded = await Location.geocodeAsync(trimmedLocation);
-        if (geocoded.length > 0) {
-          latitude = geocoded[0].latitude;
-          longitude = geocoded[0].longitude;
+        const geocoded = await geocodeAddress(trimmedLocation);
+        if (geocoded) {
+          latitude = geocoded.latitude;
+          longitude = geocoded.longitude;
         }
       } catch {
         // Keep fallback coordinates.
@@ -135,7 +135,7 @@ export default function MarketEditModal({ visible, listing, onClose, onSaved }: 
       });
       onClose();
     } catch (err) {
-      const message = humanizeError(err, "Failed to update listing.");
+      const message = humanizeError(err, "Failed to update store listing.");
       setError(message);
     } finally {
       setSaving(false);
@@ -146,20 +146,26 @@ export default function MarketEditModal({ visible, listing, onClose, onSaved }: 
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? insets.bottom : 0}
         style={{ flex: 1, justifyContent: "flex-end", paddingBottom: insets.bottom }}
       >
         <View className="flex-1 bg-black/50 justify-end">
           <View className={`max-h-[85%] rounded-t-[30px] px-6 pt-6 pb-4 ${t.bgCard}`}>
             <View className="flex-row items-center justify-between mb-4">
-              <Text className={`text-xl font-black ${t.text}`}>Edit Listing</Text>
+              <Text className={`text-xl font-black ${t.text}`}>Edit Store Listing</Text>
               <TouchableOpacity onPress={onClose}>
                 <Ionicons name="close" size={22} color={t.icon} />
               </TouchableOpacity>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-              <Field label="Item Name" value={name} onChangeText={setName} placeholder="Listing name" icon="tag" />
-              <Field label="Category" value={category} onChangeText={setCategory} placeholder="Food, Grocery, Services" icon="grid" />
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+              contentContainerStyle={{ paddingBottom: 16 }}
+            >
+              <Field label="Item Name" value={name} onChangeText={setName} placeholder="Store item name" icon="tag" />
+              <Field label="Category" value={category} onChangeText={setCategory} placeholder="Meals, Drinks, Grocery, Services" icon="grid" />
               <Field label="Price (PHP)" value={price} onChangeText={setPrice} placeholder="0" icon="dollar-sign" keyboardType="numeric" />
               <Field label="Location" value={location} onChangeText={setLocation} placeholder="City / area" icon="map-pin" />
               <Field label="Image URL" value={imageUrl} onChangeText={setImageUrl} placeholder="https://..." icon="image" />
@@ -167,7 +173,7 @@ export default function MarketEditModal({ visible, listing, onClose, onSaved }: 
                 label="Description"
                 value={description}
                 onChangeText={setDescription}
-                placeholder="Description, serving size, and details"
+                placeholder="Description, item details, and store notes"
                 icon="file-text"
                 multiline
               />
@@ -180,7 +186,7 @@ export default function MarketEditModal({ visible, listing, onClose, onSaved }: 
                 className={`mt-5 h-12 rounded-2xl items-center justify-center ${saving ? "bg-blue-400" : "bg-blue-600"}`}
               >
                 <Text className="text-white text-xs font-black uppercase tracking-widest">
-                  {saving ? "Saving..." : "Save Listing Changes"}
+                  {saving ? "Saving..." : "Save Store Changes"}
                 </Text>
               </TouchableOpacity>
             </ScrollView>
@@ -220,6 +226,7 @@ function Field({
           placeholderTextColor="#94A3B8"
           multiline={multiline}
           keyboardType={keyboardType}
+          textAlignVertical={multiline ? "top" : "center"}
           className="ml-2 flex-1 text-slate-900 font-semibold"
           style={multiline ? { minHeight: 90, textAlignVertical: "top" } : { height: 48 }}
         />

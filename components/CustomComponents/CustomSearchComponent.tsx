@@ -1,5 +1,5 @@
 import React from 'react';
-import { TextInput, View, Pressable, KeyboardAvoidingView, Platform } from 'react-native';
+import { TextInput, View, Pressable } from 'react-native';
 import { Feather, FontAwesome5 } from "@expo/vector-icons";
 import { useTheme } from '@/hooks/useTheme';
 
@@ -20,9 +20,7 @@ export default function CustomSearchComponent({
   const showMapButton = typeof onNavigateToMap === "function";
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"}>
       <View className={`flex-row items-center h-12 px-4 rounded-2xl border ${t.border} ${t.bgSurface}`}>
-        
         <Feather name="search" color={t.icon} size={18} />
         
         <TextInput 
@@ -46,6 +44,5 @@ export default function CustomSearchComponent({
         ) : null}
         
       </View>
-    </KeyboardAvoidingView>
   );
 }

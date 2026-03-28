@@ -1,10 +1,11 @@
 import React, { useState } from "react";
 import { Modal, SafeAreaView, View, Text, TextInput, TouchableOpacity, ScrollView, Image, KeyboardAvoidingView, Platform } from "react-native";
 import { Feather, Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "@/hooks/useTheme";
 import { supabaseClient } from "@/utils/supabase";
 import { useImagePicker } from "@/context/ImagePicker";
-import * as Location from "expo-location";
+import { geocodeAddress } from "@/utils/googleGeocode";
 import humanizeError from "@/utils/humanizeError";
 
 const FALLBACK_COORDINATE = {
@@ -20,12 +21,13 @@ type MarketModalProps = {
 
 export default function MarketModal({ visible, onClose, onCreated }: MarketModalProps) {
   const { t } = useTheme();
+  const insets = useSafeAreaInsets();
   const { pickImage, image, setImage } = useImagePicker();
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
-  const [category, setCategory] = useState("Food");
+  const [category, setCategory] = useState("Store Item");
   const [location, setLocation] = useState("");
   const [backgroundUri, setBackgroundUri] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -38,7 +40,7 @@ export default function MarketModal({ visible, onClose, onCreated }: MarketModal
     setName("");
     setDescription("");
     setPrice("");
-    setCategory("Food");
+    setCategory("Store Item");
     setLocation("");
     setImage(null);
     setBackgroundUri(null);
@@ -67,7 +69,7 @@ export default function MarketModal({ visible, onClose, onCreated }: MarketModal
     const priceValue = price.trim() === "" ? 0 : Number(price);
 
     if (!trimmedName || !trimmedCategory || !trimmedLocation) {
-      setError("Item name, category, and location are required.");
+      setError("Store item name, category, and location are required.");
       return;
     }
 
@@ -85,16 +87,16 @@ export default function MarketModal({ visible, onClose, onCreated }: MarketModal
 
       const vendorId = authData.user?.id;
       if (!vendorId) {
-        throw new Error("You must be signed in to publish an item.");
+        throw new Error("You must be signed in to publish a store item.");
       }
 
       let latitude = FALLBACK_COORDINATE.latitude;
       let longitude = FALLBACK_COORDINATE.longitude;
       try {
-        const geo = await Location.geocodeAsync(trimmedLocation);
-        if (geo.length > 0) {
-          latitude = geo[0].latitude;
-          longitude = geo[0].longitude;
+        const geo = await geocodeAddress(trimmedLocation);
+        if (geo) {
+          latitude = geo.latitude;
+          longitude = geo.longitude;
         }
       } catch {
         // Keep fallback coordinates so the insert remains valid.
@@ -128,7 +130,7 @@ export default function MarketModal({ visible, onClose, onCreated }: MarketModal
       onCreated?.();
       onClose();
     } catch (err) {
-      const message = humanizeError(err, "Failed to publish item.");
+      const message = humanizeError(err, "Failed to publish store item.");
       setError(message);
     } finally {
       setSaving(false);
@@ -137,7 +139,11 @@ export default function MarketModal({ visible, onClose, onCreated }: MarketModal
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} className="flex-1 justify-end">
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? insets.bottom : 0}
+        className="flex-1 justify-end"
+      >
         <SafeAreaView className="flex-1 bg-black/50 justify-end">
           <View className={`max-h-[85%] bg-white rounded-t-[32px] p-6 ${t.bgCard}`}>
             <View className="flex-row items-center justify-between mb-4">
@@ -146,8 +152,8 @@ export default function MarketModal({ visible, onClose, onCreated }: MarketModal
                   <Feather name="shopping-bag" size={20} color="#059669" />
                 </View>
                 <View>
-                  <Text className="text-xl font-black text-slate-900">Add Marketplace Item</Text>
-                  <Text className="text-xs text-slate-500">Food or products with photos and price.</Text>
+                  <Text className="text-xl font-black text-slate-900">Add Store Item</Text>
+                  <Text className="text-xs text-slate-500">Create a store listing for food, products, or services.</Text>
                 </View>
               </View>
               <TouchableOpacity onPress={onClose}>
@@ -155,17 +161,22 @@ export default function MarketModal({ visible, onClose, onCreated }: MarketModal
               </TouchableOpacity>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+              contentContainerStyle={{ paddingBottom: insets.bottom + 8 }}
+            >
               <Field
                 label="Item name"
-                placeholder="e.g. Chicken Inasal Barkada"
+                placeholder="e.g. Chicken Inasal Barkada or Laundry Pickup"
                 value={name}
                 onChangeText={setName}
                 icon="edit-3"
               />
               <Field
                 label="Category"
-                placeholder="Food, Beverage, Grocery"
+                placeholder="Meals, Drinks, Grocery, Services"
                 value={category}
                 onChangeText={setCategory}
                 icon="tag"
@@ -186,7 +197,7 @@ export default function MarketModal({ visible, onClose, onCreated }: MarketModal
               />
               <Field
                 label="Description"
-                placeholder="What is this dish/product? Ingredients, serving size, allergens, prep time."
+                placeholder="What are you selling? Add item details, inclusions, prep time, or service coverage."
                 value={description}
                 onChangeText={setDescription}
                 icon="file-text"
@@ -215,7 +226,7 @@ export default function MarketModal({ visible, onClose, onCreated }: MarketModal
                   {image?.uri ? (
                     <Image source={{ uri: image.uri }} className="w-full h-full rounded-2xl" />
                   ) : (
-                    <Text className="text-emerald-700 font-semibold">Add item photo</Text>
+                    <Text className="text-emerald-700 font-semibold">Add store item photo</Text>
                   )}
                 </TouchableOpacity>
                 <TouchableOpacity onPress={handlePickBackground} className="flex-1 h-36 rounded-2xl border border-dashed border-blue-300 bg-blue-50 items-center justify-center">
@@ -230,7 +241,7 @@ export default function MarketModal({ visible, onClose, onCreated }: MarketModal
               <View className="mt-2">
                 <Text className="text-[11px] font-black text-slate-500 uppercase tracking-[1.5px] mb-2">Describe like Indeed</Text>
                 <Text className="text-slate-600 leading-5">
-                  Include serving size, allergens, storage/expiry, and delivery/pickup times. Clear details help buyers decide faster.
+                  Include item details, delivery or pickup notes, and anything buyers should know before ordering.
                 </Text>
               </View>
 
@@ -289,6 +300,7 @@ function Field({ label, value, onChangeText, placeholder, icon, multiline }: Fie
           placeholder={placeholder}
           placeholderTextColor="#94A3B8"
           multiline={multiline}
+          textAlignVertical={multiline ? "top" : "center"}
           className="flex-1 ml-3 font-semibold text-slate-900"
           style={multiline ? { minHeight: 80 } : undefined}
         />

@@ -1,12 +1,12 @@
 import React, { useEffect, useMemo, useState, useCallback } from "react";
-import { View, Text, TouchableOpacity, Image, TextInput, Modal, SafeAreaView, ActivityIndicator, KeyboardAvoidingView, Platform } from "react-native";
+import { View, Text, TouchableOpacity, Image, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform } from "react-native";
 import { LegendList } from "@legendapp/list";
 import { Feather } from "@expo/vector-icons";
 import { useRouter, useFocusEffect } from "expo-router";
 import { useTheme } from "@/hooks/useTheme";
 import { supabaseClient } from "@/utils/supabase";
-import AuthenticationForm from "@/components/Auth/AuthenticationForm";
 import CustomModal from "@/components/CustomComponents/CustomModalComponent";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type Conversation = {
   roomId: string;
@@ -22,6 +22,7 @@ type Conversation = {
 
 export default function Inbox() {
   const { t } = useTheme();
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [threads, setThreads] = useState<Conversation[]>([]);
@@ -113,8 +114,12 @@ export default function Inbox() {
   }, [threads, search]);
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} className={`flex-1 ${t.bgPage}`}>
-      <View className={`pt-3 pb-6 px-6 ${t.bgCard} border-b ${t.border}`}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? insets.top : 0}
+      className={`flex-1 ${t.bgPage}`}
+    >
+      <View className={`pb-6 px-6 ${t.bgCard} border-b ${t.border}`} style={{ paddingTop: insets.top + 12 }}>
         <View className={`flex-row items-center mt-4 px-4 h-12 rounded-2xl ${t.bgSurface} border ${t.border}`}>
           <Feather name="search" size={16} color={t.icon} />
           <TextInput
@@ -138,6 +143,7 @@ export default function Inbox() {
           data={filteredThreads}
           keyExtractor={(item) => item.roomId}
           estimatedItemSize={90}
+          keyboardShouldPersistTaps="handled"
           ListEmptyComponent={
             <View className="py-16 items-center">
               <Text className={`text-sm ${t.textMuted}`}>No messages</Text>

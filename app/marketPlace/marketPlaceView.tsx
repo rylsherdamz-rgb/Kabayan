@@ -5,6 +5,7 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { useTheme } from '@/hooks/useTheme';
 import MarketModal from '@/components/MarketPlace/MarketModal';
 import MarketEditModal from '@/components/MarketPlace/MarketEditModal';
+import EntityHeroBanner from '@/components/CustomComponents/EntityHeroBanner';
 import { supabaseClient } from '@/utils/supabase';
 import AppFlashMessage from '@/components/CustomComponents/AppFlashMessage';
 import useFlashMessage from '@/hooks/useFlashMessage';
@@ -14,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 type ListingFeedRow = {
   id: string;
   vendor_id: string;
+  store_name: string;
   name: string;
   description: string | null;
   category: string;
@@ -49,6 +51,7 @@ const toNumber = (value: number | string | null | undefined, fallback = 0) => {
 const normalizeListing = (row: any): ListingFeedRow => ({
   id: row.id,
   vendor_id: row.vendor_id,
+  store_name: row.store_name ?? "Unnamed Store",
   name: row.name,
   description: row.description ?? null,
   category: row.category,
@@ -90,7 +93,7 @@ export default function MarketPlaceView() {
   const [loadingListings, setLoadingListings] = useState(true);
   const [loadingReviews, setLoadingReviews] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const params = useLocalSearchParams<{ openModal?: string; id?: string }>();
+  const params = useLocalSearchParams<{ openModal?: string; id?: string; scope?: string }>();
 
   const loadListings = useCallback(async () => {
     setLoadingListings(true);
@@ -155,10 +158,16 @@ export default function MarketPlaceView() {
     }
   }, [params.id]);
 
+  const scopedListings = useMemo(() => {
+    if (params.scope !== "mine") return listings;
+    if (!currentUserId) return [];
+    return listings.filter((item) => item.vendor_id === currentUserId);
+  }, [currentUserId, listings, params.scope]);
+
   const featured = useMemo(() => {
-    if (!listings.length) return null;
-    return listings.find((item) => item.id === selectedId) ?? listings[0];
-  }, [listings, selectedId]);
+    if (!scopedListings.length) return null;
+    return scopedListings.find((item) => item.id === selectedId) ?? scopedListings[0];
+  }, [scopedListings, selectedId]);
 
   useEffect(() => {
     if (!featured?.id) {
@@ -175,9 +184,20 @@ export default function MarketPlaceView() {
 
   const vendorItems = useMemo(() => {
     if (!featured) return [];
-    const sameVendor = listings.filter((item) => item.vendor_id === featured.vendor_id);
+    const source = params.scope === "mine" ? scopedListings : listings;
+    const sameVendor = source.filter((item) => item.vendor_id === featured.vendor_id);
     return sameVendor.length > 0 ? sameVendor : [featured];
-  }, [featured, listings]);
+  }, [featured, listings, params.scope, scopedListings]);
+
+  useEffect(() => {
+    if (!scopedListings.length) {
+      setSelectedId(null);
+      return;
+    }
+
+    if (selectedId && scopedListings.some((item) => item.id === selectedId)) return;
+    setSelectedId(scopedListings[0].id);
+  }, [scopedListings, selectedId]);
 
   const isOwner = Boolean(currentUserId && featured && featured.vendor_id === currentUserId);
 
@@ -202,18 +222,36 @@ export default function MarketPlaceView() {
     setSubmittingReview(true);
 
     try {
-      const { error } = await supabaseClient.rpc("rpc_create_marketplace_review", {
-        p_listing_id: featured.id,
-        p_rating: rating,
-        p_comment: reviewComment.trim() || null,
-      });
+      const targetListingId = featured.id;
+      const { data, error } = await supabaseClient
+        .rpc("rpc_create_marketplace_review", {
+          p_listing_id: targetListingId,
+          p_rating: rating,
+          p_comment: reviewComment.trim() || null,
+        })
+        .maybeSingle();
 
       if (error) throw new Error(error.message);
 
       setReviewModalVisible(false);
       setReviewRating(5);
       setReviewComment("");
-      await Promise.all([loadListings(), loadReviews(featured.id)]);
+
+      if (data) {
+        setListings((prev) =>
+          prev.map((item) =>
+            item.id === targetListingId
+              ? {
+                  ...item,
+                  avg_rating: toNumber(data.avg_rating, item.avg_rating),
+                  review_count: Number(data.review_count ?? item.review_count),
+                }
+              : item
+          )
+        );
+      }
+
+      await Promise.all([loadListings(), loadReviews(targetListingId)]);
       showFlashMessage("Review posted", "Thanks for sharing your feedback.", "success");
     } catch (err) {
       const message = humanizeError(err, "Unable to submit review.");
@@ -265,7 +303,7 @@ export default function MarketPlaceView() {
     return (
       <View className={`flex-1 items-center justify-center ${t.bgPage}`}>
         <ActivityIndicator />
-        <Text className={`mt-2 ${t.textMuted}`}>Loading marketplace…</Text>
+        <Text className={`mt-2 ${t.textMuted}`}>Loading stores…</Text>
       </View>
     );
   }
@@ -274,9 +312,13 @@ export default function MarketPlaceView() {
     return (
       <View style={{paddingBottom: insets.bottom, paddingTop : insets.top}} className={`flex-1 items-center justify-center px-6 ${t.bgPage}`}>
         <AppFlashMessage message={flashMessage} onClose={hideFlashMessage} />
-        <Text className={`text-base font-semibold ${t.text}`}>No listings found</Text>
+        <Text className={`text-base font-semibold ${t.text}`}>
+          {params.scope === "mine" ? "You have no store listings yet" : "No store listings found"}
+        </Text>
         <TouchableOpacity onPress={() => setShowModal(true)} className="mt-4 bg-blue-600 px-6 py-3 rounded-2xl">
-          <Text className="text-white font-black text-xs uppercase tracking-widest">Add Item</Text>
+          <Text className="text-white font-black text-xs uppercase tracking-widest">
+            {params.scope === "mine" ? "Create Your First Store Listing" : "Add Store Item"}
+          </Text>
         </TouchableOpacity>
 
         <MarketModal
@@ -295,29 +337,18 @@ export default function MarketPlaceView() {
     <View  className={`flex-1 ${t.bgPage}`}>
       <AppFlashMessage message={flashMessage} onClose={hideFlashMessage} />
       <ScrollView style={{marginBottom : insets.top}}  showsVerticalScrollIndicator={false}>
-        <View style={{ paddingTop : insets.top}} className="h-72 w-full relative">
-          {featured.image_url ? (
-            <Image source={{ uri: featured.image_url }} className="w-full h-full" />
-          ) : (
-            <View className={`w-full h-full items-center justify-center ${t.bgSurface}`}>
-              <Feather name="image" size={36} color={t.icon} />
-              <Text className={`mt-2 text-sm font-semibold ${t.textMuted}`}>No listing photo</Text>
-            </View>
-          )}
-          <View className="absolute top-4 left-5 right-5 flex-row justify-between">
-            <TouchableOpacity
-              onPress={() => router.back()}
-              className="bg-white/90 p-2.5 rounded-2xl shadow-sm"
-            >
-              <Feather name="chevron-left" size={24} color="#0F172A" />
-            </TouchableOpacity>
-            <TouchableOpacity className="bg-white/90 p-2.5 rounded-2xl shadow-sm">
-              <Feather name="share-2" size={20} color="#0F172A" />
-            </TouchableOpacity>
-          </View>
-        </View>
+        <EntityHeroBanner
+          title={featured.name}
+          subtitle={featured.store_name}
+          eyebrow={featured.is_open ? "Open Store Listing" : "Closed Store Listing"}
+          meta={`${featured.category} • ₱${featured.price.toLocaleString()} • ${featured.location_label}`}
+          imageUri={featured.image_url}
+          seed={`${featured.id}:${featured.name}`}
+          topInset={insets.top}
+          onBack={() => router.back()}
+        />
 
-        <View className={`-mt-10 px-6 pt-8 pb-32 rounded-t-[40px] ${t.bgCard} border-t ${t.border}`}>
+        <View className={`-mt-5 px-6 pt-6 pb-36 rounded-t-[36px] ${t.bgCard} border-t ${t.border}`}>
           <View className="flex-row justify-between items-start">
             <View className="flex-1">
               <View className="flex-row items-center flex-wrap">
@@ -329,10 +360,11 @@ export default function MarketPlaceView() {
                   </View>
                 )}
               </View>
+              <Text className={`mt-2 text-sm font-bold ${t.textMuted}`}>{featured.store_name}</Text>
               <View className="flex-row items-center mt-2">
                 <View className={`${featured.is_open ? 'bg-emerald-50' : 'bg-rose-50'} px-2 py-1 rounded-md mr-3`}>
                   <Text className={`${featured.is_open ? 'text-emerald-600' : 'text-rose-600'} font-black text-[10px] uppercase`}>
-                    {featured.is_open ? "Open" : "Closed"}
+                    {featured.is_open ? "Open Store" : "Closed Store"}
                   </Text>
                 </View>
                 <Ionicons name="star" size={14} color="#F59E0B" />
@@ -351,20 +383,39 @@ export default function MarketPlaceView() {
 
             <View className="items-end">
               <Text className={`text-2xl font-black ${t.price}`}>₱{featured.price.toLocaleString()}</Text>
-              <Text className={`mt-1 text-xs font-semibold ${t.textMuted}`}>{featured.category}</Text>
+              <Text className={`mt-1 text-xs font-semibold ${t.textMuted}`}>{featured.store_name}</Text>
             </View>
           </View>
 
-          <View className="flex-row mt-8 gap-x-4">
+          <View className={`mt-6 px-5 py-5 rounded-[28px] border ${t.border} ${t.bgSurface}`}>
+            <View className="flex-row items-start justify-between">
+              <View className="flex-1 pr-4">
+                <Text className={`text-[10px] font-black uppercase tracking-widest ${t.textMuted}`}>Store Item</Text>
+                <Text className={`mt-2 text-base font-black ${t.text}`}>{featured.name}</Text>
+                <Text className={`mt-1 text-sm font-semibold ${t.textMuted}`}>{featured.store_name}</Text>
+              </View>
+              <View className="items-end">
+                <Text className={`text-[10px] font-black uppercase tracking-widest ${t.textMuted}`}>Price</Text>
+                <Text className={`mt-2 text-xl font-black ${t.price}`}>₱{featured.price.toLocaleString()}</Text>
+              </View>
+            </View>
+            {featured.description ? (
+              <Text className={`mt-4 text-sm leading-6 ${t.textMuted}`}>
+                {featured.description}
+              </Text>
+            ) : null}
+          </View>
+
+          <View className="flex-row flex-wrap mt-4" style={{ gap: 12 }}>
             <TouchableOpacity onPress={() => router.push({ pathname: "/map/mapView", params: { location: featured.location_label } })}>
               <InfoChip icon="map-pin" label={featured.location_label} t={t} />
             </TouchableOpacity>
-            <InfoChip icon="tag" label={featured.category} t={t} />
+            <InfoChip icon="tag" label={`Store • ${featured.category}`} t={t} />
           </View>
 
           {isOwner ? (
-            <View className="mt-6">
-              <Text className={`text-[10px] font-black uppercase tracking-widest ${t.textMuted} mb-3`}>Owner Controls</Text>
+            <View className="mt-8">
+              <Text className={`text-[10px] font-black uppercase tracking-widest ${t.textMuted} mb-3`}>Store Controls</Text>
               <View className="flex-row gap-3">
                 <TouchableOpacity
                   onPress={() => setEditModalVisible(true)}
@@ -378,7 +429,7 @@ export default function MarketPlaceView() {
                   className={`flex-1 h-12 rounded-2xl items-center justify-center ${featured.is_open ? "bg-rose-600" : "bg-emerald-600"}`}
                 >
                   <Text className="text-white text-xs font-black uppercase tracking-widest">
-                    {updatingOpenState ? "Updating..." : featured.is_open ? "Close Listing" : "Reopen Listing"}
+                    {updatingOpenState ? "Updating..." : featured.is_open ? "Close Store Item" : "Reopen Store Item"}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -386,12 +437,13 @@ export default function MarketPlaceView() {
           ) : null}
 
           <View className="mt-10">
-            <Text className={`text-lg font-black tracking-tight mb-4 ${t.text}`}>More from this vendor</Text>
+            <Text className={`text-lg font-black tracking-tight mb-4 ${t.text}`}>More from this store</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} className="-mx-6 px-6">
               {vendorItems.map((item) => (
                 <MenuCard
                   key={item.id}
                   name={item.name}
+                  storeName={item.store_name}
                   price={`₱${item.price.toLocaleString()}`}
                   img={item.image_url}
                   verified={(item.description ?? "").toLowerCase().includes("permit: verified")}
@@ -403,25 +455,30 @@ export default function MarketPlaceView() {
             </ScrollView>
           </View>
 
-          <View className="mt-10">
-            <View className="flex-row justify-between items-center mb-6">
-              <Text className={`text-lg font-black tracking-tight ${t.text}`}>Community Reviews</Text>
+          <View className="mt-12">
+            <View className="flex-row justify-between items-center mb-5">
+              <View className="flex-1 pr-4">
+                <Text className={`text-lg font-black tracking-tight ${t.text}`}>Store Reviews</Text>
+                <Text className={`mt-1 text-[12px] leading-5 ${t.textMuted}`}>
+                  Buyer feedback for this store and item.
+                </Text>
+              </View>
               {!isOwner ? (
-                <TouchableOpacity onPress={handleOpenReviewModal}>
-                  <Text className={`text-xs font-bold ${t.brand}`}>Write a Review</Text>
+                <TouchableOpacity onPress={handleOpenReviewModal} className="px-4 py-2 rounded-2xl bg-blue-50">
+                  <Text className={`text-[11px] font-black uppercase tracking-widest ${t.brand}`}>Write Review</Text>
                 </TouchableOpacity>
               ) : null}
             </View>
 
             {loadingReviews ? (
-              <View style={{paddingBottom : 20  + insets.bottom}} className="py-8 items-center">
+              <View style={{paddingBottom : 20  + insets.bottom}} className="py-10 items-center">
                 <ActivityIndicator />
                 <Text className={`mt-2 text-xs ${t.textMuted}`}>Loading reviews…</Text>
               </View>
             ) : reviews.length === 0 ? (
-              <View className={`p-5 rounded-3xl ${t.bgSurface} border ${t.border}`}>
+              <View className={`px-5 py-6 rounded-3xl ${t.bgSurface} border ${t.border}`}>
                 <Text className={`text-sm font-semibold ${t.text}`}>No reviews yet</Text>
-                <Text className={`text-xs mt-2 ${t.textMuted}`}>Be the first to leave feedback for this listing.</Text>
+                <Text className={`text-xs mt-2 leading-5 ${t.textMuted}`}>Be the first to leave feedback for this store item.</Text>
               </View>
             ) : (
               reviews.map((review) => (
@@ -432,15 +489,20 @@ export default function MarketPlaceView() {
         </View>
       </ScrollView>
 
-            { isOwner ? (      <View style={{paddingBottom: 10 +  insets.bottom}} className={`absolute bottom-0 left-0 right-0 p-6 ${t.bgCard} border-t ${t.border} flex-row items-center`}>
-        <TouchableOpacity onPress={() => setShowModal(true)} className="bg-blue-600 px-10 h-14 rounded-2xl items-center justify-center shadow-lg shadow-blue-500/40">
-          <Text className="text-white font-black uppercase text-sm tracking-widest">Add Item</Text>
-        </TouchableOpacity>
-      </View>
+      {isOwner ? (
+        <View
+          style={{ paddingBottom: insets.bottom + 12 }}
+          className={`absolute bottom-0 left-0 right-0 px-6 pt-4 ${t.bgCard} border-t ${t.border} flex-row items-center`}
+        >
+          <TouchableOpacity
+            onPress={() => setShowModal(true)}
+            className="bg-blue-600 flex-1 h-14 rounded-2xl items-center justify-center shadow-lg shadow-blue-500/40"
+          >
+            <Text className="text-white font-black uppercase text-sm tracking-widest">Add Store Item</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
 
-) : null
-
-            }
       <MarketModal
         visible={showModal}
         onClose={() => setShowModal(false)}
@@ -456,52 +518,65 @@ export default function MarketPlaceView() {
         animationType="slide"
         onRequestClose={() => setReviewModalVisible(false)}
       >
-        <KeyboardAvoidingView style={{paddingBottom :insets.bottom}} className="flex-1" behavior={Platform.OS === "ios" ? "padding" : "height"} className="flex-1 justify-end">
-          <View style={{paddingBottom : insets.bottom}} className="flex-1 bg-black/50 justify-end">
-            <View className={`rounded-t-[28px] px-6 pt-6 pb-8 ${t.bgCard}`}>
-              <View className="flex-row items-center justify-between mb-5">
-                <Text className={`text-xl font-black ${t.text}`}>Write a Review</Text>
-                <TouchableOpacity onPress={() => setReviewModalVisible(false)}>
-                  <Ionicons name="close" size={22} color={t.icon} />
+        <KeyboardAvoidingView
+          className="flex-1 justify-end"
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? insets.top + 12 : 0}
+        >
+          <View className="flex-1 bg-black/50 justify-end">
+            <ScrollView
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+              contentContainerStyle={{ flexGrow: 1, justifyContent: "flex-end" }}
+            >
+              <View style={{ paddingBottom: insets.bottom + 18 }} className={`rounded-t-[32px] px-6 pt-6 ${t.bgCard}`}>
+                <View className="flex-row items-center justify-between mb-5">
+                  <View className="flex-1 pr-4">
+                    <Text className={`text-xl font-black ${t.text}`}>Write a Store Review</Text>
+                    <Text className={`mt-1 text-[12px] leading-5 ${t.textMuted}`}>Share your experience with this store and item.</Text>
+                  </View>
+                  <TouchableOpacity onPress={() => setReviewModalVisible(false)}>
+                    <Ionicons name="close" size={22} color={t.icon} />
+                  </TouchableOpacity>
+                </View>
+
+                <Text className={`text-xs font-black uppercase tracking-widest ${t.textMuted}`}>Rating</Text>
+                <View className="flex-row mt-3 mb-5">
+                  {[1, 2, 3, 4, 5].map((value) => (
+                    <TouchableOpacity key={value} onPress={() => setReviewRating(value)} className="mr-3">
+                      <Ionicons
+                        name={value <= reviewRating ? "star" : "star-outline"}
+                        size={28}
+                        color={value <= reviewRating ? "#F59E0B" : "#94A3B8"}
+                      />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                <Text className={`text-xs font-black uppercase tracking-widest ${t.textMuted}`}>Comment</Text>
+                <View className={`mt-3 border ${t.border} rounded-[24px] ${t.bgSurface} px-4 py-4`}>
+                  <TextInput
+                    value={reviewComment}
+                    onChangeText={setReviewComment}
+                    placeholder="Tell other buyers what this store did well."
+                    placeholderTextColor={t.icon}
+                    multiline
+                    className={`${t.text}`}
+                    style={{ minHeight: 110, textAlignVertical: "top" }}
+                  />
+                </View>
+
+                <TouchableOpacity
+                  onPress={handleSubmitReview}
+                  disabled={submittingReview}
+                  className="mt-6 bg-blue-600 h-12 rounded-2xl items-center justify-center"
+                >
+                  <Text className="text-white font-black uppercase text-xs tracking-widest">
+                    {submittingReview ? "Submitting..." : "Submit Review"}
+                  </Text>
                 </TouchableOpacity>
               </View>
-
-              <Text className={`text-xs font-black uppercase tracking-widest ${t.textMuted}`}>Rating</Text>
-              <View className="flex-row mt-2 mb-4">
-                {[1, 2, 3, 4, 5].map((value) => (
-                  <TouchableOpacity key={value} onPress={() => setReviewRating(value)} className="mr-2">
-                    <Ionicons
-                      name={value <= reviewRating ? "star" : "star-outline"}
-                      size={26}
-                      color={value <= reviewRating ? "#F59E0B" : "#94A3B8"}
-                    />
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              <Text className={`text-xs font-black uppercase tracking-widest ${t.textMuted}`}>Comment</Text>
-              <View className={`mt-2 border ${t.border} rounded-2xl ${t.bgSurface} px-4 py-3`}>
-                <TextInput
-                  value={reviewComment}
-                  onChangeText={setReviewComment}
-                  placeholder="Share your experience"
-                  placeholderTextColor={t.icon}
-                  multiline
-                  className={`${t.text}`}
-                  style={{ minHeight: 90, textAlignVertical: "top" }}
-                />
-              </View>
-
-              <TouchableOpacity
-                onPress={handleSubmitReview}
-                disabled={submittingReview}
-                className="mt-6 bg-blue-600 h-12 rounded-2xl items-center justify-center"
-              >
-                <Text className="text-white font-black uppercase text-xs tracking-widest">
-                  {submittingReview ? "Submitting..." : "Submit Review"}
-                </Text>
-              </TouchableOpacity>
-            </View>
+            </ScrollView>
           </View>
         </KeyboardAvoidingView>
       </Modal>
@@ -528,27 +603,57 @@ function InfoChip({ icon, label, t }: any) {
   );
 }
 
-function MenuCard({ name, price, img, verified, t, onPress, isActive }: any) {
+function MenuCard({ name, storeName, price, img, verified, t, onPress, isActive }: any) {
   return (
     <TouchableOpacity
       onPress={onPress}
-      className={`mr-4 w-40 rounded-3xl overflow-hidden ${t.bgSurface} border ${isActive ? 'border-blue-500' : t.border}`}
+      className={`mr-4 w-52 rounded-[30px] overflow-hidden border ${isActive ? 'border-blue-500' : t.border}`}
+      activeOpacity={0.95}
     >
-      {img ? (
-        <Image source={{ uri: img }} className="h-28 w-full" />
-      ) : (
-        <View className="h-28 w-full items-center justify-center bg-slate-100">
-          <Feather name="image" size={20} color="#94A3B8" />
+      <View className={`${isActive ? "bg-slate-900" : "bg-slate-800"}`}>
+        {img ? (
+          <Image source={{ uri: img }} className="h-32 w-full opacity-90" />
+        ) : (
+          <View className="h-32 w-full px-4 py-4 justify-between bg-slate-800">
+            <View className="w-10 h-10 rounded-2xl bg-white/10 items-center justify-center">
+              <Feather name="shopping-bag" size={18} color="#E2E8F0" />
+            </View>
+            <View>
+              <Text className="text-[10px] font-black uppercase tracking-widest text-slate-300" numberOfLines={1}>
+                {storeName ?? "Unnamed Store"}
+              </Text>
+              <Text className="mt-2 text-base font-black tracking-tight text-white" numberOfLines={2}>
+                {name}
+              </Text>
+            </View>
+          </View>
+        )}
+        <View className="absolute top-3 right-3 bg-black/35 px-2.5 py-1 rounded-full">
+          <Text className="text-[10px] font-black uppercase tracking-widest text-white">{price}</Text>
         </View>
-      )}
-      <View className="p-3">
-        <View className="flex-row items-center">
-          <Text className={`font-black text-sm tracking-tight ${t.text}`}>{name}</Text>
-          {verified && (
-            <MaterialIcons name="verified" size={14} color="#059669" style={{ marginLeft: 4 }} />
-          )}
+      </View>
+
+      <View className={`px-4 py-4 ${t.bgCard}`}>
+        <View className="flex-row items-start">
+          <View className="flex-1 pr-2">
+            <Text className={`text-[10px] font-black uppercase tracking-widest ${t.textMuted}`} numberOfLines={1}>
+              {storeName ?? "Unnamed Store"}
+            </Text>
+            <Text className={`mt-2 font-black text-sm tracking-tight ${t.text}`} numberOfLines={2}>
+              {name}
+            </Text>
+          </View>
+          {verified ? <MaterialIcons name="verified" size={16} color="#059669" /> : null}
         </View>
-        <Text className="text-emerald-600 font-black text-xs mt-1">{price}</Text>
+
+        <View className="mt-4 flex-row items-center justify-between">
+          <Text className="text-emerald-600 font-black text-base">{price}</Text>
+          <View className={`px-3 py-1.5 rounded-full ${isActive ? "bg-blue-50" : "bg-slate-100"}`}>
+            <Text className={`text-[10px] font-black uppercase tracking-widest ${isActive ? "text-blue-600" : "text-slate-600"}`}>
+              {isActive ? "Viewing" : "Open"}
+            </Text>
+          </View>
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -556,19 +661,22 @@ function MenuCard({ name, price, img, verified, t, onPress, isActive }: any) {
 
 function ReviewItem({ review, t }: { review: ReviewRow; t: any }) {
   return (
-    <View className={`p-5 rounded-3xl ${t.bgSurface} border ${t.border} mb-4`}>
-      <View className="flex-row justify-between items-center mb-2">
+    <View className={`px-5 py-5 rounded-3xl ${t.bgSurface} border ${t.border} mb-4`}>
+      <View className="flex-row justify-between items-start mb-3">
         <View className="flex-row items-center flex-1 pr-4">
           {review.reviewer_avatar_url ? (
-            <Image source={{ uri: review.reviewer_avatar_url }} className="w-8 h-8 rounded-full mr-2" />
+            <Image source={{ uri: review.reviewer_avatar_url }} className="w-10 h-10 rounded-full mr-3" />
           ) : (
-            <View className="w-8 h-8 rounded-full mr-2 bg-slate-200 items-center justify-center">
+            <View className="w-10 h-10 rounded-full mr-3 bg-slate-200 items-center justify-center">
               <Text className="text-[11px] font-black text-slate-600">{review.reviewer_name.slice(0, 1).toUpperCase()}</Text>
             </View>
           )}
-          <Text className={`font-black text-sm ${t.text}`}>{review.reviewer_name}</Text>
+          <View className="flex-1">
+            <Text className={`font-black text-sm ${t.text}`}>{review.reviewer_name}</Text>
+            <Text className={`text-[10px] mt-1 font-semibold ${t.textMuted}`}>{new Date(review.created_at).toLocaleDateString()}</Text>
+          </View>
         </View>
-        <View className="flex-row">
+        <View className="flex-row mt-1">
           {[...Array(5)].map((_, i) => (
             <Ionicons
               key={i}
@@ -580,11 +688,10 @@ function ReviewItem({ review, t }: { review: ReviewRow; t: any }) {
         </View>
       </View>
       {review.comment ? (
-        <Text className={`text-xs leading-5 font-medium ${t.textMuted}`}>{review.comment}</Text>
+        <Text className={`text-xs leading-6 font-medium ${t.textMuted}`}>{review.comment}</Text>
       ) : (
-        <Text className={`text-xs leading-5 font-medium italic ${t.textMuted}`}>No written comment.</Text>
+        <Text className={`text-xs leading-6 font-medium italic ${t.textMuted}`}>No written comment.</Text>
       )}
-      <Text className={`text-[10px] mt-2 font-semibold ${t.textMuted}`}>{new Date(review.created_at).toLocaleDateString()}</Text>
     </View>
   );
 }

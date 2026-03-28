@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, Image, ActivityIndicator, TouchableOpacity } from "react-native";
+import { View, Text, Image, ActivityIndicator, TouchableOpacity, ScrollView } from "react-native";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/hooks/useTheme";
 import { supabaseClient } from "@/utils/supabase";
@@ -72,67 +72,124 @@ export default function ProfileView() {
 
 
   return (
-    <View style={{paddingTop : inset.top}} className={`flex-1 ${t.bgPage} p-6`}>
-      
-      <View  className={`p-5 relative rounded-3xl ${t.bgCard} border ${t.border} shadow-sm`}>
-    <TouchableOpacity>
-          <Feather name="x-circle" color="#000" className="absolute top-0 right-2" size={20}/>
-      </TouchableOpacity>
-        <View className="flex-row items-center">
-          <Image
-            source={{
-              uri:
-                profile.avatar_url ??
-                "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200",
-            }}
-            className="w-16 h-16 rounded-2xl"
-          />
-          <View className="ml-4 flex-1">
-            <View className="flex-row items-center">
-              <Text className={`text-xl font-black tracking-tight ${t.text}`}>
-                {profile.display_name ?? "New User"}
-              </Text>
+    <View style={{ paddingTop: inset.top }} className={`flex-1 ${t.bgPage}`}>
+      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: inset.bottom + 28 }}>
+        <View className="flex-row items-center justify-between mb-4">
+          <TouchableOpacity
+            onPress={() => router.back()}
+            className={`h-11 w-11 rounded-2xl border ${t.border} ${t.bgCard} items-center justify-center`}
+          >
+            <Feather name="chevron-left" size={20} color={t.icon} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => router.push("/profile/EditProfile")}
+            className="h-11 px-4 rounded-2xl bg-blue-600 items-center justify-center"
+          >
+            <Text className="text-white text-[11px] font-black uppercase tracking-widest">Edit Profile</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View className={`rounded-[32px] overflow-hidden border ${t.border} ${t.bgCard}`}>
+          <View className="h-28 bg-blue-600/90" />
+          <View className="px-5 pb-5">
+            <View className="-mt-11 flex-row items-end justify-between">
+              <Image
+                source={{
+                  uri:
+                    profile.avatar_url ??
+                    "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200",
+                }}
+                className="w-24 h-24 rounded-3xl border-4 border-white"
+              />
               <View
-                className="flex-row items-center ml-2 px-2 py-1 rounded-lg"
+                className="px-3 py-2 rounded-2xl flex-row items-center"
                 style={{ backgroundColor: `${badgeColor}1A` }}
               >
                 <Ionicons
                   name={profile.id_verification_status === "verified" ? "shield-checkmark" : "shield-half"}
-                  size={16}
+                  size={15}
                   color={badgeColor}
                 />
-                <Text className="ml-1 text-[11px] font-bold" style={{ color: badgeColor }}>
+                <Text className="ml-1 text-[10px] font-black uppercase tracking-widest" style={{ color: badgeColor }}>
                   {profile.id_verification_status.replace("_", " ")}
                 </Text>
               </View>
             </View>
-            <Text className={`text-sm ${t.textMuted}`}>
+
+            <Text className={`mt-4 text-[28px] font-black tracking-tight ${t.text}`}>
+              {profile.display_name ?? "New User"}
+            </Text>
+            <Text className={`mt-1 text-sm font-semibold ${t.textMuted}`}>
               {profile.job_role ?? "Worker"} • {profile.location_label ?? "Location unknown"}
+            </Text>
+            <Text className={`mt-4 text-[13px] leading-5 ${t.textMuted}`}>
+              {profile.id_verification_status === "verified"
+                ? "Your account is verified and ready for trusted hiring and marketplace activity."
+                : profile.id_verification_status === "pending_review"
+                ? "Your documents are in review. You can keep improving your profile while you wait."
+                : "Your profile is live, but verification will help you look more trustworthy to buyers and employers."}
             </Text>
           </View>
         </View>
 
-        <View className={`mt-4 p-4 rounded-2xl ${t.bgSurface} border ${t.border}`}>
-          <Text className={`text-xs font-bold ${t.textMuted} uppercase tracking-[2px] mb-2`}>
-            Verification Status
-          </Text>
-          <Text className={`${t.text}`}>
-            {profile.id_verification_status === "verified"
-              ? "All required documents were approved."
-              : profile.id_verification_status === "pending_review"
-              ? "Documents submitted. Awaiting review."
-              : "Not verified. Upload permits to earn the badge."}
-          </Text>
+        <View className={`mt-4 p-5 rounded-[28px] border ${t.border} ${t.bgCard}`}>
+          <Text className={`text-[11px] font-black uppercase tracking-[2px] ${t.textMuted}`}>Profile Actions</Text>
+          <View className="mt-4 gap-3">
+            <ActionRow
+              label="Verification"
+              subtitle="Submit requirements or review your current status"
+              icon="shield-checkmark-outline"
+              onPress={() => router.push("/Register")}
+              t={t}
+            />
+            <ActionRow
+              label="My Listings"
+              subtitle="Open and manage your marketplace listings"
+              icon="storefront-outline"
+              onPress={() => router.push({ pathname: "/marketPlace/marketPlaceView", params: { scope: "mine" } })}
+              t={t}
+            />
+            <ActionRow
+              label="Add Listing"
+              subtitle="Create a new listing with photos, location, and price"
+              icon="add-circle-outline"
+              onPress={() => router.push({ pathname: "/marketPlace/marketPlaceView", params: { scope: "mine", openModal: "true" } })}
+              t={t}
+            />
+          </View>
         </View>
-
-        <TouchableOpacity
-          className="mt-4 bg-blue-600 py-3 rounded-2xl items-center"
-          onPress={() => router.push("/marketPlace/marketPlaceView?openModal=true")}
-          activeOpacity={0.85}
-        >
-          <Text className="text-white font-black">Open Store / Add Item</Text>
-        </TouchableOpacity>
-      </View>
+      </ScrollView>
     </View>
+  );
+}
+
+function ActionRow({
+  label,
+  subtitle,
+  icon,
+  onPress,
+  t,
+}: {
+  label: string;
+  subtitle: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  onPress: () => void;
+  t: ReturnType<typeof useTheme>["t"];
+}) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.88}
+      className={`flex-row items-center rounded-[24px] border ${t.border} ${t.bgSurface} p-4`}
+    >
+      <View className="h-11 w-11 rounded-2xl bg-blue-50 items-center justify-center">
+        <Ionicons name={icon} size={18} color="#2563EB" />
+      </View>
+      <View className="ml-3 flex-1 pr-3">
+        <Text className={`text-sm font-black ${t.text}`}>{label}</Text>
+        <Text className={`mt-1 text-[11px] leading-4 ${t.textMuted}`}>{subtitle}</Text>
+      </View>
+      <Feather name="chevron-right" size={18} color="#94A3B8" />
+    </TouchableOpacity>
   );
 }
