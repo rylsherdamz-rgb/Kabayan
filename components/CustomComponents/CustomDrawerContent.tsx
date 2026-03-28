@@ -45,7 +45,7 @@ export default function CustomDrawerContent(props: any) {
   const [profile, setProfile] = useState<DrawerProfile | null>(null);
   const [email, setEmail] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [jobsCount, setJobsCount] = useState(0);
+  const [applicantCount, setApplicantCount] = useState(0);
   const [listingsCount, setListingsCount] = useState(0);
 
   const loadDrawerData = useCallback(async () => {
@@ -56,7 +56,7 @@ export default function CustomDrawerContent(props: any) {
         setCurrentUserId(null);
         setEmail(null);
         setProfile(null);
-        setJobsCount(0);
+        setApplicantCount(0);
         setListingsCount(0);
         return;
       }
@@ -68,7 +68,7 @@ export default function CustomDrawerContent(props: any) {
       setCurrentUserId(null);
       setEmail(null);
       setProfile(null);
-      setJobsCount(0);
+      setApplicantCount(0);
       setListingsCount(0);
       return;
     }
@@ -76,18 +76,18 @@ export default function CustomDrawerContent(props: any) {
     setCurrentUserId(user.id);
     setEmail(user.email ?? null);
 
-    const [profileRes, jobsRes, listingsRes] = await Promise.all([
+    const [profileRes, applicantsRes, listingsRes] = await Promise.all([
       supabaseClient.rpc("rpc_get_drawer_profile", { p_user_id: user.id }).maybeSingle(),
-      supabaseClient.rpc("rpc_get_jobs_count_by_employer", { p_employer_id: user.id }),
+      supabaseClient.rpc("rpc_get_employer_job_applicants", { p_employer_id: user.id }),
       supabaseClient.rpc("rpc_get_listings_count_by_vendor", { p_vendor_id: user.id }),
     ]);
 
     if (profileRes.error) throw new Error(profileRes.error.message);
-    if (jobsRes.error) throw new Error(jobsRes.error.message);
+    if (applicantsRes.error) throw new Error(applicantsRes.error.message);
     if (listingsRes.error) throw new Error(listingsRes.error.message);
 
     setProfile((profileRes.data as DrawerProfile | null) ?? null);
-    setJobsCount(Number(jobsRes.data ?? 0));
+    setApplicantCount(Array.isArray(applicantsRes.data) ? applicantsRes.data.length : 0);
     setListingsCount(Number(listingsRes.data ?? 0));
   }, []);
 
@@ -96,7 +96,7 @@ export default function CustomDrawerContent(props: any) {
       setCurrentUserId(null);
       setEmail(null);
       setProfile(null);
-      setJobsCount(0);
+      setApplicantCount(0);
       setListingsCount(0);
     });
 
@@ -105,7 +105,7 @@ export default function CustomDrawerContent(props: any) {
         setCurrentUserId(null);
         setEmail(null);
         setProfile(null);
-        setJobsCount(0);
+        setApplicantCount(0);
         setListingsCount(0);
       });
     });
@@ -174,7 +174,7 @@ export default function CustomDrawerContent(props: any) {
         items: [
           {
             icon: "account-group-outline",
-            label: `Job Applicants (${jobsCount})`,
+            label: `Job Applicants (${applicantCount})`,
             href: "/profile/JobApplicants",
             activeMatch: ["/profile/JobApplicants"],
           },
@@ -182,12 +182,6 @@ export default function CustomDrawerContent(props: any) {
             icon: "store-edit-outline",
             label: `My Listings (${listingsCount})`,
             href: "/marketPlace/marketPlaceView?scope=mine",
-            activeMatch: ["/marketPlace/marketPlaceView"],
-          },
-          {
-            icon: "plus-circle-outline",
-            label: "Add Listing",
-            href: "/marketPlace/marketPlaceView?scope=mine&openModal=true",
             activeMatch: ["/marketPlace/marketPlaceView"],
           },
           {
@@ -200,7 +194,7 @@ export default function CustomDrawerContent(props: any) {
         hidden: !currentUserId,
       },
     ],
-    [currentUserId, jobsCount, listingsCount]
+    [applicantCount, currentUserId, listingsCount]
   );
 
   const DrawerItem = ({ icon, label, href, activeMatch = [], onPress, color = "#475569" }: DrawerItemConfig) => {

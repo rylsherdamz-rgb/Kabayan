@@ -79,6 +79,23 @@ export default function Home() {
           </Text>
         </View>
 
+        <View className="mb-6">
+          <View className="flex-row justify-between items-center mb-3">
+            <View className="flex-row items-center">
+              <View className="w-1 h-4 bg-amber-500 rounded-full mr-2" />
+              <Text className={`text-sm font-black ${t.text}`}>Quick Actions</Text>
+            </View>
+            <Text className={`text-[11px] font-semibold ${t.textMuted}`}>Move faster</Text>
+          </View>
+
+          <View className="flex-row flex-wrap justify-between">
+            <QuickActionCard icon="briefcase-outline" label="Post Job" subtitle="Create a hiring post" onPress={() => router.push("/jobs")} t={t} />
+            <QuickActionCard icon="storefront-outline" label="My Stores" subtitle="Manage store listings" onPress={() => router.push({ pathname: "/marketPlace/marketPlaceView", params: { scope: "mine" } })} t={t} />
+            <QuickActionCard icon="shield-checkmark-outline" label="Verify" subtitle="Submit account review" onPress={() => router.push("/Register")} t={t} />
+            <QuickActionCard icon="people-outline" label="Applicants" subtitle="Review incoming workers" onPress={() => router.push("/profile/JobApplicants")} t={t} />
+          </View>
+        </View>
+
         {/* Map preview card */}
         <View className="mb-6">
           <View className="flex-row justify-between items-center mb-3">
@@ -100,7 +117,7 @@ export default function Home() {
             className="h-52 rounded-[28px] overflow-hidden border border-slate-200"
             style={{ elevation: 3, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 12, shadowOffset: { width: 0, height: 4 } }}
           >
-            <CustomMapComponents />
+            <CustomMapComponents mode="preview" />
           </Pressable>
         </View>
 
@@ -196,3 +213,31 @@ const formatTime = (iso: string) => {
   if (diffHr < 24) return `${diffHr}h ago`;
   return date.toLocaleDateString();
 };
+
+function QuickActionCard({
+  icon,
+  label,
+  subtitle,
+  onPress,
+  t,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  subtitle: string;
+  onPress: () => void;
+  t: any;
+}) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      className={`mb-3 w-[48%] rounded-[22px] border px-4 py-4 ${t.border} ${t.bgCard}`}
+      activeOpacity={0.88}
+    >
+      <View className="w-10 h-10 rounded-2xl bg-blue-50 items-center justify-center">
+        <Ionicons name={icon} size={18} color="#2563EB" />
+      </View>
+      <Text className={`mt-4 text-sm font-black ${t.text}`}>{label}</Text>
+      <Text className={`mt-1 text-[11px] leading-4 ${t.textMuted}`}>{subtitle}</Text>
+    </TouchableOpacity>
+  );
+}

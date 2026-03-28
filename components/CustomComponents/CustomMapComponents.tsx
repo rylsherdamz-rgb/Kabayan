@@ -11,12 +11,14 @@ type CustomMapComponentsProps = {
   markerCoordinate?: [number, number] | null;
   markerLabel?: string | null;
   onLocationSelected?: (coords: [number, number], address: string) => void;
+  mode?: "full" | "preview";
 };
 
 export default function CustomMapComponents({ 
   markerCoordinate, 
   markerLabel, 
-  onLocationSelected 
+  onLocationSelected,
+  mode = "full",
 }: CustomMapComponentsProps) {
   const mapRef = useRef<MapView>(null);
   const autocompleteRef = useRef<GooglePlacesAutocomplete>(null);
@@ -71,103 +73,116 @@ export default function CustomMapComponents({
         />
       </MapView>
 
-      <View pointerEvents="box-none" style={styles.searchWrapper}>
-        <View style={styles.topCard}>
-          <View style={styles.topCardHeader}>
-            <View style={styles.topCardTitleWrap}>
-              <Text style={styles.topCardEyebrow}>Map Search</Text>
-              <Text style={styles.topCardTitle} numberOfLines={1}>
-                {resolvedLabel}
-              </Text>
+      {mode === "full" ? (
+        <View pointerEvents="box-none" style={styles.searchWrapper}>
+          <View style={styles.topCard}>
+            <View style={styles.topCardHeader}>
+              <View style={styles.topCardTitleWrap}>
+                <Text style={styles.topCardEyebrow}>Map Search</Text>
+                <Text style={styles.topCardTitle} numberOfLines={1}>
+                  {resolvedLabel}
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={styles.searchButton}
+                onPress={() => {
+                  setSearchError(null);
+                  autocompleteRef.current?.focus?.();
+                }}
+                activeOpacity={0.9}
+              >
+                <Feather name="search" size={16} color="#FFFFFF" />
+                <Text style={styles.searchButtonText}>Search</Text>
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity
-              style={styles.searchButton}
-              onPress={() => {
-                setSearchError(null);
-                autocompleteRef.current?.focus?.();
-              }}
-              activeOpacity={0.9}
-            >
-              <Feather name="search" size={16} color="#FFFFFF" />
-              <Text style={styles.searchButtonText}>Search</Text>
-            </TouchableOpacity>
+
+            {hasGoogleMapsKey ? (
+              <GooglePlacesAutocomplete
+                ref={autocompleteRef}
+                placeholder={markerLabel?.trim() ? markerLabel : 'Search location...'}
+                fetchDetails={true}
+                minLength={2}
+                debounce={250}
+                nearbyPlacesAPI="GooglePlacesSearch"
+                keyboardShouldPersistTaps="handled"
+                onFail={(error) => {
+                  const normalizedError = typeof error === "string" ? error : "Location search failed.";
+                  setSearchError(normalizedError);
+                }}
+                onNotFound={() => setSearchError("No matching locations found.")}
+                onPress={(data, details = null) => {
+                  setSearchError(null);
+
+                  if (!details?.geometry?.location) return;
+
+                  const { lat: newLat, lng: newLng } = details.geometry.location;
+
+                  mapRef.current?.animateToRegion({
+                    latitude: newLat,
+                    longitude: newLng,
+                    latitudeDelta: 0.01,
+                    longitudeDelta: 0.01,
+                  }, 700);
+
+                  onLocationSelected?.([newLng, newLat], data.description);
+                }}
+                query={{
+                  key: GOOGLE_MAPS_KEY,
+                  language: 'en',
+                }}
+                styles={{
+                  container: styles.autocompleteContainer,
+                  textInput: styles.searchText,
+                  listView: styles.listView,
+                  row: styles.listRow,
+                  description: styles.listDescription,
+                }}
+                textInputProps={{
+                  autoCorrect: false,
+                  clearButtonMode: "while-editing",
+                  onFocus: () => setSearchError(null),
+                }}
+                enablePoweredByContainer={false}
+              />
+            ) : (
+              <View style={styles.missingKeyBanner}>
+                <Text style={styles.missingKeyText}>Location search is unavailable because the Google Maps API key is missing.</Text>
+              </View>
+            )}
           </View>
 
-        {hasGoogleMapsKey ? (
-          <GooglePlacesAutocomplete
-            ref={autocompleteRef}
-            placeholder={markerLabel?.trim() ? markerLabel : 'Search location...'}
-            fetchDetails={true}
-            minLength={2}
-            debounce={250}
-            nearbyPlacesAPI="GooglePlacesSearch"
-            keyboardShouldPersistTaps="handled"
-            onFail={(error) => {
-              const normalizedError = typeof error === "string" ? error : "Location search failed.";
-              setSearchError(normalizedError);
-            }}
-            onNotFound={() => setSearchError("No matching locations found.")}
-            onPress={(data, details = null) => {
-              setSearchError(null);
-
-              if (!details?.geometry?.location) return;
-
-              const { lat: newLat, lng: newLng } = details.geometry.location;
-
-              mapRef.current?.animateToRegion({
-                latitude: newLat,
-                longitude: newLng,
-                latitudeDelta: 0.01,
-                longitudeDelta: 0.01,
-              }, 700);
-
-              onLocationSelected?.([newLng, newLat], data.description);
-            }}
-            query={{
-              key: GOOGLE_MAPS_KEY,
-              language: 'en',
-            }}
-            styles={{
-              container: styles.autocompleteContainer,
-              textInput: styles.searchText,
-              listView: styles.listView,
-              row: styles.listRow,
-              description: styles.listDescription,
-            }}
-            textInputProps={{
-              autoCorrect: false,
-              clearButtonMode: "while-editing",
-              onFocus: () => setSearchError(null),
-            }}
-            enablePoweredByContainer={false}
-          />
-        ) : (
-          <View style={styles.missingKeyBanner}>
-            <Text style={styles.missingKeyText}>Location search is unavailable because the Google Maps API key is missing.</Text>
-          </View>
-        )}
+          {searchError ? (
+            <View style={styles.errorBanner}>
+              <Text style={styles.errorText}>{searchError}</Text>
+            </View>
+          ) : null}
         </View>
-
-        {searchError ? (
-          <View style={styles.errorBanner}>
-            <Text style={styles.errorText}>{searchError}</Text>
-          </View>
-        ) : null}
-      </View>
-
-      <View pointerEvents="box-none" style={styles.bottomSheetWrap}>
-        <View style={styles.bottomSheet}>
-          <View style={styles.bottomSheetIcon}>
-            <MaterialIcons name="place" size={18} color="#2563EB" />
-          </View>
-          <View style={styles.bottomSheetTextWrap}>
-            <Text style={styles.bottomSheetEyebrow}>Selected location</Text>
-            <Text style={styles.bottomSheetTitle} numberOfLines={2}>
+      ) : (
+        <View pointerEvents="none" style={styles.previewOverlay}>
+          <View style={styles.previewChip}>
+            <MaterialIcons name="place" size={14} color="#2563EB" />
+            <Text style={styles.previewChipText} numberOfLines={1}>
               {resolvedLabel}
             </Text>
           </View>
         </View>
-      </View>
+      )}
+
+      {mode === "full" ? (
+        <View pointerEvents="box-none" style={styles.bottomSheetWrap}>
+          <View style={styles.bottomSheet}>
+            <View style={styles.bottomSheetIcon}>
+              <MaterialIcons name="place" size={18} color="#2563EB" />
+            </View>
+            <View style={styles.bottomSheetTextWrap}>
+              <Text style={styles.bottomSheetEyebrow}>Selected location</Text>
+              <Text style={styles.bottomSheetTitle} numberOfLines={2}>
+                {resolvedLabel}
+              </Text>
+            </View>
+          </View>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -298,6 +313,35 @@ const styles = StyleSheet.create({
     color: '#991b1b',
     fontSize: 12,
     fontWeight: '600',
+  },
+  previewOverlay: {
+    position: 'absolute',
+    left: 12,
+    right: 12,
+    top: 12,
+    zIndex: 10,
+  },
+  previewChip: {
+    alignSelf: 'flex-start',
+    maxWidth: '88%',
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.96)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#0f172a',
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+  },
+  previewChipText: {
+    marginLeft: 6,
+    color: '#0F172A',
+    fontSize: 12,
+    fontWeight: '700',
+    flexShrink: 1,
   },
   bottomSheetWrap: {
     position: 'absolute',

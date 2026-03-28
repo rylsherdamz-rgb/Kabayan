@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Image } from "react-native";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/hooks/useTheme";
 import { supabaseClient } from "@/utils/supabase";
@@ -27,61 +27,65 @@ const isAuthSessionMissing = (message?: string | null) =>
 export default function JobApplicants() {
   const { t } = useTheme();
   const router = useRouter();
+  const params = useLocalSearchParams<{ jobId?: string }>();
   const [rows, setRows] = useState<ApplicantRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [openingChatFor, setOpeningChatFor] = useState<string | null>(null);
 
-  useEffect(() => {
+  const loadApplicants = useCallback(async () => {
     let active = true;
-
-    const loadApplicants = async () => {
+    try {
       setLoading(true);
-      try {
-        const { data: authData, error: authError } = await supabaseClient.auth.getUser();
-        if (authError) {
-          if (!isAuthSessionMissing(authError.message)) {
-            throw new Error(authError.message);
-          }
-          if (active) {
-            setRows([]);
-            setLoading(false);
-          }
-          return;
+      const { data: authData, error: authError } = await supabaseClient.auth.getUser();
+      if (authError) {
+        if (!isAuthSessionMissing(authError.message)) {
+          throw new Error(authError.message);
         }
-
-        const employerId = authData.user?.id;
-        if (!employerId) {
-          if (active) {
-            setRows([]);
-            setLoading(false);
-          }
-          return;
-        }
-
-        const { data, error } = await supabaseClient.rpc("rpc_get_employer_job_applicants", {
-          p_employer_id: employerId,
-        });
-
-        if (error) throw new Error(error.message);
-
         if (active) {
-          setRows((data ?? []) as ApplicantRow[]);
+          setRows([]);
+          setLoading(false);
         }
-      } catch (err) {
-        if (active) {
-          const message = humanizeError(err, "Failed to load applicants.");
-          Alert.alert("Applicants Error", message);
-        }
-      } finally {
-        if (active) setLoading(false);
+        return;
       }
-    };
 
-    loadApplicants();
+      const employerId = authData.user?.id;
+      if (!employerId) {
+        if (active) {
+          setRows([]);
+          setLoading(false);
+        }
+        return;
+      }
+
+      const { data, error } = await supabaseClient.rpc("rpc_get_employer_job_applicants", {
+        p_employer_id: employerId,
+      });
+
+      if (error) throw new Error(error.message);
+
+      if (active) {
+        const nextRows = (data ?? []) as ApplicantRow[];
+        setRows(params.jobId ? nextRows.filter((row) => row.job_id === params.jobId) : nextRows);
+      }
+    } catch (err) {
+      if (active) {
+        const message = humanizeError(err, "Failed to load applicants.");
+        Alert.alert("Applicants Error", message);
+      }
+    } finally {
+      if (active) setLoading(false);
+    }
+
     return () => {
       active = false;
     };
-  }, []);
+  }, [params.jobId]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadApplicants();
+    }, [loadApplicants])
+  );
 
   const groupedByJob = useMemo(() => {
     const grouped = new Map<string, { jobId: string; jobTitle: string; applicants: ApplicantRow[] }>();
@@ -143,8 +147,10 @@ export default function JobApplicants() {
             <Ionicons name="chevron-back" size={22} color={t.text} />
           </TouchableOpacity>
           <View>
-            <Text className={`text-2xl font-black ${t.text}`}>Job Applicants</Text>
-            <Text className={`text-xs mt-1 ${t.textMuted}`}>See who applied and contact them directly.</Text>
+            <Text className={`text-2xl font-black ${t.text}`}>{params.jobId ? "Applicants For This Job" : "Job Applicants"}</Text>
+            <Text className={`text-xs mt-1 ${t.textMuted}`}>
+              {params.jobId ? "Review applicants for this posting and message them directly." : "See who applied and contact them directly."}
+            </Text>
           </View>
         </View>
       </View>
@@ -152,7 +158,9 @@ export default function JobApplicants() {
       {groupedByJob.length === 0 ? (
         <View className="flex-1 items-center justify-center px-6">
           <Text className={`text-base font-semibold ${t.text}`}>No applicants yet</Text>
-          <Text className={`text-xs mt-2 ${t.textMuted}`}>Post jobs and applicants will appear here.</Text>
+          <Text className={`text-xs mt-2 text-center ${t.textMuted}`}>
+            {params.jobId ? "This job has no applications yet." : "Post jobs and applicants will appear here."}
+          </Text>
         </View>
       ) : (
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 24 }}>

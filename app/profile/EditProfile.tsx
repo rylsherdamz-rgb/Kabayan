@@ -231,17 +231,22 @@ export default function EditProfile() {
         keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
         contentContainerStyle={{ paddingBottom: inset.bottom + 28 }}
       >
-        <View className="h-28 flex flex-row  gap-x-5 bg-blue-600 w-full relative">
+        <View className="h-32 bg-blue-600 w-full relative">
           <TouchableOpacity
             onPress={() => router.back()}
             className="absolute top-12 left-5 z-10 bg-white/20 p-2 rounded-full"
           >
             <Feather name="chevron-left" size={24} color="white" />
           </TouchableOpacity>
-          
+          <View className="absolute left-5 right-5 bottom-5">
+            <Text className="text-white text-2xl font-black">Edit Profile</Text>
+            <Text className="text-blue-100 text-xs font-semibold mt-1">
+              Update your public details, roles, and account presence.
+            </Text>
+          </View>
         </View>
 
-        <View style={{paddingTop : inset.top, paddingBottom : inset.bottom}} className="px-5 -mt-10">
+        <View style={{ paddingBottom: inset.bottom }} className="px-5 -mt-12">
           <AppFlashMessage message={flashMessage} onClose={hideFlashMessage} />
 
           <View className={`rounded-3xl p-5 border ${t.border} ${t.bgCard}`}>
@@ -264,6 +269,7 @@ export default function EditProfile() {
             </View>
 
             <View className="mt-5">
+              <Text className={`text-[10px] font-black uppercase tracking-widest mb-3 ${t.textMuted}`}>Basic Details</Text>
               <Field
                 label="Display Name"
                 value={form.displayName}
@@ -309,7 +315,7 @@ export default function EditProfile() {
               />
             </View>
 
-            <Text className={`text-[10px] font-black uppercase tracking-widest mt-5 ${t.textMuted}`}>Market Role</Text>
+            <Text className={`text-[10px] font-black uppercase tracking-widest mt-5 ${t.textMuted}`}>Store Role</Text>
             <View className="mt-2 flex-row gap-2">
               <RoleChip
                 label="Buyer"

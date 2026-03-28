@@ -16,6 +16,7 @@ type ListingFeedRow = {
   id: string;
   vendor_id: string;
   store_name: string;
+  store_permit_verified: boolean;
   name: string;
   description: string | null;
   category: string;
@@ -52,6 +53,7 @@ const normalizeListing = (row: any): ListingFeedRow => ({
   id: row.id,
   vendor_id: row.vendor_id,
   store_name: row.store_name ?? "Unnamed Store",
+  store_permit_verified: Boolean(row.store_permit_verified),
   name: row.name,
   description: row.description ?? null,
   category: row.category,
@@ -178,7 +180,7 @@ export default function MarketPlaceView() {
   }, [featured?.id, loadReviews]);
 
   const permitVerified = useMemo(
-    () => (featured?.description ?? "").toLowerCase().includes("permit: verified"),
+    () => Boolean(featured?.store_permit_verified),
     [featured]
   );
 
@@ -443,7 +445,7 @@ export default function MarketPlaceView() {
                   storeName={item.store_name}
                   price={`₱${item.price.toLocaleString()}`}
                   img={item.image_url}
-                  verified={(item.description ?? "").toLowerCase().includes("permit: verified")}
+                  verified={Boolean(item.store_permit_verified)}
                   t={t}
                   onPress={() => setSelectedId(item.id)}
                   isActive={item.id === featured.id}

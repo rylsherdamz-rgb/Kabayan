@@ -222,7 +222,6 @@ export default function Profile () {
               <View className="mt-5 flex-row gap-3">
                 <QuickAction label="Edit Profile" subtitle="Update your public details" icon="create-outline" onPress={() => router.push("/profile/EditProfile")} />
                 <QuickAction label="Verification" subtitle="Submit or review status" icon="shield-checkmark-outline" onPress={() => router.push("/Register")} />
-                <QuickAction label="Add Listing" subtitle="Create a marketplace item" icon="add-circle-outline" onPress={() => router.push({ pathname: "/marketPlace/marketPlaceView", params: { scope: "mine", openModal: "true" } })} />
               </View>
             </View>
           </View>
@@ -233,12 +232,6 @@ export default function Profile () {
                 <Text className={`text-sm font-black uppercase tracking-widest ${t.textMuted}`}>Dashboard</Text>
                 <Text className={`mt-1 text-[13px] ${t.textMuted}`}>Track profile strength, jobs, and listings at a glance.</Text>
               </View>
-              <TouchableOpacity
-                onPress={() => router.push("/profile/ProfiletView")}
-                className={`h-10 px-4 rounded-2xl border ${t.border} ${t.bgSurface} items-center justify-center`}
-              >
-                <Text className={`text-[11px] font-black uppercase tracking-widest ${t.text}`}>Open Profile</Text>
-              </TouchableOpacity>
             </View>
             <View className="flex-row gap-3 mt-4">
               <StatCard label="Profile Strength" value={`${profileStrength}%`} icon="analytics-outline" t={t} />
@@ -277,19 +270,12 @@ export default function Profile () {
             />
           </SectionCard>
 
-          <SectionCard title="Marketplace Tools" t={t}>
+          <SectionCard title="Store Tools" t={t}>
             <SectionAction
               label="My Listings"
-              subtitle="Manage your active marketplace listings in one place."
+              subtitle="Manage your active store listings in one place."
               icon="storefront-outline"
               onPress={() => router.push({ pathname: "/marketPlace/marketPlaceView", params: { scope: "mine" } })}
-              t={t}
-            />
-            <SectionAction
-              label="Add Marketplace Item"
-              subtitle="Create a new product listing with price and location."
-              icon="add-circle-outline"
-              onPress={() => router.push({ pathname: "/marketPlace/marketPlaceView", params: { scope: "mine", openModal: "true" } })}
               t={t}
             />
           </SectionCard>

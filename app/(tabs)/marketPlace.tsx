@@ -90,13 +90,7 @@ export default function MarketPlace() {
   return (
     <View className={`flex-1 ${t.bgPage}`}>
       <View className={`pt-6 pb-5 px-5 ${t.bgCard} border-b ${t.border}`}>
-        <View className="mb-4">
-          <Text className={`text-2xl font-black tracking-tighter ${t.text}`}>Marketplace</Text>
-          <Text className={`mt-1 text-sm leading-5 ${t.textMuted}`}>
-            Browse store items, compare prices, and open the full store view.
-          </Text>
-        </View>
-        <CustomSearchBarComponent
+       <CustomSearchBarComponent
           value={search}
           onSearch={setSearch}
           placeholder="Search store items and stores"

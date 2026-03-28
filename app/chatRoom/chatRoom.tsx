@@ -118,12 +118,12 @@ export default function ChatRoomLayout() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={Platform.OS === "ios" ? insets.top : 0}
+      keyboardVerticalOffset={Platform.OS === "ios" ? insets.bottom : 0}
       className={`flex-1 ${t.bgPage}`}
     >
       <View
         className={`${t.bgCard} border-b ${t.border} flex-row items-center justify-between shadow-sm`}
-        style={{ paddingTop: insets.top + 12, paddingBottom: 16, paddingHorizontal: 16 }}
+        style={{ paddingTop: insets.top + 8, paddingBottom: 14, paddingHorizontal: 18 }}
       >
         <View className="flex-row items-center flex-1">
           <TouchableOpacity onPress={() => router.back()} className="p-2 mr-1">
@@ -166,7 +166,7 @@ export default function ChatRoomLayout() {
         ref={flatListRef}
         data={messages}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
+        contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 18, paddingBottom: 28 }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
@@ -176,8 +176,8 @@ export default function ChatRoomLayout() {
       <AppFlashMessage message={flashMessage} onClose={hideFlashMessage} />
 
       <View
-        className={`${t.bgCard} border-t ${t.border} p-4 flex-row items-end gap-x-3`}
-        style={{ paddingBottom: insets.bottom + 12 }}
+        className={`${t.bgCard} border-t ${t.border} px-4 pt-3 flex-row items-end gap-x-3`}
+        style={{ paddingBottom: insets.bottom + 10 }}
       >
           <TouchableOpacity className={`${t.bgSurface} h-12 w-12 rounded-2xl items-center justify-center border ${t.border}`}>
             <Feather name="plus" size={20} color={t.icon} />

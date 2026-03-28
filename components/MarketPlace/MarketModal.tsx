@@ -34,7 +34,6 @@ export default function MarketModal({ visible, onClose, onCreated }: MarketModal
   const [error, setError] = useState<string | null>(null);
   const [allergens, setAllergens] = useState("");
   const [storage, setStorage] = useState("");
-  const [permitVerified, setPermitVerified] = useState(false);
 
   const clearForm = () => {
     setName("");
@@ -46,7 +45,6 @@ export default function MarketModal({ visible, onClose, onCreated }: MarketModal
     setBackgroundUri(null);
     setAllergens("");
     setStorage("");
-    setPermitVerified(false);
     setError(null);
   };
 
@@ -106,7 +104,6 @@ export default function MarketModal({ visible, onClose, onCreated }: MarketModal
         trimmedDescription,
         allergens ? `Allergens: ${allergens.trim()}` : "",
         storage ? `Storage: ${storage.trim()}` : "",
-        `Permit: ${permitVerified ? "Verified" : "Not verified"}`,
       ]
         .filter(Boolean)
         .join("\n");
@@ -244,18 +241,6 @@ export default function MarketModal({ visible, onClose, onCreated }: MarketModal
                   Include item details, delivery or pickup notes, and anything buyers should know before ordering.
                 </Text>
               </View>
-
-              <TouchableOpacity
-                onPress={() => setPermitVerified((v) => !v)}
-                className="mt-4 flex-row items-center justify-between px-4 py-3 rounded-2xl border border-emerald-200 bg-emerald-50"
-                activeOpacity={0.8}
-              >
-                <View className="flex-row items-center">
-                  <Ionicons name="shield-checkmark" size={20} color="#059669" />
-                  <Text className="ml-2 text-emerald-800 font-semibold">Permit verified (mayor’s permit / sanitation)</Text>
-                </View>
-                <View className={`w-6 h-6 rounded-full ${permitVerified ? "bg-emerald-600" : "bg-white"} border border-emerald-400`} />
-              </TouchableOpacity>
 
               <TouchableOpacity
                 onPress={handleSave}

@@ -11,6 +11,16 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import humanizeError from "@/utils/humanizeError";
 import EntityHeroBanner from "@/components/CustomComponents/EntityHeroBanner";
 
+type ApplicantPreviewRow = {
+  job_id: string;
+  application_id: string;
+  applicant_id: string;
+  applicant_name: string;
+  applicant_avatar_url: string | null;
+  applied_at: string;
+  status: string;
+};
+
 export default function JobView() {
   const { t } = useTheme();
   const router = useRouter();
@@ -21,6 +31,7 @@ export default function JobView() {
   const [hasApplied, setHasApplied] = useState(false);
   const [openingChat, setOpeningChat] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [applicants, setApplicants] = useState<ApplicantPreviewRow[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const inset = useSafeAreaInsets();
@@ -72,6 +83,29 @@ export default function JobView() {
     };
 
     fetchApplicationState();
+  }, [currentUserId, job?.employer_id, job?.id]);
+
+  useEffect(() => {
+    const fetchApplicants = async () => {
+      if (!job?.id || !currentUserId || currentUserId !== job.employer_id) {
+        setApplicants([]);
+        return;
+      }
+
+      const { data, error } = await supabaseClient.rpc("rpc_get_employer_job_applicants", {
+        p_employer_id: currentUserId,
+      });
+
+      if (error) {
+        setApplicants([]);
+        return;
+      }
+
+      const scopedRows = ((data ?? []) as ApplicantPreviewRow[]).filter((row: any) => row.job_id === job.id);
+      setApplicants(scopedRows);
+    };
+
+    fetchApplicants();
   }, [currentUserId, job?.employer_id, job?.id]);
 
   const handleOpenConversation = async () => {
@@ -251,6 +285,54 @@ export default function JobView() {
             <Text style={[styles.sectionTitle, { color: t.text }]}>The Role</Text>
             <Text style={[styles.description, { color: t.textMuted }]}>{job.description}</Text>
           </View>
+
+          {isOwner ? (
+            <View style={styles.section}>
+              <View style={styles.sectionHeaderRow}>
+                <View>
+                  <Text style={[styles.sectionTitle, { color: t.text }]}>Applicants</Text>
+                  <Text style={[styles.sectionHint, { color: t.textMuted }]}>
+                    {applicants.length > 0 ? `${applicants.length} worker${applicants.length === 1 ? "" : "s"} applied to this job.` : "Applicants will appear here when workers apply."}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => router.push({ pathname: "/profile/JobApplicants", params: { jobId: job.id } })}
+                  style={[styles.inlineAction, { borderColor: t.border, backgroundColor: t.bgSoft }]}
+                >
+                  <Text style={[styles.inlineActionText, { color: t.text }]}>Open All</Text>
+                </TouchableOpacity>
+              </View>
+
+              {applicants.length > 0 ? (
+                applicants.slice(0, 3).map((applicant) => (
+                  <TouchableOpacity
+                    key={applicant.application_id}
+                    onPress={() => router.push({ pathname: "/profile/JobApplicants", params: { jobId: job.id } })}
+                    style={[styles.applicantCard, { backgroundColor: t.bgCard, borderColor: t.border }]}
+                  >
+                    <View style={styles.applicantRow}>
+                      <View style={styles.avatarFallback}>
+                        <Text style={styles.avatarInitial}>{applicant.applicant_name.slice(0, 1).toUpperCase()}</Text>
+                      </View>
+                      <View style={styles.applicantCopy}>
+                        <Text style={[styles.applicantName, { color: t.text }]}>{applicant.applicant_name}</Text>
+                        <Text style={[styles.applicantMeta, { color: t.textMuted }]}>
+                          Applied {new Date(applicant.applied_at).toLocaleDateString()}
+                        </Text>
+                      </View>
+                      <View style={styles.applicantStatusPill}>
+                        <Text style={styles.applicantStatusText}>{applicant.status}</Text>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                ))
+              ) : (
+                <View style={[styles.emptyApplicantsBox, { backgroundColor: t.bgCard, borderColor: t.border }]}>
+                  <Text style={[styles.emptyApplicantsText, { color: t.textMuted }]}>No applications yet for this posting.</Text>
+                </View>
+              )}
+            </View>
+          ) : null}
         </View>
       </ScrollView>
 
@@ -343,7 +425,22 @@ const styles = StyleSheet.create({
   flexRowCenter: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
   section: { marginTop: 32 },
   sectionTitle: { fontSize: 18, fontWeight: '700' },
+  sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 },
+  sectionHint: { marginTop: 4, fontSize: 12, lineHeight: 18, fontWeight: '600' },
+  inlineAction: { height: 36, borderRadius: 12, borderWidth: 1, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center' },
+  inlineActionText: { fontSize: 11, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.6 },
   description: { lineHeight: 24, marginTop: 10, fontSize: 15 },
+  applicantCard: { marginTop: 14, borderRadius: 18, borderWidth: 1, padding: 14 },
+  applicantRow: { flexDirection: 'row', alignItems: 'center' },
+  avatarFallback: { width: 42, height: 42, borderRadius: 14, backgroundColor: '#DBEAFE', alignItems: 'center', justifyContent: 'center' },
+  avatarInitial: { color: '#1D4ED8', fontSize: 14, fontWeight: '800' },
+  applicantCopy: { flex: 1, marginLeft: 12, marginRight: 12 },
+  applicantName: { fontSize: 14, fontWeight: '800' },
+  applicantMeta: { marginTop: 2, fontSize: 11, fontWeight: '600' },
+  applicantStatusPill: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: '#EFF6FF' },
+  applicantStatusText: { color: '#1D4ED8', fontSize: 10, fontWeight: '800', textTransform: 'uppercase' },
+  emptyApplicantsBox: { marginTop: 14, borderRadius: 18, borderWidth: 1, padding: 16 },
+  emptyApplicantsText: { fontSize: 13, lineHeight: 18, fontWeight: '600' },
   bottomBar: { 
     position: 'absolute', 
     bottom: 0, 

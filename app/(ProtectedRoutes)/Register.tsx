@@ -197,20 +197,21 @@ export default function Register() {
         keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
         contentContainerStyle={{ paddingBottom: insets.bottom + 32, paddingTop: insets.top }}
       >
-        <View className="h-28 bg-blue-600 w-full relative">
+        <View className="h-32 bg-blue-600 w-full relative">
           <TouchableOpacity onPress={() => router.back()} className="absolute top-12 left-5 bg-white/20 p-2 rounded-full">
             <Feather name="chevron-left" size={22} color="white" />
           </TouchableOpacity>
-          <View className="absolute bottom-4 left-5">
-            <Text className="text-white text-xl font-black">Verification Registration</Text>
-            <Text className="text-blue-100 text-xs font-semibold">Submit your details and ID for profile verification.</Text>
+          <View className="absolute bottom-5 left-5 right-5">
+            <Text className="text-white text-2xl font-black">Verification Center</Text>
+            <Text className="text-blue-100 text-xs font-semibold mt-1">Submit your details and ID for account verification.</Text>
           </View>
         </View>
 
-        <View className="px-5 -mt-10">
+        <View className="px-5 -mt-12">
           <AppFlashMessage message={flashMessage} onClose={hideFlashMessage} />
 
           <View className={`rounded-3xl p-5 border ${t.border} ${t.bgCard}`}>
+            <Text className={`text-[10px] font-black uppercase tracking-widest mb-3 ${t.textMuted}`}>Identity Details</Text>
             <Field label="First Name" value={firstName} onChangeText={setFirstName} placeholder="Juan" t={t} />
             <Field label="Last Name" value={lastName} onChangeText={setLastName} placeholder="Dela Cruz" t={t} />
             <View className="mb-4">

@@ -144,16 +144,9 @@ export default function ProfileView() {
             />
             <ActionRow
               label="My Listings"
-              subtitle="Open and manage your marketplace listings"
+              subtitle="Open and manage your store listings"
               icon="storefront-outline"
               onPress={() => router.push({ pathname: "/marketPlace/marketPlaceView", params: { scope: "mine" } })}
-              t={t}
-            />
-            <ActionRow
-              label="Add Listing"
-              subtitle="Create a new listing with photos, location, and price"
-              icon="add-circle-outline"
-              onPress={() => router.push({ pathname: "/marketPlace/marketPlaceView", params: { scope: "mine", openModal: "true" } })}
               t={t}
             />
           </View>
