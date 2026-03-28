@@ -7,7 +7,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { supabaseClient } from '@/utils/supabase';
 import { useRouter } from 'expo-router';
 
-const CATEGORIES = ['All', 'Meals', 'Drinks', 'Groceries', 'Services', 'Essentials'];
+const CATEGORIES = ['All', 'Street Food', 'Kakanin', 'Ulam', 'Desserts', 'Other'];
 
 type ListingFeedRow = {
   id: string;

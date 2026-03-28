@@ -340,11 +340,8 @@ export default function MarketPlaceView() {
         <EntityHeroBanner
           title={featured.name}
           subtitle={featured.store_name}
-          eyebrow={featured.is_open ? "Open Store Listing" : "Closed Store Listing"}
-          meta={`${featured.category} • ₱${featured.price.toLocaleString()} • ${featured.location_label}`}
           imageUri={featured.image_url}
           seed={`${featured.id}:${featured.name}`}
-          topInset={insets.top}
           onBack={() => router.back()}
         />
 

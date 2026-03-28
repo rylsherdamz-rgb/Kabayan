@@ -18,6 +18,7 @@ export default function JobView() {
   const [job, setJob] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [applying, setApplying] = useState(false);
+  const [hasApplied, setHasApplied] = useState(false);
   const [openingChat, setOpeningChat] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -46,6 +47,32 @@ export default function JobView() {
     fetchJob();
     supabaseClient.auth.getUser().then(({ data }) => setCurrentUserId(data.user?.id ?? null));
   }, [jobId]);
+
+  useEffect(() => {
+    const fetchApplicationState = async () => {
+      if (!job?.id || !currentUserId || currentUserId === job.employer_id) {
+        setHasApplied(false);
+        return;
+      }
+
+      const { data, error } = await supabaseClient
+        .from("job_applications")
+        .select("id")
+        .eq("job_id", job.id)
+        .eq("applicant_id", currentUserId)
+        .limit(1)
+        .maybeSingle();
+
+      if (error) {
+        setHasApplied(false);
+        return;
+      }
+
+      setHasApplied(Boolean(data?.id));
+    };
+
+    fetchApplicationState();
+  }, [currentUserId, job?.employer_id, job?.id]);
 
   const handleOpenConversation = async () => {
     if (!job?.id || !job?.employer_id || openingChat) return;
@@ -81,7 +108,7 @@ export default function JobView() {
   };
 
   const handleApply = async () => {
-    if (!job?.id || applying || isClosed) return;
+    if (!job?.id || applying || isClosed || hasApplied) return;
 
     if (!currentUserId) {
       showFlashMessage("Sign in required", "Please sign in before applying to this job.", "warning");
@@ -102,6 +129,7 @@ export default function JobView() {
       if (error) throw new Error(error.message);
 
       showFlashMessage("Application sent", "Your application was submitted to the employer.", "success");
+      setHasApplied(true);
     } catch (err) {
       showFlashMessage("Apply failed", humanizeError(err, "Unable to submit your application."), "error");
     } finally {
@@ -267,11 +295,11 @@ export default function JobView() {
             </TouchableOpacity>
             <TouchableOpacity 
               onPress={handleApply}
-              disabled={isClosed || applying}
-              style={[styles.primaryButton, { backgroundColor: isClosed ? '#94A3B8' : '#2563EB' }]}
+              disabled={isClosed || applying || hasApplied}
+              style={[styles.primaryButton, { backgroundColor: isClosed || hasApplied ? '#94A3B8' : '#2563EB' }]}
             >
               <Text style={styles.primaryButtonText}>
-                {isClosed ? 'Listing Closed' : applying ? 'Applying...' : 'Quick Apply'}
+                {isClosed ? 'Listing Closed' : hasApplied ? 'Applied' : applying ? 'Applying...' : 'Quick Apply'}
               </Text>
             </TouchableOpacity>
           </View>

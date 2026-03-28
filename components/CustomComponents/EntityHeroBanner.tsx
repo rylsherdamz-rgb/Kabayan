@@ -1,9 +1,9 @@
 import React, { useMemo } from "react";
-import { ImageBackground, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ImageBackground, TouchableOpacity, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
 
 type EntityHeroBannerProps = {
-  title: string;
+  title?: string;
   subtitle?: string | null;
   eyebrow?: string | null;
   meta?: string | null;
@@ -31,159 +31,74 @@ const getTheme = (seed: string) => {
 };
 
 export default function EntityHeroBanner({
-  title,
-  subtitle,
-  eyebrow,
-  meta,
   imageUri,
   seed,
   topInset = 0,
-  height = 300,
+  height = 112,
   onBack,
-  onSecondaryPress,
-  secondaryIcon = "share-2",
 }: EntityHeroBannerProps) {
   const theme = useMemo(() => getTheme(seed), [seed]);
 
   return (
-    <View style={[styles.container, { height, backgroundColor: theme.background }]}>
+    <View
+      className="relative w-full overflow-hidden"
+      style={{ height, backgroundColor: theme.background }}
+    >
       {imageUri ? (
-        <ImageBackground source={{ uri: imageUri }} style={StyleSheet.absoluteFill} resizeMode="cover">
-          <View style={styles.imageScrim} />
+        <ImageBackground source={{ uri: imageUri }} resizeMode="cover" className="absolute inset-0">
+          <View className="absolute inset-0" style={{ backgroundColor: "rgba(15,23,42,0.28)" }} />
         </ImageBackground>
       ) : (
         <>
-          <View style={[styles.shapeLarge, { backgroundColor: theme.shapeA }]} />
-          <View style={[styles.shapeSmall, { backgroundColor: theme.shapeB }]} />
-          <View style={[styles.shapeCorner, { borderColor: `${theme.accent}25` }]} />
+          <View
+            className="absolute rounded-full"
+            style={{
+              width: 132,
+              height: 132,
+              right: -28,
+              top: 8,
+              opacity: 0.78,
+              backgroundColor: theme.shapeA,
+            }}
+          />
+          <View
+            className="absolute rounded-full"
+            style={{
+              width: 84,
+              height: 84,
+              left: -10,
+              bottom: -12,
+              opacity: 0.72,
+              backgroundColor: theme.shapeB,
+            }}
+          />
+          <View
+            className="absolute rounded-[32px]"
+            style={{
+              width: 104,
+              height: 104,
+              right: 16,
+              bottom: -46,
+              borderWidth: 12,
+              borderColor: `${theme.accent}25`,
+              transform: [{ rotate: "-14deg" }],
+            }}
+          />
         </>
       )}
 
-      <View style={[styles.controlsRow, { top: topInset + 12 }]}>
-        <TouchableOpacity onPress={onBack} style={styles.controlButton}>
+      <View
+        className="absolute left-[18px] right-[18px] z-[2] flex-row justify-between"
+        style={{ top: topInset + 8 }}
+      >
+        <TouchableOpacity
+          onPress={onBack}
+          className="h-[42px] w-[42px] items-center justify-center rounded-2xl bg-white/90"
+        >
           <Feather name="chevron-left" size={22} color="#0F172A" />
         </TouchableOpacity>
-        {onSecondaryPress ? (
-          <TouchableOpacity onPress={onSecondaryPress} style={styles.controlButton}>
-            <Feather name={secondaryIcon} size={18} color="#0F172A" />
-          </TouchableOpacity>
-        ) : (
-          <View style={styles.controlSpacer} />
-        )}
-      </View>
-
-      <View style={styles.content}>
-        {eyebrow ? (
-          <View style={[styles.eyebrowPill, { backgroundColor: imageUri ? "rgba(255,255,255,0.18)" : `${theme.accent}18` }]}>
-            <Text style={[styles.eyebrowText, { color: imageUri ? "#FFFFFF" : theme.accent }]}>{eyebrow}</Text>
-          </View>
-        ) : null}
-        <Text style={[styles.title, { color: imageUri ? "#FFFFFF" : theme.text }]} numberOfLines={3}>
-          {title}
-        </Text>
-        {subtitle ? (
-          <Text style={[styles.subtitle, { color: imageUri ? "rgba(255,255,255,0.92)" : `${theme.text}CC` }]} numberOfLines={2}>
-            {subtitle}
-          </Text>
-        ) : null}
-        {meta ? <Text style={[styles.meta, { color: imageUri ? "rgba(255,255,255,0.88)" : `${theme.text}B3` }]}>{meta}</Text> : null}
+        <View className="h-[42px] w-[42px]" />
       </View>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    width: "100%",
-    overflow: "hidden",
-    position: "relative",
-    justifyContent: "flex-end",
-  },
-  imageScrim: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(15,23,42,0.34)",
-  },
-  shapeLarge: {
-    position: "absolute",
-    width: 240,
-    height: 240,
-    borderRadius: 120,
-    right: -48,
-    top: 26,
-    opacity: 0.95,
-  },
-  shapeSmall: {
-    position: "absolute",
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    left: -24,
-    bottom: 36,
-    opacity: 0.92,
-  },
-  shapeCorner: {
-    position: "absolute",
-    width: 200,
-    height: 200,
-    borderRadius: 36,
-    borderWidth: 20,
-    right: 18,
-    bottom: -110,
-    transform: [{ rotate: "-14deg" }],
-  },
-  controlsRow: {
-    position: "absolute",
-    left: 20,
-    right: 20,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    zIndex: 2,
-  },
-  controlButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 18,
-    backgroundColor: "rgba(255,255,255,0.92)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  controlSpacer: {
-    width: 44,
-    height: 44,
-  },
-  content: {
-    paddingHorizontal: 24,
-    paddingBottom: 28,
-    zIndex: 1,
-  },
-  eyebrowPill: {
-    alignSelf: "flex-start",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-    marginBottom: 12,
-  },
-  eyebrowText: {
-    fontSize: 10,
-    fontWeight: "900",
-    letterSpacing: 1.2,
-    textTransform: "uppercase",
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: "900",
-    letterSpacing: -1,
-    lineHeight: 36,
-  },
-  subtitle: {
-    marginTop: 10,
-    fontSize: 14,
-    fontWeight: "700",
-    lineHeight: 20,
-  },
-  meta: {
-    marginTop: 10,
-    fontSize: 12,
-    fontWeight: "700",
-  },
-});

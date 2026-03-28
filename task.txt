@@ -1,0 +1,12 @@
+
+
+
+fix the job applicant to show who applied to the job you careted update the listing caust i think store and food are in contradticiton in here updaet the edit profile verfication and othe the map the ui of the jobview
+update the keyboard avoid,
+
+- adjust the padding the the room component
+update the ui fo the marketplace  upadet the homepage
+
+
+
+- add other task in there to improve productivility

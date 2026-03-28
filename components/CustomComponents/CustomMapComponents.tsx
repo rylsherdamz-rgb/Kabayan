@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, StyleSheet, Text } from 'react-native';
+import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
+import { Feather, MaterialIcons } from "@expo/vector-icons";
 import { GOOGLE_MAPS_KEY, hasGoogleMapsKey } from "@/utils/googleMapsConfig";
 
 const DEFAULT_COORDINATE: [number, number] = [120.9842, 14.5995]; 
@@ -33,6 +34,8 @@ export default function CustomMapComponents({
     }),
     [lat, lng]
   );
+
+  const resolvedLabel = markerLabel?.trim() ? markerLabel : "Pinned location";
 
   useEffect(() => {
     if (!ready || !mapRef.current) return;
@@ -69,6 +72,27 @@ export default function CustomMapComponents({
       </MapView>
 
       <View pointerEvents="box-none" style={styles.searchWrapper}>
+        <View style={styles.topCard}>
+          <View style={styles.topCardHeader}>
+            <View style={styles.topCardTitleWrap}>
+              <Text style={styles.topCardEyebrow}>Map Search</Text>
+              <Text style={styles.topCardTitle} numberOfLines={1}>
+                {resolvedLabel}
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.searchButton}
+              onPress={() => {
+                setSearchError(null);
+                autocompleteRef.current?.focus?.();
+              }}
+              activeOpacity={0.9}
+            >
+              <Feather name="search" size={16} color="#FFFFFF" />
+              <Text style={styles.searchButtonText}>Search</Text>
+            </TouchableOpacity>
+          </View>
+
         {hasGoogleMapsKey ? (
           <GooglePlacesAutocomplete
             ref={autocompleteRef}
@@ -122,12 +146,27 @@ export default function CustomMapComponents({
             <Text style={styles.missingKeyText}>Location search is unavailable because the Google Maps API key is missing.</Text>
           </View>
         )}
+        </View>
 
         {searchError ? (
           <View style={styles.errorBanner}>
             <Text style={styles.errorText}>{searchError}</Text>
           </View>
         ) : null}
+      </View>
+
+      <View pointerEvents="box-none" style={styles.bottomSheetWrap}>
+        <View style={styles.bottomSheet}>
+          <View style={styles.bottomSheetIcon}>
+            <MaterialIcons name="place" size={18} color="#2563EB" />
+          </View>
+          <View style={styles.bottomSheetTextWrap}>
+            <Text style={styles.bottomSheetEyebrow}>Selected location</Text>
+            <Text style={styles.bottomSheetTitle} numberOfLines={2}>
+              {resolvedLabel}
+            </Text>
+          </View>
+        </View>
       </View>
     </View>
   );
@@ -147,30 +186,76 @@ const styles = StyleSheet.create({
     right: 14,
     zIndex: 20, 
   },
+  topCard: {
+    borderRadius: 24,
+    backgroundColor: 'rgba(255,255,255,0.98)',
+    paddingHorizontal: 14,
+    paddingTop: 14,
+    paddingBottom: 12,
+    shadowColor: '#0f172a',
+    shadowOpacity: 0.12,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 10,
+  },
+  topCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  topCardTitleWrap: {
+    flex: 1,
+    paddingRight: 12,
+  },
+  topCardEyebrow: {
+    color: '#64748B',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+  },
+  topCardTitle: {
+    color: '#0F172A',
+    fontSize: 17,
+    fontWeight: '900',
+    marginTop: 4,
+  },
+  searchButton: {
+    height: 40,
+    borderRadius: 999,
+    backgroundColor: '#2563EB',
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  searchButtonText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '900',
+    marginLeft: 6,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
   autocompleteContainer: {
     flex: 0,
     zIndex: 20,
   },
   searchText: {
-    height: 44,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.96)',
+    height: 48,
+    borderRadius: 16,
+    backgroundColor: '#F8FAFC',
     borderWidth: 1,
-    borderColor: 'rgba(15,23,42,0.06)',
-    paddingHorizontal: 12,
+    borderColor: '#E2E8F0',
+    paddingHorizontal: 14,
     color: '#111827',
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
-    shadowColor: '#0f172a',
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 6,
   },
   listView: {
     backgroundColor: 'white',
-    borderRadius: 14,
-    marginTop: 5,
+    borderRadius: 18,
+    marginTop: 8,
     elevation: 7,
     shadowColor: '#000',
     shadowOpacity: 0.1,
@@ -202,7 +287,7 @@ const styles = StyleSheet.create({
   },
   errorBanner: {
     marginTop: 8,
-    borderRadius: 12,
+    borderRadius: 14,
     backgroundColor: 'rgba(255,255,255,0.96)',
     borderWidth: 1,
     borderColor: 'rgba(239,68,68,0.18)',
@@ -213,5 +298,50 @@ const styles = StyleSheet.create({
     color: '#991b1b',
     fontSize: 12,
     fontWeight: '600',
+  },
+  bottomSheetWrap: {
+    position: 'absolute',
+    left: 14,
+    right: 14,
+    bottom: 18,
+    zIndex: 20,
+  },
+  bottomSheet: {
+    borderRadius: 24,
+    backgroundColor: 'rgba(255,255,255,0.98)',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#0f172a',
+    shadowOpacity: 0.12,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 10,
+  },
+  bottomSheetIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    backgroundColor: '#DBEAFE',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  bottomSheetTextWrap: {
+    flex: 1,
+  },
+  bottomSheetEyebrow: {
+    color: '#64748B',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.1,
+    textTransform: 'uppercase',
+  },
+  bottomSheetTitle: {
+    color: '#0F172A',
+    fontSize: 15,
+    fontWeight: '800',
+    marginTop: 4,
   },
 });
