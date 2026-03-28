@@ -336,9 +336,9 @@ export default function MarketPlaceView() {
   }
 
   return (
-    <View  className={`flex-1 ${t.bgPage}`}>
+    <View  style={{marginTop : insets.top}} className={`flex-1 ${t.bgPage}`}>
       <AppFlashMessage message={flashMessage} onClose={hideFlashMessage} />
-      <ScrollView style={{marginBottom : insets.top}}  showsVerticalScrollIndicator={false}>
+      <ScrollView style={{marginBottom : insets.bottom}}  showsVerticalScrollIndicator={false}>
         <EntityHeroBanner
           title={featured.name}
           subtitle={featured.store_name}

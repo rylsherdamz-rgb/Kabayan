@@ -119,7 +119,7 @@ export default function Inbox() {
       keyboardVerticalOffset={Platform.OS === "ios" ? insets.top : 0}
       className={`flex-1 ${t.bgPage}`}
     >
-      <View className={`pb-6 px-6 ${t.bgCard} border-b ${t.border}`} style={{ paddingTop: insets.top + 12 }}>
+      <View className={`pb-6 px-6 ${t.bgCard} border-b ${t.border}`} style={{ paddingTop:  12 }}>
         <View className={`flex-row items-center mt-4 px-4 h-12 rounded-2xl ${t.bgSurface} border ${t.border}`}>
           <Feather name="search" size={16} color={t.icon} />
           <TextInput
