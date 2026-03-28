@@ -30,14 +30,6 @@ type DrawerItemConfig = {
 const isAuthSessionMissing = (message?: string | null) =>
   (message ?? "").toLowerCase().includes("auth session missing");
 
-const toTitleCase = (value?: string | null) =>
-  (value ?? "")
-    .replace(/_/g, " ")
-    .split(" ")
-    .filter(Boolean)
-    .map((word) => word[0]?.toUpperCase() + word.slice(1))
-    .join(" ");
-
 export default function CustomDrawerContent(props: any) {
   const inset = useSafeAreaInsets();
   const router = useRouter();
@@ -143,10 +135,6 @@ export default function CustomDrawerContent(props: any) {
       .map((part) => part[0]?.toUpperCase() ?? "")
       .join("") || "GU";
 
-  const roleLine = [toTitleCase(profile?.job_role), toTitleCase(profile?.market_role)]
-    .filter(Boolean)
-    .join(" • ");
-
   const sections = useMemo(
     () => [
       {
@@ -229,7 +217,7 @@ export default function CustomDrawerContent(props: any) {
               <Text className="text-xl font-black text-slate-900 tracking-tight">
                 {profile?.display_name?.trim() || "Guest User"}
               </Text>
-              <Text className="mt-1 text-sm font-medium text-slate-500">{email || "Browse jobs, listings, and people"}</Text>
+              <Text className="mt-1 text-sm font-medium text-slate-500">{email}</Text>
               {profile?.location_label ? (
                 <View className="mt-2 flex-row items-center">
                   <MaterialCommunityIcons name="map-marker-outline" size={14} color="#94A3B8" />
@@ -245,7 +233,9 @@ export default function CustomDrawerContent(props: any) {
             .filter((section) => !section.hidden)
             .map((section) => (
               <View key={section.title} className="mb-5">
-                <Text className="px-3 mb-2 text-[10px] font-black uppercase tracking-[2px] text-slate-400">{section.title}</Text>
+                <Text className="mb-2 px-3 text-[10px] font-black uppercase tracking-[2px] text-slate-400">
+                  {section.title}
+                </Text>
                 <View className="gap-1.5">
                   {section.items.map((item) => (
                     <DrawerItem key={item.label} {...item} />

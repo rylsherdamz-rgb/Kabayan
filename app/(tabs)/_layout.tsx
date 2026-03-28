@@ -1,6 +1,6 @@
 import React from "react";
 import { Tabs, useNavigation } from "expo-router";
-import { Alert, Pressable } from "react-native";
+import { Alert, Pressable, Text, View } from "react-native";
 import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import {useSafeAreaInsets} from "react-native-safe-area-context"
 import { useTheme } from "@/hooks/useTheme";
@@ -73,6 +73,25 @@ export default function TabsLayout() {
             tabBarLabel: "Jobs",
             tabBarIcon: ({ color, focused }) => (
               <MaterialCommunityIcons name="briefcase-variant-outline" color={color} size={focused ? 24 : 22} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="assistant"
+          options={{
+            title: "Kabayan AI",
+            tabBarLabel: "AI",
+            tabBarButton: (props) => (
+              <Pressable
+                {...props}
+                style={{ top: -18 }}
+                className="items-center justify-center"
+              >
+                <View className="h-16 w-16 rounded-[24px] bg-blue-600 items-center justify-center shadow-lg">
+                  <MaterialCommunityIcons name="robot-excited-outline" color="#FFFFFF" size={28} />
+                </View>
+                <Text className="mt-1 text-[10px] font-extrabold uppercase tracking-widest text-blue-600">AI</Text>
+              </Pressable>
             ),
           }}
         />
