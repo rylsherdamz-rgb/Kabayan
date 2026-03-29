@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, ScrollView, Image, TouchableOpacity, Modal, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, ScrollView, Image, TouchableOpacity, Modal, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform, Alert, SafeAreaView } from 'react-native';
 import { Feather, Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useTheme } from '@/hooks/useTheme';
@@ -84,14 +84,21 @@ export default function MarketPlaceView() {
   const { flashMessage, showFlashMessage, hideFlashMessage } = useFlashMessage();
   const [showModal, setShowModal] = useState(false);
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
+  const [orderModalVisible, setOrderModalVisible] = useState(false);
   const [submittingReview, setSubmittingReview] = useState(false);
+  const [submittingOrder, setSubmittingOrder] = useState(false);
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState("");
+  const [orderQuantity, setOrderQuantity] = useState("1");
+  const [deliveryMode, setDeliveryMode] = useState<"pickup" | "delivery">("pickup");
+  const [deliveryAddress, setDeliveryAddress] = useState("");
+  const [orderNotes, setOrderNotes] = useState("");
   const [listings, setListings] = useState<ListingFeedRow[]>([]);
   const [reviews, setReviews] = useState<ReviewRow[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [updatingOpenState, setUpdatingOpenState] = useState(false);
+  const [deletingStore, setDeletingStore] = useState(false);
   const [loadingListings, setLoadingListings] = useState(true);
   const [loadingReviews, setLoadingReviews] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -187,8 +194,12 @@ export default function MarketPlaceView() {
   const vendorItems = useMemo(() => {
     if (!featured) return [];
     const source = params.scope === "mine" ? scopedListings : listings;
-    const sameVendor = source.filter((item) => item.vendor_id === featured.vendor_id);
-    return sameVendor.length > 0 ? sameVendor : [featured];
+    const sameStore = source.filter(
+      (item) =>
+        item.vendor_id === featured.vendor_id &&
+        item.store_name.trim().toLowerCase() === featured.store_name.trim().toLowerCase()
+    );
+    return sameStore.length > 0 ? sameStore : [featured];
   }, [featured, listings, params.scope, scopedListings]);
 
   useEffect(() => {
@@ -215,6 +226,28 @@ export default function MarketPlaceView() {
     }
     if (!featured) return;
     setReviewModalVisible(true);
+  };
+
+  const handleOpenOrderModal = async () => {
+    if (!featured || isOwner) return;
+
+    const { data, error } = await supabaseClient.auth.getUser();
+    if (error) {
+      showFlashMessage("Auth Error", humanizeError(error, "Unable to verify your session."), "error");
+      return;
+    }
+
+    if (!data.user) {
+      showFlashMessage("Sign in required", "Please sign in before placing an order.", "warning");
+      return;
+    }
+
+    if (!featured.is_open) {
+      showFlashMessage("Store closed", "This item is not accepting orders right now.", "warning");
+      return;
+    }
+
+    setOrderModalVisible(true);
   };
 
   const handleSubmitReview = async () => {
@@ -301,6 +334,99 @@ export default function MarketPlaceView() {
     }
   };
 
+  const handleDeleteStore = () => {
+    if (!featured || !isOwner || deletingStore) return;
+
+    Alert.alert(
+      "Delete store",
+      `Delete ${featured.store_name} and all listings in it? This cannot be undone.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            setDeletingStore(true);
+            try {
+              const { data, error } = await supabaseClient
+                .rpc("rpc_delete_marketplace_store", {
+                  p_store_name: featured.store_name,
+                })
+                .maybeSingle();
+
+              if (error) throw new Error(error.message);
+
+              const normalizedStoreName = featured.store_name.trim().toLowerCase();
+              setListings((prev) =>
+                prev.filter(
+                  (item) =>
+                    !(
+                      item.vendor_id === currentUserId &&
+                      item.store_name.trim().toLowerCase() === normalizedStoreName
+                    )
+                )
+              );
+              setSelectedId(null);
+              showFlashMessage(
+                "Store deleted",
+                `${Number(data?.deleted_count ?? 0)} listing(s) were removed from ${featured.store_name}.`,
+                "success"
+              );
+              router.replace("/marketPlace/marketPlaceView?scope=mine");
+            } catch (err) {
+              showFlashMessage("Delete failed", humanizeError(err, "Unable to delete this store."), "error");
+            } finally {
+              setDeletingStore(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const quantityValue = Math.max(1, Number.parseInt(orderQuantity || "1", 10) || 1);
+  const featuredPrice = featured?.price ?? 0;
+  const estimatedTotal = quantityValue * featuredPrice;
+
+  const handleSubmitOrder = async () => {
+    if (!featured || submittingOrder || isOwner) return;
+
+    if (deliveryMode === "delivery" && !deliveryAddress.trim()) {
+      showFlashMessage("Delivery address required", "Add a delivery address before placing the order.", "warning");
+      return;
+    }
+
+    setSubmittingOrder(true);
+    try {
+      const { data, error } = await supabaseClient
+        .rpc("rpc_create_marketplace_order", {
+          p_listing_id: featured.id,
+          p_quantity: quantityValue,
+          p_delivery_mode: deliveryMode,
+          p_delivery_address: deliveryMode === "delivery" ? deliveryAddress.trim() : null,
+          p_notes: orderNotes.trim() || null,
+        })
+        .maybeSingle();
+
+      if (error) throw new Error(error.message);
+
+      setOrderModalVisible(false);
+      setOrderQuantity("1");
+      setDeliveryMode("pickup");
+      setDeliveryAddress("");
+      setOrderNotes("");
+      showFlashMessage(
+        "Order placed",
+        `Your order is now ${data?.status ?? "pending"} with a total of ₱${Number(data?.total_amount ?? estimatedTotal).toLocaleString()}.`,
+        "success"
+      );
+    } catch (err) {
+      showFlashMessage("Order failed", humanizeError(err, "Unable to place your order."), "error");
+    } finally {
+      setSubmittingOrder(false);
+    }
+  };
+
   if (loadingListings) {
     return (
       <View className={`flex-1 items-center justify-center ${t.bgPage}`}>
@@ -380,9 +506,11 @@ export default function MarketPlaceView() {
               </View>
             </View>
 
-            <View className="items-end">
-              <Text className={`text-2xl font-black ${t.price}`}>₱{featured.price.toLocaleString()}</Text>
-              <Text className={`mt-1 text-xs font-semibold ${t.textMuted}`}>{featured.store_name}</Text>
+            <View className="max-w-[42%] items-end">
+              <Text className={`text-right text-2xl font-black ${t.price}`}>₱{featured.price.toLocaleString()}</Text>
+              <Text className={`mt-1 text-right text-xs font-semibold ${t.textMuted}`} numberOfLines={2}>
+                Per item • from {featured.store_name}
+              </Text>
             </View>
           </View>
 
@@ -403,7 +531,25 @@ export default function MarketPlaceView() {
                 {featured.description}
               </Text>
             ) : null}
+            
           </View>
+    {!isOwner ? (
+              <View className={`mt-5 rounded-[22px] border px-4 py-4 ${t.border} ${t.bgCard}`}>
+                <View className="flex-row items-start justify-between">
+                  <View className="flex-1 pr-3">
+                    <Text className={`text-[10px] font-black uppercase tracking-widest ${t.textMuted}`}>Availability</Text>
+                    <Text className={`mt-1 text-sm font-semibold ${t.text}`}>
+                      {featured.is_open ? "Pickup or delivery available" : "Currently unavailable"}
+                    </Text>
+                  </View>
+                  <View className={`rounded-full px-3 py-1.5 ${featured.is_open ? "bg-emerald-50" : "bg-rose-50"}`}>
+                    <Text className={`text-[10px] font-black uppercase tracking-widest ${featured.is_open ? "text-emerald-600" : "text-rose-600"}`}>
+                      {featured.is_open ? "Open" : "Closed"}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            ) : null}
 
           <View className="flex-row flex-wrap mt-4" style={{ gap: 12 }}>
             <TouchableOpacity onPress={() => router.push({ pathname: "/map/mapView", params: { location: featured.location_label } })}>
@@ -415,20 +561,35 @@ export default function MarketPlaceView() {
           {isOwner ? (
             <View className="mt-8">
               <Text className={`text-[10px] font-black uppercase tracking-widest ${t.textMuted} mb-3`}>Store Controls</Text>
-              <View className="flex-row gap-3">
+              <View className="gap-3">
                 <TouchableOpacity
                   onPress={() => setEditModalVisible(true)}
-                  className="flex-1 h-12 rounded-2xl bg-blue-600 items-center justify-center"
+                  className="h-12 rounded-2xl bg-blue-600 items-center justify-center"
                 >
                   <Text className="text-white text-xs font-black uppercase tracking-widest">Edit Listing</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={handleToggleListingOpen}
                   disabled={updatingOpenState}
-                  className={`flex-1 h-12 rounded-2xl items-center justify-center ${featured.is_open ? "bg-rose-600" : "bg-emerald-600"}`}
+                  className={`h-12 rounded-2xl items-center justify-center ${featured.is_open ? "bg-rose-600" : "bg-emerald-600"}`}
                 >
                   <Text className="text-white text-xs font-black uppercase tracking-widest">
                     {updatingOpenState ? "Updating..." : featured.is_open ? "Close Store Item" : "Reopen Store Item"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              <View className={`mt-3 rounded-[22px] border px-4 py-4 ${t.border} ${t.bgSurface}`}>
+                <Text className={`text-[10px] font-black uppercase tracking-widest ${t.textMuted}`}>Danger Zone</Text>
+                <Text className={`mt-2 text-sm leading-6 ${t.textMuted}`}>
+                  Delete this store and every listing under <Text className={t.text}>{featured.store_name}</Text>.
+                </Text>
+                <TouchableOpacity
+                  onPress={handleDeleteStore}
+                  disabled={deletingStore}
+                  className="mt-4 h-12 rounded-2xl items-center justify-center bg-slate-900"
+                >
+                  <Text className="text-white text-xs font-black uppercase tracking-widest">
+                    {deletingStore ? "Deleting Store..." : "Delete Store"}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -489,9 +650,9 @@ export default function MarketPlaceView() {
       </ScrollView>
 
       {isOwner ? (
-        <View
-          style={{ paddingBottom: insets.bottom + 12 }}
-          className={`absolute bottom-0 left-0 right-0 px-6 pt-4 ${t.bgCard} border-t ${t.border} flex-row items-center`}
+        <SafeAreaView
+          style={{ paddingBottom: Math.max(insets.bottom, 8) }}
+          className={`absolute bottom-0 left-0 right-0 px-6 pt-4 ${t.bgCard} border-t ${t.border}`}
         >
           <TouchableOpacity
             onPress={() => setShowModal(true)}
@@ -499,8 +660,29 @@ export default function MarketPlaceView() {
           >
             <Text className="text-white font-black uppercase text-sm tracking-widest">Add Store Item</Text>
           </TouchableOpacity>
-        </View>
-      ) : null}
+        </SafeAreaView>
+      ) : (
+        <SafeAreaView
+          style={{ paddingBottom: Math.max(insets.bottom, 8) }}
+          className={`absolute bottom-0 left-0 right-0 px-6 pt-4 ${t.bgCard} border-t ${t.border}`}
+        >
+          <View className={`rounded-2xl px-4 py-3 ${t.bgSurface} border ${t.border}`}>
+            <Text className={`text-[10px] font-black uppercase tracking-widest ${t.textMuted}`}>Price</Text>
+            <Text className={`mt-1 text-lg font-black ${t.price}`}>₱{featured.price.toLocaleString()}</Text>
+          </View>
+          <TouchableOpacity
+            onPress={handleOpenOrderModal}
+            disabled={!featured.is_open}
+            className={`mt-3 h-14 rounded-2xl items-center justify-center ${
+              featured.is_open ? "bg-blue-600" : "bg-slate-300"
+            }`}
+          >
+            <Text className="text-white font-black uppercase text-sm tracking-widest">
+              {featured.is_open ? "Order Item" : "Unavailable"}
+            </Text>
+          </TouchableOpacity>
+        </SafeAreaView>
+      )}
 
       <MarketModal
         visible={showModal}
@@ -510,6 +692,135 @@ export default function MarketPlaceView() {
           loadListings();
         }}
       />
+
+      <Modal
+        visible={orderModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setOrderModalVisible(false)}
+      >
+        <KeyboardAvoidingView
+          className="flex-1 justify-end"
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? insets.top + 12 : 0}
+        >
+          <View className="flex-1 bg-black/50 justify-end">
+            <ScrollView
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+              contentContainerStyle={{ flexGrow: 1, justifyContent: "flex-end" }}
+            >
+              <View style={{ paddingBottom: insets.bottom + 18 }} className={`rounded-t-[32px] px-6 pt-6 ${t.bgCard}`}>
+                <View className="mb-5 flex-row items-center justify-between">
+                  <View className="flex-1 pr-4">
+                    <Text className={`text-xl font-black ${t.text}`}>Place Order</Text>
+                    <Text className={`mt-1 text-[12px] leading-5 ${t.textMuted}`}>
+                      Order from {featured.store_name} just like a store checkout.
+                    </Text>
+                  </View>
+                  <TouchableOpacity onPress={() => setOrderModalVisible(false)}>
+                    <Ionicons name="close" size={22} color={t.icon} />
+                  </TouchableOpacity>
+                </View>
+
+                <View className={`rounded-[24px] border p-4 ${t.border} ${t.bgSurface}`}>
+                  <View className="flex-row items-start justify-between">
+                    <View className="flex-1 pr-3">
+                      <Text className={`text-[10px] font-black uppercase tracking-widest ${t.textMuted}`}>Item</Text>
+                      <Text className={`mt-2 text-base font-black ${t.text}`}>{featured.name}</Text>
+                      <Text className={`mt-1 text-xs font-semibold ${t.textMuted}`} numberOfLines={2}>{featured.store_name}</Text>
+                    </View>
+                    <Text className={`pl-2 text-right text-lg font-black ${t.price}`}>₱{featured.price.toLocaleString()}</Text>
+                  </View>
+                </View>
+
+                <Text className={`mt-5 text-xs font-black uppercase tracking-widest ${t.textMuted}`}>Quantity</Text>
+                <View className="mt-3 flex-row flex-wrap gap-3">
+                  {[1, 2, 3, 4].map((value) => (
+                    <TouchableOpacity
+                      key={value}
+                      onPress={() => setOrderQuantity(String(value))}
+                      className={`h-11 w-11 items-center justify-center rounded-2xl border ${
+                        quantityValue === value ? "border-blue-600 bg-blue-50" : `${t.border} ${t.bgSurface}`
+                      }`}
+                    >
+                      <Text className={`font-black ${quantityValue === value ? "text-blue-600" : t.text}`}>{value}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                <Text className={`mt-5 text-xs font-black uppercase tracking-widest ${t.textMuted}`}>Fulfillment</Text>
+                <View className="mt-3 gap-3">
+                  {(["pickup", "delivery"] as const).map((mode) => {
+                    const active = deliveryMode === mode;
+                    return (
+                      <TouchableOpacity
+                        key={mode}
+                        onPress={() => setDeliveryMode(mode)}
+                        className={`flex-1 rounded-2xl border px-4 py-3 ${active ? "border-blue-600 bg-blue-50" : `${t.border} ${t.bgSurface}`}`}
+                      >
+                        <Text className={`text-[11px] font-black uppercase tracking-widest ${active ? "text-blue-600" : t.textMuted}`}>
+                          {mode}
+                        </Text>
+                        <Text className={`mt-2 text-sm font-semibold ${t.text}`}>
+                          {mode === "pickup" ? "Pick up from store" : "Request delivery"}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                {deliveryMode === "delivery" ? (
+                  <>
+                    <Text className={`mt-5 text-xs font-black uppercase tracking-widest ${t.textMuted}`}>Delivery Address</Text>
+                    <View className={`mt-3 rounded-[24px] border px-4 py-4 ${t.border} ${t.bgSurface}`}>
+                      <TextInput
+                        value={deliveryAddress}
+                        onChangeText={setDeliveryAddress}
+                        placeholder="House number, street, barangay, and landmark"
+                        placeholderTextColor={t.icon}
+                        multiline
+                        className={`${t.text}`}
+                        style={{ minHeight: 84, textAlignVertical: "top" }}
+                      />
+                    </View>
+                  </>
+                ) : null}
+
+                <Text className={`mt-5 text-xs font-black uppercase tracking-widest ${t.textMuted}`}>Order Notes</Text>
+                <View className={`mt-3 rounded-[24px] border px-4 py-4 ${t.border} ${t.bgSurface}`}>
+                  <TextInput
+                    value={orderNotes}
+                    onChangeText={setOrderNotes}
+                    placeholder="Less spicy, extra sauce, call on arrival, or other notes"
+                    placeholderTextColor={t.icon}
+                    multiline
+                    className={`${t.text}`}
+                    style={{ minHeight: 84, textAlignVertical: "top" }}
+                  />
+                </View>
+
+                <View className={`mt-5 rounded-[24px] border px-4 py-4 ${t.border} ${t.bgSurface}`}>
+                  <View className="flex-row items-center justify-between">
+                    <Text className={`text-sm font-semibold ${t.textMuted}`}>Estimated total</Text>
+                    <Text className={`text-xl font-black ${t.price}`}>₱{estimatedTotal.toLocaleString()}</Text>
+                  </View>
+                </View>
+
+                <TouchableOpacity
+                  onPress={handleSubmitOrder}
+                  disabled={submittingOrder}
+                  className="mt-6 h-12 rounded-2xl items-center justify-center bg-blue-600"
+                >
+                  <Text className="text-white font-black uppercase text-xs tracking-widest">
+                    {submittingOrder ? "Placing Order..." : "Place Order"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
 
       <Modal
         visible={reviewModalVisible}

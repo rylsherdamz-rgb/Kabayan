@@ -11,13 +11,32 @@ type CustomMapComponentsProps = {
   markerCoordinate?: [number, number] | null;
   markerLabel?: string | null;
   onLocationSelected?: (coords: [number, number], address: string) => void;
+  mapPoints?: MapPoint[];
+  selectedPointId?: string | null;
+  onPointSelect?: (point: MapPoint) => void;
+  onPrimaryAction?: (point: MapPoint) => void;
   mode?: "full" | "preview";
+};
+
+export type MapPoint = {
+  id: string;
+  kind: "job" | "listing";
+  title: string;
+  subtitle?: string | null;
+  locationLabel: string;
+  coordinate: [number, number];
+  isOpen?: boolean;
+  price?: number | null;
 };
 
 export default function CustomMapComponents({ 
   markerCoordinate, 
   markerLabel, 
   onLocationSelected,
+  mapPoints = [],
+  selectedPointId,
+  onPointSelect,
+  onPrimaryAction,
   mode = "full",
 }: CustomMapComponentsProps) {
   const mapRef = useRef<MapView>(null);
@@ -38,6 +57,10 @@ export default function CustomMapComponents({
   );
 
   const resolvedLabel = markerLabel?.trim() ? markerLabel : "Pinned location";
+  const selectedPoint = useMemo(
+    () => mapPoints.find((point) => point.id === selectedPointId) ?? null,
+    [mapPoints, selectedPointId]
+  );
 
   useEffect(() => {
     if (!ready || !mapRef.current) return;
@@ -66,11 +89,23 @@ export default function CustomMapComponents({
         toolbarEnabled={false}
         mapType="standard"
       >
-        <Marker
-          coordinate={{ latitude: lat, longitude: lng }}
-          title={markerLabel?.trim() ? markerLabel : 'Pinned location'}
-          pinColor="#2563EB"
-        />
+        {mapPoints.map((point) => (
+          <Marker
+            key={point.id}
+            coordinate={{ latitude: point.coordinate[1], longitude: point.coordinate[0] }}
+            title={point.title}
+            description={point.subtitle ?? point.locationLabel}
+            pinColor={point.kind === "job" ? "#2563EB" : "#059669"}
+            onPress={() => onPointSelect?.(point)}
+          />
+        ))}
+        {markerCoordinate ? (
+          <Marker
+            coordinate={{ latitude: lat, longitude: lng }}
+            title={markerLabel?.trim() ? markerLabel : 'Pinned location'}
+            pinColor="#2563EB"
+          />
+        ) : null}
       </MapView>
 
       {mode === "full" ? (
@@ -183,9 +218,24 @@ export default function CustomMapComponents({
                 <View style={styles.bottomSheetTextWrap}>
                   <Text style={styles.bottomSheetEyebrow}>Selected location</Text>
                   <Text style={styles.bottomSheetTitle} numberOfLines={2}>
-                    {resolvedLabel}
+                    {selectedPoint?.title ?? resolvedLabel}
                   </Text>
-                  <Text style={styles.bottomSheetCaption}>Search above to change the pin and map focus.</Text>
+                  <Text style={styles.bottomSheetCaption}>
+                    {selectedPoint
+                      ? `${selectedPoint.kind === "job" ? "Job" : "Store item"} • ${selectedPoint.subtitle ?? selectedPoint.locationLabel}`
+                      : "Search above to change the pin and map focus."}
+                  </Text>
+                  {selectedPoint ? (
+                    <TouchableOpacity
+                      style={styles.primaryAction}
+                      activeOpacity={0.9}
+                      onPress={() => onPrimaryAction?.(selectedPoint)}
+                    >
+                      <Text style={styles.primaryActionText}>
+                        {selectedPoint.kind === "job" ? "View job" : "View store item"}
+                      </Text>
+                    </TouchableOpacity>
+                  ) : null}
                 </View>
               </View>
             </View>
@@ -404,5 +454,22 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     lineHeight: 17,
+  },
+  primaryAction: {
+    marginTop: 12,
+    height: 40,
+    borderRadius: 14,
+    backgroundColor: '#2563EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 16,
+  },
+  primaryActionText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.7,
   },
 });

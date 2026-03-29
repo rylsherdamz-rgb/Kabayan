@@ -13,6 +13,7 @@ type ListingFeedRow = {
   id: string;
   vendor_id: string;
   store_name: string;
+  store_permit_verified?: boolean;
   name: string;
   description: string | null;
   category: string;
@@ -38,6 +39,7 @@ const normalizeListing = (row: any): ListingFeedRow => ({
   id: row.id,
   vendor_id: row.vendor_id,
   store_name: row.store_name ?? "Unnamed Store",
+  store_permit_verified: Boolean(row.store_permit_verified),
   name: row.name,
   description: row.description ?? null,
   category: row.category,
@@ -141,7 +143,7 @@ export default function MarketPlace() {
 }
 
 function VendorCard({ vendor, t, onPress }: { vendor: any; t: any; onPress: () => void }) {
-  const verified = (vendor.description ?? "").toLowerCase().includes("permit: verified");
+  const verified = Boolean(vendor.store_permit_verified);
   return (
     <TouchableOpacity activeOpacity={0.96} className={`rounded-[30px] overflow-hidden mb-5 ${t.bgCard} border ${t.border}`} onPress={onPress}>
       <View className="h-40 w-full relative">
@@ -217,7 +219,9 @@ function VendorCard({ vendor, t, onPress }: { vendor: any; t: any; onPress: () =
           <View className="items-end">
             <Text className={`text-[10px] font-black uppercase tracking-widest ${t.textMuted}`}>Tap to view</Text>
             <TouchableOpacity className="mt-2 bg-slate-900 px-5 py-3 rounded-2xl">
-              <Text className="text-white font-black text-[10px] uppercase tracking-widest">Open Store</Text>
+              <Text className="text-white font-black text-[10px] uppercase tracking-widest">
+                {vendor.is_open ? "View & Order" : "View Item"}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>

@@ -24,6 +24,7 @@ const FALLBACK_COORDINATE = {
 type EditableListing = {
   id: string;
   vendor_id: string;
+  store_name: string;
   name: string;
   description: string | null;
   category: string;
@@ -47,6 +48,7 @@ export default function MarketEditModal({ visible, listing, onClose, onSaved }: 
   const { t } = useTheme();
   const insets = useSafeAreaInsets();
   const [name, setName] = useState("");
+  const [storeName, setStoreName] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
   const [price, setPrice] = useState("");
@@ -57,6 +59,7 @@ export default function MarketEditModal({ visible, listing, onClose, onSaved }: 
 
   useEffect(() => {
     if (!listing) return;
+    setStoreName(listing.store_name ?? "");
     setName(listing.name ?? "");
     setDescription(listing.description ?? "");
     setCategory(listing.category ?? "");
@@ -69,6 +72,7 @@ export default function MarketEditModal({ visible, listing, onClose, onSaved }: 
   const handleSave = async () => {
     if (!listing || saving) return;
 
+    const trimmedStoreName = storeName.trim();
     const trimmedName = name.trim();
     const trimmedCategory = category.trim();
     const trimmedLocation = location.trim();
@@ -76,8 +80,8 @@ export default function MarketEditModal({ visible, listing, onClose, onSaved }: 
     const trimmedImageUrl = imageUrl.trim();
     const numericPrice = Number(price);
 
-    if (!trimmedName || !trimmedCategory || !trimmedLocation) {
-      setError("Store item name, category, and location are required.");
+    if (!trimmedStoreName || !trimmedName || !trimmedCategory || !trimmedLocation) {
+      setError("Store name, item name, category, and location are required.");
       return;
     }
 
@@ -104,6 +108,7 @@ export default function MarketEditModal({ visible, listing, onClose, onSaved }: 
       const { data, error: updateError } = await supabaseClient
         .rpc("rpc_update_marketplace_listing", {
           p_listing_id: listing.id,
+          p_store_name: trimmedStoreName,
           p_name: trimmedName,
           p_description: trimmedDescription || null,
           p_category: trimmedCategory,
@@ -122,6 +127,7 @@ export default function MarketEditModal({ visible, listing, onClose, onSaved }: 
       onSaved({
         id: data.id,
         vendor_id: data.vendor_id,
+        store_name: data.store_name ?? trimmedStoreName,
         name: data.name,
         description: data.description ?? null,
         category: data.category,
@@ -164,6 +170,7 @@ export default function MarketEditModal({ visible, listing, onClose, onSaved }: 
               keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
               contentContainerStyle={{ paddingBottom: 16 }}
             >
+              <Field label="Store Name" value={storeName} onChangeText={setStoreName} placeholder="Your customer-facing store name" icon="home" />
               <Field label="Item Name" value={name} onChangeText={setName} placeholder="Store item name" icon="tag" />
               <Field label="Category" value={category} onChangeText={setCategory} placeholder="Meals, Drinks, Grocery, Services" icon="grid" />
               <Field label="Price (PHP)" value={price} onChangeText={setPrice} placeholder="0" icon="dollar-sign" keyboardType="numeric" />

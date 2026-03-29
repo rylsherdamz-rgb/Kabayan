@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Modal, SafeAreaView, View, Text, TextInput, TouchableOpacity, ScrollView, Image, KeyboardAvoidingView, Platform } from "react-native";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -25,6 +25,7 @@ export default function MarketModal({ visible, onClose, onCreated }: MarketModal
   const { pickImage, image, setImage } = useImagePicker();
 
   const [name, setName] = useState("");
+  const [storeName, setStoreName] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
   const [category, setCategory] = useState("Store Item");
@@ -35,8 +36,34 @@ export default function MarketModal({ visible, onClose, onCreated }: MarketModal
   const [allergens, setAllergens] = useState("");
   const [storage, setStorage] = useState("");
 
+  useEffect(() => {
+    if (!visible) return;
+    let cancelled = false;
+
+    const preloadStoreName = async () => {
+      const { data: authData } = await supabaseClient.auth.getUser();
+      const vendorId = authData.user?.id;
+      if (!vendorId) return;
+
+      const { data } = await supabaseClient.rpc("rpc_get_marketplace_listings_feed");
+      if (cancelled || !Array.isArray(data)) return;
+
+      const ownListing = data.find((row: any) => row.vendor_id === vendorId && typeof row.store_name === "string");
+      if (ownListing?.store_name && !cancelled) {
+        setStoreName((current) => current.trim() || ownListing.store_name);
+      }
+    };
+
+    preloadStoreName();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [visible]);
+
   const clearForm = () => {
     setName("");
+    setStoreName("");
     setDescription("");
     setPrice("");
     setCategory("Store Item");
@@ -66,8 +93,10 @@ export default function MarketModal({ visible, onClose, onCreated }: MarketModal
     const trimmedDescription = description.trim();
     const priceValue = price.trim() === "" ? 0 : Number(price);
 
-    if (!trimmedName || !trimmedCategory || !trimmedLocation) {
-      setError("Store item name, category, and location are required.");
+    const trimmedStoreName = storeName.trim();
+
+    if (!trimmedStoreName || !trimmedName || !trimmedCategory || !trimmedLocation) {
+      setError("Store name, item name, category, and location are required.");
       return;
     }
 
@@ -110,6 +139,7 @@ export default function MarketModal({ visible, onClose, onCreated }: MarketModal
 
       const { error: insertError } = await supabaseClient.rpc("rpc_create_marketplace_listing", {
         p_vendor_id: vendorId,
+        p_store_name: trimmedStoreName,
         p_name: trimmedName,
         p_description: composedDescription || null,
         p_category: trimmedCategory,
@@ -150,7 +180,7 @@ export default function MarketModal({ visible, onClose, onCreated }: MarketModal
                 </View>
                 <View>
                   <Text className="text-xl font-black text-slate-900">Add Store Item</Text>
-                  <Text className="text-xs text-slate-500">Create a store listing for food, products, or services.</Text>
+                  <Text className="text-xs text-slate-500">Publish an item on your store menu for customers to browse and order.</Text>
                 </View>
               </View>
               <TouchableOpacity onPress={onClose}>
@@ -165,8 +195,15 @@ export default function MarketModal({ visible, onClose, onCreated }: MarketModal
               contentContainerStyle={{ paddingBottom: insets.bottom + 8 }}
             >
               <Field
+                label="Store name"
+                placeholder="e.g. Nanay Nena's Kitchen"
+                value={storeName}
+                onChangeText={setStoreName}
+                icon="home"
+              />
+              <Field
                 label="Item name"
-                placeholder="e.g. Chicken Inasal Barkada or Laundry Pickup"
+                placeholder="e.g. Chicken Inasal Bilao or Laundry Pickup"
                 value={name}
                 onChangeText={setName}
                 icon="edit-3"
@@ -180,21 +217,21 @@ export default function MarketModal({ visible, onClose, onCreated }: MarketModal
               />
               <Field
                 label="Price (PHP)"
-                placeholder="e.g. 120"
+                placeholder="Base price shown on your menu"
                 value={price}
                 onChangeText={setPrice}
                 icon="currency-php"
               />
               <Field
-                label="Location"
-                placeholder="Pickup or delivery area"
+                label="Store area"
+                placeholder="Where customers can find or receive this item"
                 value={location}
                 onChangeText={setLocation}
                 icon="map-pin"
               />
               <Field
                 label="Description"
-                placeholder="What are you selling? Add item details, inclusions, prep time, or service coverage."
+                placeholder="Describe the item, what is included, serving size, prep time, or service coverage."
                 value={description}
                 onChangeText={setDescription}
                 icon="file-text"
@@ -209,8 +246,8 @@ export default function MarketModal({ visible, onClose, onCreated }: MarketModal
                 multiline
               />
               <Field
-                label="Storage & Expiry"
-                placeholder="Best consumed within 24h. Keep refrigerated."
+                label="Pickup, storage, or prep notes"
+                placeholder="Fresh daily until 8PM. Keep chilled. Delivery within 3km."
                 value={storage}
                 onChangeText={setStorage}
                 icon="clock"
@@ -236,9 +273,9 @@ export default function MarketModal({ visible, onClose, onCreated }: MarketModal
               </View>
 
               <View className="mt-2">
-                <Text className="text-[11px] font-black text-slate-500 uppercase tracking-[1.5px] mb-2">Describe like Indeed</Text>
+                <Text className="text-[11px] font-black text-slate-500 uppercase tracking-[1.5px] mb-2">Store Listing Tips</Text>
                 <Text className="text-slate-600 leading-5">
-                  Include item details, delivery or pickup notes, and anything buyers should know before ordering.
+                  Focus on the menu item, price clarity, prep or delivery notes, and details that help customers order with confidence.
                 </Text>
               </View>
 
@@ -249,7 +286,7 @@ export default function MarketModal({ visible, onClose, onCreated }: MarketModal
                 activeOpacity={0.9}
               >
                 <Text className="text-white font-black uppercase text-base tracking-widest">
-                  {saving ? "Saving…" : "Publish Item"}
+                  {saving ? "Saving…" : "Publish To Store"}
                 </Text>
               </TouchableOpacity>
               {error && (

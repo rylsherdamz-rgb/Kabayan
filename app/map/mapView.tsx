@@ -1,9 +1,10 @@
-import CustomMapViewComponent from "@/components/CustomComponents/CustomMapComponents";
+import CustomMapViewComponent, { type MapPoint } from "@/components/CustomComponents/CustomMapComponents";
 import { View, Text, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { geocodeAddress } from "@/utils/googleGeocode";
+import { supabaseClient } from "@/utils/supabase";
 
 const DEFAULT_COORDINATE: [number, number] = [120.9842, 14.5995];
 
@@ -20,6 +21,7 @@ const toFiniteNumber = (value?: string) => {
 
 export default function CustomMapView() {
   const inset = useSafeAreaInsets();
+  const router = useRouter();
   const params = useLocalSearchParams<{
     location?: string | string[];
     latitude?: string | string[];
@@ -33,11 +35,64 @@ export default function CustomMapView() {
   const [targetCoordinate, setTargetCoordinate] = useState<[number, number]>(DEFAULT_COORDINATE);
   const [currentLabel, setCurrentLabel] = useState(initialLocation);
   const [resolving, setResolving] = useState(false);
+  const [mapPoints, setMapPoints] = useState<MapPoint[]>([]);
+  const [selectedPointId, setSelectedPointId] = useState<string | null>(null);
+
+  const loadMapPoints = useCallback(async () => {
+    const { data, error } = await supabaseClient.rpc("rpc_get_map_entities");
+    if (error || !Array.isArray(data)) {
+      setMapPoints([]);
+      return;
+    }
+
+    const normalized = data
+      .map((row: any) => {
+        const latitude = Number(row.latitude);
+        const longitude = Number(row.longitude);
+        if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+        return {
+          id: `${row.entity_type}:${row.entity_id}`,
+          kind: row.entity_type === "job" ? "job" : "listing",
+          title: row.title ?? (row.entity_type === "job" ? "Job" : "Store item"),
+          subtitle: row.subtitle ?? null,
+          locationLabel: row.location_label ?? "Pinned location",
+          coordinate: [longitude, latitude] as [number, number],
+          isOpen: Boolean(row.is_open),
+          price: row.price == null ? null : Number(row.price),
+        } satisfies MapPoint;
+      })
+      .filter(Boolean) as MapPoint[];
+
+    setMapPoints(normalized);
+  }, []);
 
   const handleLocationSelected = useCallback((coords: [number, number], label: string) => {
     setTargetCoordinate(coords);
     setCurrentLabel(label);
+    setSelectedPointId(null);
   }, []);
+
+  const handlePointSelect = useCallback((point: MapPoint) => {
+    setTargetCoordinate(point.coordinate);
+    setCurrentLabel(point.locationLabel);
+    setSelectedPointId(point.id);
+  }, []);
+
+  const handlePrimaryAction = useCallback(
+    (point: MapPoint) => {
+      if (point.kind === "job") {
+        router.push({ pathname: "/job/JobView", params: { jobId: point.id.replace("job:", "") } });
+        return;
+      }
+
+      router.push({ pathname: "/marketPlace/marketPlaceView", params: { id: point.id.replace("listing:", "") } });
+    },
+    [router]
+  );
+
+  useEffect(() => {
+    loadMapPoints();
+  }, [loadMapPoints]);
 
   useEffect(() => {
     setCurrentLabel(initialLocation);
@@ -100,6 +155,10 @@ export default function CustomMapView() {
         markerCoordinate={targetCoordinate} 
         markerLabel={markerLabel} 
         onLocationSelected={handleLocationSelected}
+        mapPoints={mapPoints}
+        selectedPointId={selectedPointId}
+        onPointSelect={handlePointSelect}
+        onPrimaryAction={handlePrimaryAction}
       />
     </View>
   );
