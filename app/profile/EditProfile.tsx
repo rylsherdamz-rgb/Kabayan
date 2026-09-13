@@ -14,7 +14,7 @@ import { Feather, Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { useTheme } from "@/hooks/useTheme";
-import { supabaseClient } from "@/utils/supabase";
+import { api, getStoredUser } from "@/utils/api";
 import AppFlashMessage from "@/components/CustomComponents/AppFlashMessage";
 import useFlashMessage from "@/hooks/useFlashMessage";
 import humanizeError from "@/utils/humanizeError";
@@ -29,6 +29,7 @@ type EditProfileRow = {
   job_role: "worker" | "employer";
   market_role: "buyer" | "vendor";
   birth_date: string | null;
+  id_verification_status: "unverified" | "pending" | "verified" | "rejected" | null;
 };
 
 type FormState = {
@@ -49,9 +50,6 @@ const emptyForm: FormState = {
   marketRole: "buyer",
 };
 
-const isAuthSessionMissing = (message?: string | null) =>
-  (message ?? "").toLowerCase().includes("auth session missing");
-
 const isValidBirthDate = (value: string) => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const parsed = new Date(`${value}T00:00:00.000Z`);
@@ -68,22 +66,14 @@ export default function EditProfile() {
   const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [verificationStatus, setVerificationStatus] = useState<string | null>(null);
+  const [submittingId, setSubmittingId] = useState(false);
 
   const loadProfile = useCallback(async () => {
     setLoading(true);
     try {
-      const { data: authData, error: authError } = await supabaseClient.auth.getUser();
-      if (authError) {
-        if (!isAuthSessionMissing(authError.message)) {
-          throw new Error(authError.message);
-        }
-        setUserId(null);
-        setForm(emptyForm);
-        setAvatarUri(null);
-        return;
-      }
-
-      const uid = authData.user?.id ?? null;
+      const user = await getStoredUser();
+      const uid = user?.id ?? null;
       setUserId(uid);
 
       if (!uid) {
@@ -92,11 +82,7 @@ export default function EditProfile() {
         return;
       }
 
-      const { data, error } = await supabaseClient
-        .rpc("rpc_get_profile_for_edit", { p_user_id: uid })
-        .maybeSingle();
-
-      if (error) throw new Error(error.message);
+      const data = await api.get<any>(`/api/profiles/${uid}`);
 
       const row = (data ?? null) as EditProfileRow | null;
       setForm({
@@ -108,6 +94,7 @@ export default function EditProfile() {
         marketRole: row?.market_role ?? "buyer",
       });
       setAvatarUri(row?.avatar_url ?? null);
+      setVerificationStatus(row?.id_verification_status ?? null);
     } catch (err) {
       const message = humanizeError(err, "Failed to load profile.");
       showFlashMessage("Profile Load Failed", message, "error");
@@ -118,13 +105,6 @@ export default function EditProfile() {
 
   useEffect(() => {
     loadProfile();
-    const { data: authListener } = supabaseClient.auth.onAuthStateChange(() => {
-      loadProfile();
-    });
-
-    return () => {
-      authListener.subscription.unsubscribe();
-    };
   }, [loadProfile]);
 
   useFocusEffect(
@@ -173,20 +153,15 @@ export default function EditProfile() {
 
     setSaving(true);
     try {
-      const { data, error } = await supabaseClient
-        .rpc("rpc_update_profile", {
-          p_user_id: userId,
-          p_display_name: trimmedName,
-          p_bio: form.bio.trim() || null,
-          p_location_label: form.location.trim() || null,
-          p_avatar_url: avatarUri,
-          p_job_role: form.jobRole,
-          p_market_role: form.marketRole,
-          p_birth_date: trimmedBirthDate || null,
-        })
-        .maybeSingle();
-
-      if (error) throw new Error(error.message);
+      const data = await api.put<any>(`/api/profiles/${userId}`, {
+        display_name: trimmedName,
+        bio: form.bio.trim() || null,
+        location_label: form.location.trim() || null,
+        avatar_url: avatarUri,
+        job_role: form.jobRole,
+        market_role: form.marketRole,
+        birth_date: trimmedBirthDate || null,
+      });
 
       const row = (data ?? null) as EditProfileRow | null;
       if (row) {
@@ -210,11 +185,25 @@ export default function EditProfile() {
     }
   };
 
+  const handleResubmitId = async () => {
+    if (submittingId || !userId) return;
+    setSubmittingId(true);
+    try {
+      await api.post(`/api/profiles/${userId}/resubmit-id`, {});
+      setVerificationStatus("pending");
+      showFlashMessage("ID Resubmitted", "Your ID has been sent for re-verification.", "success");
+    } catch (err) {
+      showFlashMessage("Resubmit Failed", humanizeError(err, "Unable to resubmit ID."), "error");
+    } finally {
+      setSubmittingId(false);
+    }
+  };
+
   if (loading) {
     return (
       <View style={{paddingTop: inset.top}} className={`flex-1 items-center justify-center ${t.bgPage}`}>
         <ActivityIndicator />
-        <Text className={`mt-2 ${t.textMuted}`}>Loading profile editor…</Text>
+        <Text className={`mt-2 ${t.textMuted}`}>Loading profile editor...</Text>
       </View>
     );
   }
@@ -222,7 +211,7 @@ export default function EditProfile() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={Platform.OS === "ios" ? inset.top + 18 : 12}
+      keyboardVerticalOffset={0}
       style={{ flex: 1 }}
       className={`flex-1 ${t.bgPage}`}
     >
@@ -256,8 +245,8 @@ export default function EditProfile() {
                 {avatarUri ? (
                   <Image source={{ uri: avatarUri }} className="w-24 h-24 rounded-3xl border-4 border-white" />
                 ) : (
-                  <View className="w-24 h-24 rounded-3xl border-4 border-white bg-slate-200 items-center justify-center">
-                    <Ionicons name="person" size={28} color="#64748B" />
+                  <View className={`w-24 h-24 rounded-3xl border-4 border-white ${t.bgSurface} items-center justify-center`}>
+                    <Ionicons name="person" size={28} color={t.icon} />
                   </View>
                 )}
                 <TouchableOpacity
@@ -308,11 +297,13 @@ export default function EditProfile() {
                 label="Worker"
                 active={form.jobRole === "worker"}
                 onPress={() => setForm((prev) => ({ ...prev, jobRole: "worker" }))}
+                t={t}
               />
               <RoleChip
                 label="Employer"
                 active={form.jobRole === "employer"}
                 onPress={() => setForm((prev) => ({ ...prev, jobRole: "employer" }))}
+                t={t}
               />
             </View>
 
@@ -322,23 +313,100 @@ export default function EditProfile() {
                 label="Buyer"
                 active={form.marketRole === "buyer"}
                 onPress={() => setForm((prev) => ({ ...prev, marketRole: "buyer" }))}
+                t={t}
               />
               <RoleChip
                 label="Vendor"
                 active={form.marketRole === "vendor"}
                 onPress={() => setForm((prev) => ({ ...prev, marketRole: "vendor" }))}
+                t={t}
               />
             </View>
 
             <TouchableOpacity
               onPress={handleSave}
               disabled={saving}
-              className={`mt-6 h-12 rounded-2xl items-center justify-center ${saving ? "bg-blue-400" : "bg-blue-600"}`}
+              className={`mt-6 h-12 rounded-2xl items-center justify-center ${saving ? "bg-blue-400" : t.brandBg}`}
             >
               <Text className="text-white font-black uppercase tracking-widest">
                 {saving ? "Saving..." : "Save Changes"}
               </Text>
             </TouchableOpacity>
+          </View>
+
+          <View className={`mt-6 rounded-3xl border px-5 py-5 ${t.border} ${t.bgCard}`}>
+            <Text className={`text-[10px] font-black uppercase tracking-widest ${t.textMuted}`}>ID Verification</Text>
+            <Text className={`mt-2 text-sm leading-5 ${t.textMuted}`}>
+              A valid government ID confirms your identity and builds trust.
+            </Text>
+
+            <View className={`mt-4 rounded-2xl border px-4 py-3 ${t.border} ${t.bgSurface}`}>
+              <Text className={`text-[10px] font-black uppercase tracking-widest ${t.textMuted}`}>Status</Text>
+              <View className="mt-1.5 flex-row items-center gap-2">
+                {verificationStatus === "verified" ? (
+                  <Ionicons name="shield-checkmark" size={20} color="#10B981" />
+                ) : verificationStatus === "pending" ? (
+                  <Ionicons name="time" size={20} color="#F59E0B" />
+                ) : verificationStatus === "rejected" ? (
+                  <Ionicons name="close-circle" size={20} color="#EF4444" />
+                ) : (
+                  <Ionicons name="shield-outline" size={20} color={t.icon} />
+                )}
+                <Text
+                  className={`text-base font-extrabold ${
+                    verificationStatus === "verified"
+                      ? "text-emerald-600"
+                      : verificationStatus === "pending"
+                        ? "text-amber-600"
+                        : verificationStatus === "rejected"
+                          ? "text-rose-600"
+                          : t.text
+                  }`}
+                >
+                  {verificationStatus === "verified"
+                    ? "Verified"
+                    : verificationStatus === "pending"
+                      ? "Under Review"
+                      : verificationStatus === "rejected"
+                        ? "Rejected"
+                        : "Not Submitted"}
+                </Text>
+              </View>
+            </View>
+
+            <Text className={`mt-3 text-[10px] leading-4 ${t.textMuted}`}>
+              Note: Google API keys used for location features may be exposed through client-side verification processes.
+            </Text>
+
+            {verificationStatus === "rejected" ? (
+              <TouchableOpacity
+                onPress={handleResubmitId}
+                disabled={submittingId}
+                className="mt-4 h-11 rounded-2xl items-center justify-center bg-amber-600"
+              >
+                <Text className="text-white font-black text-xs uppercase tracking-widest">
+                  {submittingId ? "Resubmitting..." : "Resubmit for Verification"}
+                </Text>
+              </TouchableOpacity>
+            ) : null}
+
+            {verificationStatus === "unverified" || verificationStatus === null ? (
+              <TouchableOpacity
+                onPress={() => {
+                  if (!userId) {
+                    showFlashMessage("Sign in required", "Please sign in to submit your ID.", "warning");
+                    return;
+                  }
+                  handleResubmitId();
+                }}
+                disabled={submittingId}
+                className="mt-4 h-11 rounded-2xl items-center justify-center bg-blue-600"
+              >
+                <Text className="text-white font-black text-xs uppercase tracking-widest">
+                  {submittingId ? "Submitting..." : "Submit ID for Verification"}
+                </Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
         </View>
       </ScrollView>
@@ -381,17 +449,19 @@ function RoleChip({
   label,
   active,
   onPress,
+  t,
 }: {
   label: string;
   active: boolean;
   onPress: () => void;
+  t: ReturnType<typeof useTheme>["t"];
 }) {
   return (
     <TouchableOpacity
       onPress={onPress}
-      className={`flex-1 h-10 rounded-xl items-center justify-center border ${active ? "bg-blue-600 border-blue-600" : "bg-white border-slate-300"}`}
+      className={`flex-1 h-10 rounded-xl items-center justify-center border ${active ? "bg-blue-600 border-blue-600" : `${t.bgSurface} ${t.border}`}`}
     >
-      <Text className={`text-xs font-black uppercase tracking-widest ${active ? "text-white" : "text-slate-700"}`}>
+      <Text className={`text-xs font-black uppercase tracking-widest ${active ? "text-white" : t.text}`}>
         {label}
       </Text>
     </TouchableOpacity>

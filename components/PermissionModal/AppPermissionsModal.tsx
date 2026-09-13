@@ -1,12 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Linking, Modal, Text, TouchableOpacity, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import {
-  getCameraPermissionsAsync,
-  getMicrophonePermissionsAsync,
-  requestCameraPermissionsAsync,
-  requestMicrophonePermissionsAsync,
-} from "expo-camera";
+import { Camera } from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
 import { useTheme } from "@/hooks/useTheme";
@@ -36,18 +31,6 @@ const PERMISSIONS: PermissionMeta[] = [
     icon: "camera",
   },
   {
-    key: "microphone",
-    title: "Microphone",
-    description: "Required when recording video with audio.",
-    icon: "mic",
-  },
-  {
-    key: "mediaLibrary",
-    title: "Photos / Media",
-    description: "Pick existing photos for jobs and marketplace posts.",
-    icon: "image",
-  },
-  {
     key: "location",
     title: "Location",
     description: "Map features and accurate job/listing location.",
@@ -67,11 +50,7 @@ type AppPermissionsModalProps = {
   onDone: () => void;
 };
 
-const normalizePermission = (permission: { granted: boolean; canAskAgain: boolean; status: string }): PermissionLike => ({
-  granted: permission.granted,
-  canAskAgain: permission.canAskAgain,
-  status: permission.status,
-});
+const normalizePermission = (p: PermissionLike) => p;
 
 export default function AppPermissionsModal({ visible, onDone }: AppPermissionsModalProps) {
   const { t } = useTheme();
@@ -82,16 +61,14 @@ export default function AppPermissionsModal({ visible, onDone }: AppPermissionsM
   const refreshPermissions = useCallback(async () => {
     setChecking(true);
     try {
-      const [camera, microphone, mediaLibrary, location] = await Promise.all([
-        getCameraPermissionsAsync(),
-        getMicrophonePermissionsAsync(),
+      const [camera, mediaLibrary, location] = await Promise.all([
+        Camera.getCameraPermissionsAsync(),
         ImagePicker.getMediaLibraryPermissionsAsync(),
         Location.getForegroundPermissionsAsync(),
       ]);
-
       setPermissions({
         camera: normalizePermission(camera),
-        microphone: normalizePermission(microphone),
+        microphone: null,
         mediaLibrary: normalizePermission(mediaLibrary),
         location: normalizePermission(location),
       });
@@ -108,9 +85,7 @@ export default function AppPermissionsModal({ visible, onDone }: AppPermissionsM
   const requestByKey = async (key: PermissionKey) => {
     switch (key) {
       case "camera":
-        return normalizePermission(await requestCameraPermissionsAsync());
-      case "microphone":
-        return normalizePermission(await requestMicrophonePermissionsAsync());
+        return normalizePermission(await Camera.requestCameraPermissionsAsync());
       case "mediaLibrary":
         return normalizePermission(await ImagePicker.requestMediaLibraryPermissionsAsync());
       case "location":
@@ -123,33 +98,24 @@ export default function AppPermissionsModal({ visible, onDone }: AppPermissionsM
   const requestSingle = async (key: PermissionKey) => {
     setRequestingKey(key);
     try {
-      const updatedPermission = await requestByKey(key);
-      if (!updatedPermission) return;
-      setPermissions((prev) => ({ ...prev, [key]: updatedPermission }));
+      const updated = await requestByKey(key);
+      if (!updated) return;
+      setPermissions((prev) => ({ ...prev, [key]: updated }));
     } finally {
       setRequestingKey(null);
     }
   };
 
-  const requestAll = async () => {
-    setRequestingKey("all");
-    try {
-      for (const permission of PERMISSIONS) {
-        const current = permissions[permission.key];
-        if (current?.granted) continue;
-        if (current?.canAskAgain === false) continue;
-        const updatedPermission = await requestByKey(permission.key);
-        if (!updatedPermission) continue;
-        setPermissions((prev) => ({ ...prev, [permission.key]: updatedPermission }));
-      }
-      await refreshPermissions();
-    } finally {
-      setRequestingKey(null);
-    }
-  };
+  const isDenied = (key: PermissionKey) =>
+    permissions[key]?.canAskAgain === false && !permissions[key]?.granted;
+
+  const hasDenied = useMemo(
+    () => PERMISSIONS.some((p) => isDenied(p.key)),
+    [permissions]
+  );
 
   const grantedCount = useMemo(
-    () => PERMISSIONS.filter((permission) => permissions[permission.key]?.granted).length,
+    () => PERMISSIONS.filter((p) => permissions[p.key]?.granted).length,
     [permissions]
   );
   const allGranted = grantedCount === PERMISSIONS.length;
@@ -158,61 +124,107 @@ export default function AppPermissionsModal({ visible, onDone }: AppPermissionsM
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onDone}>
       <View className="flex-1 bg-black/45 justify-center px-5">
         <View className={`rounded-3xl p-5 border ${t.border} ${t.bgCard}`}>
-          <View className="flex-row items-center justify-between mb-2">
-            <Text className={`text-xl font-black ${t.text}`}>Required Permissions</Text>
-            <Text className="text-xs font-bold text-blue-600">{grantedCount}/{PERMISSIONS.length} granted</Text>
+
+          {/* Header with progress pill */}
+          <View className="flex-row items-center justify-between mb-4">
+            <Text className={`text-xl font-black ${t.text}`}>Permissions</Text>
+            {/* Visual progress pill — theme-aware */}
+            <View
+              className={`px-2.5 py-1 rounded-full ${allGranted ? 'bg-emerald-500/20' : 'bg-blue-500/20'}`}
+            >
+              <Text className={`text-xs font-black ${allGranted ? 'text-emerald-600' : 'text-blue-600'}`}>
+                {grantedCount}/{PERMISSIONS.length}
+              </Text>
+            </View>
           </View>
-          <Text className={`text-sm mb-4 ${t.textMuted}`}>
-            Grant the permissions Kabayan needs for camera, uploads, and location features.
-          </Text>
+
+          {/* Denied warning — dark-mode aware */}
+          {hasDenied && (
+            <View
+              className={`mb-4 p-3 rounded-2xl border ${
+                t.isDarkMode
+                  ? 'bg-amber-900/20 border-amber-700'
+                  : 'bg-amber-50 border-amber-200'
+              }`}
+            >
+              <Text
+                className={`text-xs font-semibold ${
+                  t.isDarkMode ? 'text-amber-300' : 'text-amber-800'
+                }`}
+              >
+                Some permissions were denied. Enable them in Settings for full functionality.
+              </Text>
+            </View>
+          )}
 
           {checking ? (
             <View className="py-8 items-center">
-              <ActivityIndicator />
-              <Text className={`mt-2 ${t.textMuted}`}>Checking permissions…</Text>
+              <ActivityIndicator color={t.accent} />
+              <Text className={`mt-2 text-sm ${t.textMuted}`}>Checking permissions…</Text>
             </View>
           ) : (
             <View className="gap-y-3">
               {PERMISSIONS.map((permission) => {
                 const state = permissions[permission.key];
-                const isGranted = !!state?.granted;
-                const cannotAskAgain = state?.canAskAgain === false;
-                const isRequesting = requestingKey === permission.key || requestingKey === "all";
+                const granted = !!state?.granted;
+                const cannotAskAgain = state?.canAskAgain === false && !granted;
+                const requesting = requestingKey === permission.key || requestingKey === "all";
 
                 return (
-                  <View key={permission.key} className={`p-3 rounded-2xl border ${t.border} ${t.bgSurface}`}>
+                  <View
+                    key={permission.key}
+                    className={`p-3 rounded-2xl border ${t.border} ${t.bgSurface}`}
+                  >
                     <View className="flex-row items-center justify-between">
                       <View className="flex-row items-center flex-1 pr-3">
-                        <View className="w-9 h-9 rounded-xl bg-blue-100 items-center justify-center">
+                        {/* Icon container — dark-mode aware */}
+                        <View
+                          className={`w-9 h-9 rounded-xl items-center justify-center ${
+                            t.isDarkMode ? 'bg-blue-900/40' : 'bg-blue-100'
+                          }`}
+                        >
                           <Feather name={permission.icon} size={16} color="#2563EB" />
                         </View>
                         <View className="ml-3 flex-1">
-                          <Text className={`font-bold ${t.text}`}>{permission.title}</Text>
+                          <Text className={`font-bold text-sm ${t.text}`}>{permission.title}</Text>
                           <Text className={`text-xs ${t.textMuted}`}>{permission.description}</Text>
                         </View>
                       </View>
 
-                      {isGranted ? (
-                        <View className="px-2 py-1 rounded-lg bg-emerald-100">
-                          <Text className="text-[10px] font-bold text-emerald-700">Granted</Text>
+                      {granted ? (
+                        <View
+                          className={`px-2 py-1 rounded-lg ${
+                            t.isDarkMode ? 'bg-emerald-900/40' : 'bg-emerald-100'
+                          }`}
+                        >
+                          <Text
+                            className={`text-[10px] font-bold ${
+                              t.isDarkMode ? 'text-emerald-400' : 'text-emerald-700'
+                            }`}
+                          >
+                            Granted
+                          </Text>
                         </View>
                       ) : cannotAskAgain ? (
+                        /* Settings button — visible in dark mode */
                         <TouchableOpacity
                           onPress={() => Linking.openSettings()}
-                          className="px-3 py-2 rounded-xl bg-slate-900"
+                          className={`px-3 py-2 rounded-xl border ${t.border} ${t.bgSurface}`}
                           activeOpacity={0.8}
                         >
-                          <Text className="text-white text-[10px] font-black uppercase">Settings</Text>
+                          <Text className={`text-[10px] font-black uppercase ${t.text}`}>
+                            Settings
+                          </Text>
                         </TouchableOpacity>
                       ) : (
                         <TouchableOpacity
                           onPress={() => requestSingle(permission.key)}
                           className="px-3 py-2 rounded-xl bg-blue-600"
                           activeOpacity={0.85}
-                          disabled={isRequesting}
+                          disabled={requesting}
                         >
                           <Text className="text-white text-[10px] font-black uppercase">
-                            {isRequesting ? "Requesting" : "Allow"}
+                            {requesting ? "Requesting…" : "Allow"}
                           </Text>
                         </TouchableOpacity>
                       )}
@@ -223,24 +235,14 @@ export default function AppPermissionsModal({ visible, onDone }: AppPermissionsM
             </View>
           )}
 
-          <TouchableOpacity
-            onPress={requestAll}
-            disabled={checking || requestingKey !== null}
-            className="mt-5 h-12 rounded-2xl bg-blue-600 items-center justify-center"
-            activeOpacity={0.9}
-          >
-            <Text className="text-white font-black uppercase tracking-widest text-xs">
-              {requestingKey === "all" ? "Requesting All…" : "Allow All"}
-            </Text>
-          </TouchableOpacity>
-
+          {/* Footer button — visible border in dark mode */}
           <TouchableOpacity
             onPress={onDone}
-            className={`mt-3 h-12 rounded-2xl border items-center justify-center ${t.border} ${t.bgCard}`}
+            className={`mt-5 h-12 rounded-2xl border items-center justify-center ${t.border} ${t.bgSurface}`}
             activeOpacity={0.85}
           >
-            <Text className={`font-black uppercase tracking-widest text-xs ${t.textMuted}`}>
-              {allGranted ? "Continue" : "Continue Later"}
+            <Text className={`font-black uppercase tracking-widest text-xs ${t.text}`}>
+              {checking ? "Loading…" : allGranted ? "Continue" : "Skip for Now"}
             </Text>
           </TouchableOpacity>
         </View>

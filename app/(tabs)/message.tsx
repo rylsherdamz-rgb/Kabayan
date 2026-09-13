@@ -1,12 +1,12 @@
 import React, { useEffect, useMemo, useState, useCallback } from "react";
-import { View, Text, TouchableOpacity, Image, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform } from "react-native";
+import { View, Text, TouchableOpacity, Image, TextInput, KeyboardAvoidingView, Platform } from "react-native";
 import { LegendList } from "@legendapp/list";
-import { Feather } from "@expo/vector-icons";
+import { Feather, Ionicons } from "@expo/vector-icons";
 import { useRouter, useFocusEffect } from "expo-router";
 import { useTheme } from "@/hooks/useTheme";
-import { supabaseClient } from "@/utils/supabase";
+import { api, getStoredUser } from "@/utils/api";
 import CustomModal from "@/components/CustomComponents/CustomModalComponent";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useHeaderHeight } from "@react-navigation/elements";
 
 type Conversation = {
   roomId: string;
@@ -22,7 +22,7 @@ type Conversation = {
 
 export default function Inbox() {
   const { t } = useTheme();
-  const insets = useSafeAreaInsets();
+  const headerHeight = useHeaderHeight();
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [threads, setThreads] = useState<Conversation[]>([]);
@@ -38,39 +38,37 @@ export default function Inbox() {
     }
 
     setLoading(true);
-    const { data, error } = await supabaseClient.rpc("rpc_get_conversation_threads_for_user", {
-      p_user_id: resolvedUserId,
-    });
+    try {
+      const data = await api.get<any[]>("/api/conversations");
+      const rows = data ?? [];
 
-    if (error || !data) {
-      setLoading(false);
-      return;
+      const mapped: Conversation[] = rows.map((row: any) => ({
+        roomId: row.room_id,
+        lastMsg: row.last_message ?? "",
+        lastSenderId: row.last_sender_id ?? null,
+        lastTime: row.last_time ?? null,
+        otherUserId: row.other_user_id ?? null,
+        otherDisplayName: row.other_display_name ?? "Unknown User",
+        otherAvatarUrl: row.other_avatar_url ?? null,
+        jobId: row.job_id ?? null,
+        jobTitle: row.job_title ?? null,
+      }));
+
+      setThreads(mapped);
+    } catch {
+      // silently fail
     }
-
-    const mapped: Conversation[] = (data ?? []).map((row: any) => ({
-      roomId: row.room_id,
-      lastMsg: row.last_message ?? "",
-      lastSenderId: row.last_sender_id ?? null,
-      lastTime: row.last_time ?? null,
-      otherUserId: row.other_user_id ?? null,
-      otherDisplayName: row.other_display_name ?? "Unknown User",
-      otherAvatarUrl: row.other_avatar_url ?? null,
-      jobId: row.job_id ?? null,
-      jobTitle: row.job_title ?? null,
-    }));
-
-    setThreads(mapped);
     setLoading(false);
   }, [userId]);
 
   useFocusEffect(
     useCallback(() => {
       let active = true;
-      supabaseClient.auth.getUser().then(({ data }) => {
+      getStoredUser().then((user) => {
         if (!active) return;
-        const uid = data.user?.id ?? null;
+        const uid = user?.id ?? null;
         setUserId(uid);
-        setAuthModalVisible(!data.user);
+        setAuthModalVisible(!uid);
         if (uid) {
           fetchThreads(uid);
         } else {
@@ -86,20 +84,6 @@ export default function Inbox() {
   useEffect(() => {
     if (!userId) return;
     fetchThreads();
-    const channel = supabaseClient
-      .channel("messages:list")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "messages" },
-        () => {
-          fetchThreads();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabaseClient.removeChannel(channel);
-    };
   }, [userId, fetchThreads]);
 
   const filteredThreads = useMemo(() => {
@@ -116,10 +100,10 @@ export default function Inbox() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={Platform.OS === "ios" ? insets.top : 0}
+      keyboardVerticalOffset={Platform.OS === "ios" ? headerHeight : 0}
       className={`flex-1 ${t.bgPage}`}
     >
-      <View className={`pb-6 px-6 ${t.bgCard} border-b ${t.border}`} style={{ paddingTop:  12 }}>
+      <View className={`pb-6 px-6 ${t.bgCard} border-b ${t.border}`} style={{ paddingTop: 12 }}>
         <View className={`flex-row items-center mt-4 px-4 h-12 rounded-2xl ${t.bgSurface} border ${t.border}`}>
           <Feather name="search" size={16} color={t.icon} />
           <TextInput
@@ -134,9 +118,16 @@ export default function Inbox() {
       </View>
 
       {loading ? (
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator />
-          <Text className={`mt-2 ${t.textMuted}`}>Loading messages…</Text>
+        <View className="flex-1 px-6 pt-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <View key={i} className="flex-row items-center py-5 border-b" style={{ borderColor: t.isDarkMode ? '#1E293B' : '#E2E8F0' }}>
+              <View className={`w-14 h-14 rounded-full ${t.isDarkMode ? 'bg-[#1A2540]' : 'bg-[#E2E8F0]'}`} />
+              <View className="flex-1 ml-4 gap-2">
+                <View className={`h-4 w-32 rounded ${t.isDarkMode ? 'bg-[#1A2540]' : 'bg-[#E2E8F0]'}`} />
+                <View className={`h-3 w-48 rounded ${t.isDarkMode ? 'bg-[#1A2540]' : 'bg-[#E2E8F0]'}`} />
+              </View>
+            </View>
+          ))}
         </View>
       ) : (
         <LegendList
@@ -145,8 +136,16 @@ export default function Inbox() {
           estimatedItemSize={90}
           keyboardShouldPersistTaps="handled"
           ListEmptyComponent={
-            <View className="py-16 items-center">
-              <Text className={`text-sm ${t.textMuted}`}>No messages</Text>
+            <View className={`mx-4 mt-6 p-8 rounded-[28px] border ${t.border} ${t.bgCard} items-center`}>
+              <View className={`w-20 h-20 rounded-[28px] ${t.brandSoft} items-center justify-center mb-4`}>
+                <Ionicons name="chatbubbles-outline" size={36} color="#2563EB" />
+              </View>
+              <Text className={`text-lg font-black text-center ${t.text}`}>
+                {search.trim() ? "No matches found" : "No conversations yet"}
+              </Text>
+              <Text className={`mt-2 text-sm text-center leading-5 ${t.textMuted}`}>
+                {search.trim() ? "Try a different name or keyword." : "Apply to a job or message a vendor to start."}
+              </Text>
             </View>
           }
           renderItem={({ item }) => {
@@ -163,13 +162,13 @@ export default function Inbox() {
                     },
                   })
                 }
-                className={`flex-row items-center p-5 border-b ${t.border} active:bg-slate-50`}
+                className={`flex-row items-center p-5 border-b ${t.border} ${t.isDarkMode ? 'active:bg-[#141C2E]' : 'active:bg-slate-100'}`}
               >
                 <View className="relative">
                   {item.otherAvatarUrl ? (
-                    <Image source={{ uri: item.otherAvatarUrl }} className="w-14 h-14 rounded-[20px]" />
+                    <Image source={{ uri: item.otherAvatarUrl }} className="w-14 h-14 rounded-full" />
                   ) : (
-                    <View className="w-14 h-14 rounded-[20px] bg-slate-200 items-center justify-center">
+                    <View className="w-14 h-14 rounded-full bg-slate-200 items-center justify-center">
                       <Text className="text-slate-600 font-black text-lg">{item.otherDisplayName.slice(0, 1).toUpperCase()}</Text>
                     </View>
                   )}
@@ -185,7 +184,7 @@ export default function Inbox() {
                   </Text>
                   <View className="flex-row items-center mt-2">
                     <View className={`${t.brandSoft} px-2 py-0.5 rounded-md`}>
-                      <Text className={`text-[9px] font-black uppercase ${t.brand}`}>
+                      <Text className={`text-[10px] font-black uppercase ${t.brand}`}>
                         {item.jobTitle ? `Job: ${item.jobTitle}` : "Direct Message"}
                       </Text>
                     </View>

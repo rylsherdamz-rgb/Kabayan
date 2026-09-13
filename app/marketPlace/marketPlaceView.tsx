@@ -6,7 +6,7 @@ import { useTheme } from '@/hooks/useTheme';
 import MarketModal from '@/components/MarketPlace/MarketModal';
 import MarketEditModal from '@/components/MarketPlace/MarketEditModal';
 import EntityHeroBanner from '@/components/CustomComponents/EntityHeroBanner';
-import { supabaseClient } from '@/utils/supabase';
+import { api, getStoredUser } from '@/utils/api';
 import AppFlashMessage from '@/components/CustomComponents/AppFlashMessage';
 import useFlashMessage from '@/hooks/useFlashMessage';
 import humanizeError from '@/utils/humanizeError';
@@ -106,35 +106,30 @@ export default function MarketPlaceView() {
 
   const loadListings = useCallback(async () => {
     setLoadingListings(true);
-    const { data, error } = await supabaseClient.rpc("rpc_get_marketplace_listings_feed");
-    if (error) {
-      showFlashMessage("Marketplace Error", humanizeError(error, "Unable to load marketplace listings."), "error");
-      setLoadingListings(false);
-      return;
+    try {
+      const data = await api.get<any[]>("/api/marketplace");
+      const normalized = (data ?? []).map(normalizeListing);
+      setListings(normalized);
+      setSelectedId((prev) => {
+        const requestedId = typeof params.id === "string" ? params.id : null;
+        if (requestedId && normalized.some((item) => item.id === requestedId)) return requestedId;
+        if (prev && normalized.some((item) => item.id === prev)) return prev;
+        return normalized[0]?.id ?? null;
+      });
+    } catch {
+      showFlashMessage("Marketplace Error", "Unable to load marketplace listings.", "error");
     }
-
-    const normalized = (data ?? []).map(normalizeListing);
-    setListings(normalized);
-    setSelectedId((prev) => {
-      const requestedId = typeof params.id === "string" ? params.id : null;
-      if (requestedId && normalized.some((item) => item.id === requestedId)) return requestedId;
-      if (prev && normalized.some((item) => item.id === prev)) return prev;
-      return normalized[0]?.id ?? null;
-    });
     setLoadingListings(false);
   }, [params.id, showFlashMessage]);
 
   const loadReviews = useCallback(async (listingId: string) => {
     setLoadingReviews(true);
-    const { data, error } = await supabaseClient.rpc("rpc_get_marketplace_reviews", {
-      p_listing_id: listingId,
-    });
-    if (error) {
-      showFlashMessage("Reviews Error", humanizeError(error, "Unable to load reviews."), "error");
-      setLoadingReviews(false);
-      return;
+    try {
+      const data = await api.get<any[]>(`/api/marketplace/${listingId}/reviews`);
+      setReviews((data ?? []).map(normalizeReview));
+    } catch {
+      showFlashMessage("Reviews Error", "Unable to load reviews.", "error");
     }
-    setReviews((data ?? []).map(normalizeReview));
     setLoadingReviews(false);
   }, [showFlashMessage]);
 
@@ -143,16 +138,9 @@ export default function MarketPlaceView() {
   }, [loadListings]);
 
   useEffect(() => {
-    supabaseClient.auth.getUser().then(({ data }) => {
-      setCurrentUserId(data.user?.id ?? null);
+    getStoredUser().then((user) => {
+      setCurrentUserId(user?.id ?? null);
     });
-    const { data: authListener } = supabaseClient.auth.onAuthStateChange((_event, session) => {
-      setCurrentUserId(session?.user?.id ?? null);
-    });
-
-    return () => {
-      authListener.subscription.unsubscribe();
-    };
   }, []);
 
   useEffect(() => {
@@ -215,12 +203,8 @@ export default function MarketPlaceView() {
   const isOwner = Boolean(currentUserId && featured && featured.vendor_id === currentUserId);
 
   const handleOpenReviewModal = async () => {
-    const { data, error } = await supabaseClient.auth.getUser();
-    if (error) {
-      showFlashMessage("Auth Error", humanizeError(error, "Unable to verify your session."), "error");
-      return;
-    }
-    if (!data.user) {
+    const user = await getStoredUser();
+    if (!user) {
       showFlashMessage("Sign in required", "Please sign in before writing a review.", "warning");
       return;
     }
@@ -231,13 +215,8 @@ export default function MarketPlaceView() {
   const handleOpenOrderModal = async () => {
     if (!featured || isOwner) return;
 
-    const { data, error } = await supabaseClient.auth.getUser();
-    if (error) {
-      showFlashMessage("Auth Error", humanizeError(error, "Unable to verify your session."), "error");
-      return;
-    }
-
-    if (!data.user) {
+    const user = await getStoredUser();
+    if (!user) {
       showFlashMessage("Sign in required", "Please sign in before placing an order.", "warning");
       return;
     }
@@ -258,15 +237,10 @@ export default function MarketPlaceView() {
 
     try {
       const targetListingId = featured.id;
-      const { data, error } = await supabaseClient
-        .rpc("rpc_create_marketplace_review", {
-          p_listing_id: targetListingId,
-          p_rating: rating,
-          p_comment: reviewComment.trim() || null,
-        })
-        .maybeSingle();
-
-      if (error) throw new Error(error.message);
+      const data = await api.post<any>(`/api/marketplace/${targetListingId}/reviews`, {
+        rating,
+        comment: reviewComment.trim() || null,
+      });
 
       setReviewModalVisible(false);
       setReviewRating(5);
@@ -302,14 +276,7 @@ export default function MarketPlaceView() {
     const nextIsOpen = !featured.is_open;
     setUpdatingOpenState(true);
     try {
-      const { data, error } = await supabaseClient
-        .rpc("rpc_set_marketplace_listing_open_state", {
-          p_listing_id: featured.id,
-          p_is_open: nextIsOpen,
-        })
-        .maybeSingle();
-
-      if (error) throw new Error(error.message);
+      const data = await api.patch<any>(`/api/marketplace/${featured.id}/status`, { is_open: nextIsOpen });
       const resolvedOpen = typeof data?.is_open === "boolean" ? data.is_open : nextIsOpen;
       setListings((prev) =>
         prev.map((item) =>
@@ -348,13 +315,7 @@ export default function MarketPlaceView() {
           onPress: async () => {
             setDeletingStore(true);
             try {
-              const { data, error } = await supabaseClient
-                .rpc("rpc_delete_marketplace_store", {
-                  p_store_name: featured.store_name,
-                })
-                .maybeSingle();
-
-              if (error) throw new Error(error.message);
+              const data = await api.delete<any>(`/api/marketplace/${featured.id}`);
 
               const normalizedStoreName = featured.store_name.trim().toLowerCase();
               setListings((prev) =>
@@ -398,17 +359,12 @@ export default function MarketPlaceView() {
 
     setSubmittingOrder(true);
     try {
-      const { data, error } = await supabaseClient
-        .rpc("rpc_create_marketplace_order", {
-          p_listing_id: featured.id,
-          p_quantity: quantityValue,
-          p_delivery_mode: deliveryMode,
-          p_delivery_address: deliveryMode === "delivery" ? deliveryAddress.trim() : null,
-          p_notes: orderNotes.trim() || null,
-        })
-        .maybeSingle();
-
-      if (error) throw new Error(error.message);
+      const data = await api.post<any>(`/api/marketplace/${featured.id}/orders`, {
+        quantity: quantityValue,
+        delivery_mode: deliveryMode,
+        delivery_address: deliveryMode === "delivery" ? deliveryAddress.trim() : null,
+        notes: orderNotes.trim() || null,
+      });
 
       setOrderModalVisible(false);
       setOrderQuantity("1");
@@ -514,25 +470,12 @@ export default function MarketPlaceView() {
             </View>
           </View>
 
-          <View className={`mt-6 px-5 py-5 rounded-[28px] border ${t.border} ${t.bgSurface}`}>
-            <View className="flex-row items-start justify-between">
-              <View className="flex-1 pr-4">
-                <Text className={`text-[10px] font-black uppercase tracking-widest ${t.textMuted}`}>Store Item</Text>
-                <Text className={`mt-2 text-base font-black ${t.text}`}>{featured.name}</Text>
-                <Text className={`mt-1 text-sm font-semibold ${t.textMuted}`}>{featured.store_name}</Text>
-              </View>
-              <View className="items-end">
-                <Text className={`text-[10px] font-black uppercase tracking-widest ${t.textMuted}`}>Price</Text>
-                <Text className={`mt-2 text-xl font-black ${t.price}`}>₱{featured.price.toLocaleString()}</Text>
-              </View>
+          {featured.description ? (
+            <View className={`mt-6 px-5 py-5 rounded-[28px] border ${t.border} ${t.bgSurface}`}>
+              <Text className={`text-[10px] font-black uppercase tracking-widest ${t.textMuted}`}>Description</Text>
+              <Text className={`mt-3 text-sm leading-6 ${t.textMuted}`}>{featured.description}</Text>
             </View>
-            {featured.description ? (
-              <Text className={`mt-4 text-sm leading-6 ${t.textMuted}`}>
-                {featured.description}
-              </Text>
-            ) : null}
-            
-          </View>
+          ) : null}
     {!isOwner ? (
               <View className={`mt-5 rounded-[22px] border px-4 py-4 ${t.border} ${t.bgCard}`}>
                 <View className="flex-row items-start justify-between">
@@ -555,7 +498,7 @@ export default function MarketPlaceView() {
             <TouchableOpacity onPress={() => router.push({ pathname: "/map/mapView", params: { location: featured.location_label } })}>
               <InfoChip icon="map-pin" label={featured.location_label} t={t} />
             </TouchableOpacity>
-            <InfoChip icon="tag" label={`Store • ${featured.category}`} t={t} />
+            <InfoChip icon="tag" label={`${featured.category}`} t={t} />
           </View>
 
           {isOwner ? (
@@ -574,7 +517,7 @@ export default function MarketPlaceView() {
                   className={`h-12 rounded-2xl items-center justify-center ${featured.is_open ? "bg-rose-600" : "bg-emerald-600"}`}
                 >
                   <Text className="text-white text-xs font-black uppercase tracking-widest">
-                    {updatingOpenState ? "Updating..." : featured.is_open ? "Close Store Item" : "Reopen Store Item"}
+                    {updatingOpenState ? "Updating..." : featured.is_open ? "Close Listing" : "Reopen Listing"}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -589,7 +532,7 @@ export default function MarketPlaceView() {
                   className="mt-4 h-12 rounded-2xl items-center justify-center bg-slate-900"
                 >
                   <Text className="text-white text-xs font-black uppercase tracking-widest">
-                    {deletingStore ? "Deleting Store..." : "Delete Store"}
+                    {deletingStore ? "Deleting..." : "Delete Store & Listings"}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -658,7 +601,7 @@ export default function MarketPlaceView() {
             onPress={() => setShowModal(true)}
             className="bg-blue-600 flex-1 h-14 rounded-2xl items-center justify-center shadow-lg shadow-blue-500/40"
           >
-            <Text className="text-white font-black uppercase text-sm tracking-widest">Add Store Item</Text>
+                  <Text className="text-white font-black uppercase text-sm tracking-widest">Add Listing</Text>
           </TouchableOpacity>
         </SafeAreaView>
       ) : (
@@ -702,7 +645,7 @@ export default function MarketPlaceView() {
         <KeyboardAvoidingView
           className="flex-1 justify-end"
           behavior={Platform.OS === "ios" ? "padding" : "height"}
-          keyboardVerticalOffset={Platform.OS === "ios" ? insets.top + 12 : 0}
+          keyboardVerticalOffset={0}
         >
           <View className="flex-1 bg-black/50 justify-end">
             <ScrollView
@@ -831,7 +774,7 @@ export default function MarketPlaceView() {
         <KeyboardAvoidingView
           className="flex-1 justify-end"
           behavior={Platform.OS === "ios" ? "padding" : "height"}
-          keyboardVerticalOffset={Platform.OS === "ios" ? insets.top + 12 : 0}
+          keyboardVerticalOffset={0}
         >
           <View className="flex-1 bg-black/50 justify-end">
             <ScrollView

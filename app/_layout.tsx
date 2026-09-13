@@ -1,6 +1,7 @@
 import CustomLoading from "@/components/CustomComponents/CustomLoadingSpinner";
 import AppPermissionsModal from "@/components/PermissionModal/AppPermissionsModal";
 import useLandingPage from "@/hooks/useLandingPage";
+import { useTheme } from "@/hooks/useTheme";
 import Drawer from "expo-router/drawer";
 import { useEffect, useState } from "react";
 import { StatusBar, View } from "react-native";
@@ -11,25 +12,30 @@ import CustomDrawerContent from "@/components/CustomComponents/CustomDrawerConte
 import "../global.css";
 import {DocumentPickerContextProvider} from "@/context/DocumentPickerContext"
 import { ImagePickerContextProvider } from "@/context/ImagePicker";
-import { storage } from "@/utils/MMKVConfig";
+import { storage, ready } from "@/utils/MMKVConfig";
 
 export default function RootLayout() {
+  const { t } = useTheme();
   const { getIsFirstOpened } = useLandingPage();
   const [FirstOpened, setFirstOpened] = useState<boolean | null>(false);
   const [showPermissionModal, setShowPermissionModal] = useState(false);
 
   useEffect(() => {
-    const hasOpened = getIsFirstOpened();
-    const LandingPageValue = hasOpened === undefined ? true : !hasOpened;
-    setFirstOpened(LandingPageValue);
+    ready.then(() => {
+      const hasOpened = getIsFirstOpened();
+      const LandingPageValue = hasOpened === undefined ? true : !hasOpened;
+      setFirstOpened(LandingPageValue);
+    });
   }, [getIsFirstOpened]);
 
   useEffect(() => {
     if (FirstOpened !== false) return;
-    const hasSeenPermissionModal = storage.getBoolean("app_permissions_modal_seen");
-    if (!hasSeenPermissionModal) {
-      setShowPermissionModal(true);
-    }
+    ready.then(() => {
+      const hasSeenPermissionModal = storage.getBoolean("app_permissions_modal_seen");
+      if (!hasSeenPermissionModal) {
+        setShowPermissionModal(true);
+      }
+    });
   }, [FirstOpened]);
 
   const handlePermissionModalDone = () => {
@@ -46,19 +52,22 @@ export default function RootLayout() {
   }
 
    if (FirstOpened) {
-    // change this later to be the landing page
     return <Index  />
    }
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <StatusBar barStyle="dark-content" />
+        <StatusBar barStyle={t.isDarkMode ? 'light-content' : 'dark-content'} />
         <ImagePickerContextProvider>
           <DocumentPickerContextProvider>
             <Drawer
               drawerContent={(props) => <CustomDrawerContent {...props} />}
-              screenOptions={{ headerShown: false }}
+              screenOptions={{
+                headerShown: false,
+                drawerStyle: { width: '78%' },
+                overlayColor: 'rgba(0,0,0,0.45)',
+              }}
             >
               <Drawer.Screen
                 name="(tabs)"
