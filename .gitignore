@@ -46,3 +46,16 @@ backend/node_modules
 # generated native folders
 /ios
 /android
+
+# Claude Code local files
+CLAUDE.md
+.claude
+.codegraph
+
+# Ingest pipeline: scraped data, python venv, and FB session cookies never get committed
+data/
+scripts/.venv
+scripts/__pycache__
+scripts/pages/*.txt
+!scripts/pages/*.example.txt
+cookies*.txt

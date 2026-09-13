@@ -1,5 +1,8 @@
 import jwt from "jsonwebtoken";
 
+if (process.env.NODE_ENV !== "development" && !process.env.JWT_SECRET) {
+  throw new Error("JWT_SECRET must be set (unset only allowed when NODE_ENV=development)");
+}
 const JWT_SECRET = process.env.JWT_SECRET || "kabayan-dev-secret";
 
 export function signToken(userId) {
